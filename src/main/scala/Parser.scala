@@ -1,5 +1,3 @@
-package wacc
-
 import parsley.{Parsley, Result}
 import parsley.expr.chain
 

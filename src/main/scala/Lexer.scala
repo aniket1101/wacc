@@ -1,5 +1,3 @@
-package wacc
-
 import parsley.Parsley
 import parsley.token.Lexer
 import parsley.token.descriptions._

@@ -1,5 +1,3 @@
-package wacc
-
 import parsley.{Success, Failure}
 
 object Main {
