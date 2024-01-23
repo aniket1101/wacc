@@ -1,3 +1,7 @@
+# Compiled bytecode
+target/
+project/
+
 .bsp/
 .metals/
 .scala-build/
