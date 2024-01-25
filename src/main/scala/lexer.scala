@@ -4,6 +4,61 @@ import parsley.token.symbol.ImplicitSymbol
 import parsley.token.{Lexer, predicate}
 
 object lexer {
+    final val keywords = Set(
+        "begin",
+        "end",
+        "is",
+        "skip",
+        "read",
+        "free",
+        "return",
+        "exit",
+        "print",
+        "println",
+        "if",
+        "then",
+        "else",
+        "fi",
+        "while",
+        "do",
+        "done",
+        "newpair",
+        "call",
+        "fst",
+        "snd",
+        "int",
+        "bool",
+        "char",
+        "string",
+        "pair",
+        "true",
+        "false",
+        "null",
+        "len",
+        "ord",
+        "chr"
+    )
+  
+    final val operators = Set(
+        "!",
+        "-",
+        "len",
+        "ord",
+        "chr",
+        "*",
+        "/",
+        "+",
+        "-",
+        ">=",
+        ">",
+        "<=",
+        "<",
+        "==",
+        "!=",
+        "&&",
+        "||"
+    )
+
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(
             identifierStart = predicate.Basic(_.isLetter),
@@ -11,9 +66,8 @@ object lexer {
         ),
         spaceDesc = SpaceDesc.plain,
         symbolDesc = SymbolDesc.plain.copy(
-            hardOperators = Set("!", "-", "len", "ord", "chr", "*", "/", "+", "-", ">=", ">", "<=", "<", "==", "!=",
-                "&&", "||"
-            )
+            hardKeywords = keywords,
+            hardOperators = operators
         )
     )
     private val lexer = new Lexer(desc)
