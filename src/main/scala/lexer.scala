@@ -1,23 +1,7 @@
-// import parsley.Parsley
-// import parsley.token.Lexer
-// import parsley.token.descriptions._
-
-// object lexer {
-//     private val desc = LexicalDesc.plain.copy(
-//         // your configuration goes here
-//     )
-//     private val lexer = new Lexer(desc)
-
-//     val integer = lexer.lexeme.integer.decimal
-//     val implicits = lexer.lexeme.symbol.implicits
-//     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
-// }
-
 import parsley.Parsley
-import parsley.token.{Lexer, predicate}
 import parsley.token.descriptions._
-import parsley.token.errors.{ErrorConfig, Label, LabelConfig}
 import parsley.token.symbol.ImplicitSymbol
+import parsley.token.{Lexer, predicate}
 
 object lexer {
     private val desc = LexicalDesc.plain.copy(
