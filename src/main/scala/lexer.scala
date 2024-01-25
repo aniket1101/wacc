@@ -11,7 +11,9 @@ object lexer {
         ),
         spaceDesc = SpaceDesc.plain,
         symbolDesc = SymbolDesc.plain.copy(
-            hardOperators = Set("+", "*"),
+            hardOperators = Set("!", "-", "len", "ord", "chr", "*", "/", "+", "-", ">=", ">", "<=", "<", "==", "!=",
+                "&&", "||"
+            )
         )
     )
     private val lexer = new Lexer(desc)

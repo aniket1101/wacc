@@ -10,7 +10,7 @@ object parser {
     def parse[Err: ErrorBuilder](input: String): Either[Err, Prog] = parser.parse(input).toEither
 
     private lazy val parser = fully(prog)
-    private lazy val prog: Parsley[Prog] = expr.map({e => Prog(e)})
+    private lazy val prog: Parsley[Prog] = expr.map(Prog)
 
     private lazy val expr: Parsley[Expr] =
         precedence(atom, "(" ~> expr <~ ")")(
@@ -22,5 +22,5 @@ object parser {
             Ops(InfixR)("&&" as And),
             Ops(InfixR)("||" as Or)
         )
-    private lazy val atom: Parsley[Expr] = ident.map(Var) | nat.map(Val)
+    private lazy val atom: Parsley[Expr] = ident.map(Ident) | nat.map(IntLit)
 }
