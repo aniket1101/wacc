@@ -1,5 +1,5 @@
-# Official OpenJDK Java image
-image: openjdk:8
+# Custom image made by Kishan Sambhi
+image: gumjoe/wacc-ci-scala:slim
 
 stages:          # List of stages for jobs and their order of execution
   - build
