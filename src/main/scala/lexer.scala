@@ -64,12 +64,37 @@ object lexer {
             identifierStart = predicate.Basic(_.isLetter),
             identifierLetter = predicate.Basic(_.isLetterOrDigit),
         ),
-        spaceDesc = SpaceDesc.plain,
         symbolDesc = SymbolDesc.plain.copy(
             hardKeywords = keywords,
             hardOperators = operators
+        ),
+        numericDesc = NumericDesc.plain,
+        textDesc = TextDesc.plain.copy(
+            escapeSequences = EscapeDesc.plain.copy(
+                escBegin = '\\',
+                literals = Set.empty,
+                singleMap = Map(
+                    '0' -> 0x0000,
+                    'b' -> 0x0008,
+                    't' -> 0x0009,
+                    'n' -> 0x000a,
+                    'f' -> 0x000c,
+                    'r' -> 0x000d,
+                    '"' -> 0x0022,
+                    '\'' -> 0x0027,
+                    '\\' -> 0x005c
+                ),
+                graphicCharacter = predicate.Basic(c => {
+                    (c != '"') && (c != '\'') && (c != '\\') && (c != '\n') && (c != '\t') && (c != '\r') && (c != '\f') && (c != '\b')
+                })
+            )
+        ),
+        spaceDesc = SpaceDesc.plain.copy(
+            commentLine = "#",
+            space = predicate.Basic(_.isWhitespace)
         )
     )
+    
     private val lexer = new Lexer(desc)
 
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)

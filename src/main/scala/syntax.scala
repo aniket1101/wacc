@@ -1,5 +1,9 @@
 case class Prog(x: Expr)
 
+object ast {
+    
+}
+
 sealed trait Expr
 
 /* Binary Operators */
