@@ -1,9 +1,12 @@
+import ast._
 import parsley.Parsley
+import parsley.character.string
 import parsley.token.Lexer
+import parsley.token.descriptions.numeric.NumericDesc
+import parsley.token.descriptions.text.{EscapeDesc, TextDesc}
+import parsley.token.descriptions.{LexicalDesc, NameDesc, SpaceDesc, SymbolDesc}
 import parsley.token.predicate.Basic
-import parsley.token.descriptions.{LexicalDesc, NameDesc, SymbolDesc, SpaceDesc}
-import parsley.token.descriptions.numeric.{NumericDesc, ExponentDesc}
-import parsley.token.descriptions.text.{TextDesc, EscapeDesc}
+import parsley.token.symbol.ImplicitSymbol
 
 object lexer {
     final val keywords = Set(
@@ -96,9 +99,17 @@ object lexer {
     private val lexer = new Lexer(desc)
 
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
-    val identifier = lexer.lexeme.names.identifier
-    val integers = lexer.lexeme.unsigned.decimal32
-    val implicits = lexer.lexeme.symbol.implicits
-    val charLiterals = lexer.lexeme.character.ascii
-    val stringLiterals = lexer.lexeme.string.ascii
+
+    // Base Types
+    val intType: Parsley[Unit] = string("int").as()
+    val boolType: Parsley[Unit] = string("bool").as()
+    val charType: Parsley[Unit] = string("char").as()
+    val stringType: Parsley[Unit] = string("string").as()
+
+    val identifier: Parsley[String] = lexer.lexeme.names.identifier
+    val integers: Parsley[BigInt] = lexer.lexeme.unsigned.decimal32
+    val charLiterals: Parsley[Char] = lexer.lexeme.character.ascii
+    val stringLiterals: Parsley[String] = lexer.lexeme.string.ascii
+    val boolLiterals: Parsley[Boolean] = string("true").as(true) <|> string("false").as(false)
+    val implicits: ImplicitSymbol = lexer.lexeme.symbol.implicits
 }

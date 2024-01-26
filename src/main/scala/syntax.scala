@@ -1,8 +1,136 @@
-import javax.management.relation.InvalidRoleValueException
+import parsley.Parsley
+import parsley.position._
+import parsley.syntax.zipped.{Zipped2, Zipped3, Zipped4}
+import parserTools.SymbolTable
 
 object ast {
-    case class Prog(funcs: List[Func], stmt: Stmt)(pos: (Int, Int))
-    case class Func(typ: Type, ident: Ident, paramList: ParamList, stmt: Stmt)(pos: (Int, Int))
+
+    // Bridge between singleton and parser
+    trait ParserSingletonBridgePos[+A] {
+        def con(pos: (Int, Int)): A
+
+        def from(op: Parsley[_]): Parsley[A] = pos.map(this.con(_)) <* op
+
+        final def <#(op: Parsley[_]): Parsley[A] = this from op
+    }
+
+    // Bridge with no arguments
+    trait ParserBridgePos0[R] extends ParserSingletonBridgePos[R] {
+        override final def con(pos: (Int, Int)): R = this.apply()(pos)
+
+        def apply()(pos: (Int, Int)): R
+    }
+
+    // Bridge with 1 argument
+    trait ParserBridgePos1[-A, +B] extends ParserSingletonBridgePos[A => B] {
+        override final def con(pos: (Int, Int)): A => B = this.apply(_)(pos)
+
+        def apply(x: A)(pos: (Int, Int)): B
+
+        def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply(_) _)
+    }
+
+    // Bridge with 2 arguments
+    trait ParserBridgePos2[-A, -B, +C] extends ParserSingletonBridgePos[(A, B) => C] {
+        override final def con(pos: (Int, Int)): (A, B) => C = this.apply(_, _)(pos)
+
+        def apply(x: A, y: B)(pos: (Int, Int)): C
+
+        def apply(x: Parsley[A], y: => Parsley[B]): Parsley[C] =
+            pos <**> (x, y).zipped(this.apply(_, _) _)
+    }
+
+    // Bridge with 3 arguments
+    trait ParserBridgePos3[-A, -B, -C, +D] extends ParserSingletonBridgePos[(A, B, C) => D] {
+        override final def con(pos: (Int, Int)): (A, B, C) => D =
+            this.apply(_, _, _)(pos)
+
+        def apply(x: A, y: B, z: C)(pos: (Int, Int)): D
+
+        def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C]): Parsley[D] =
+            pos <**> (x, y, z).zipped(this.apply(_, _, _) _)
+    }
+
+    class node() {
+        var sTbl: SymbolTable = null
+
+        def addSt(st: SymbolTable): Unit = {
+            sTbl = st
+        }
+    }
+
+    case class Prog(val funcs: List[Func], val stats: Stats)(pos: (Int, Int)) extends node {
+        override def toString: String = {
+            var output: String = null
+            for (f <- funcs) {
+                output += f.toString
+            }
+            output + stats.toString
+        }
+    }
+
+    case class Func(val ident: TypeIdent, val params: List[Param], val stats: Stats)(val pos: (Int, Int)) extends node {
+        override def toString: String = {
+            var output = ident.toString + "("
+            for (param <- params) {
+                output += param.toString + ","
+            }
+            output + "):\n" + stats.toString + "funcEnd"
+        }
+    }
+
+    sealed trait Stat
+    case class Stats(val stats: List[Stat])(pos: (Int, Int)) {
+        override def toString: String = {
+            var out: String = ""
+            for (s <- stats) {
+                out += s.toString + ";\n"
+            }
+            out
+        }
+    }
+
+    case class Skip()(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "skip(" + pos.toString() + ")"
+    }
+
+    case class Read(val lvalue: LValue)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "read(" + lvalue.toString + ")"
+    }
+
+    case class Println(val expr: Expr)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "println(" + expr.toString + ")"
+    }
+
+    case class Exit(val expr: Expr)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "exit(" + expr.toString + ")"
+    }
+
+    case class Return(val expr: Expr)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "return(" + expr.toString + ")"
+    }
+
+    case class Free(val expr: Expr)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "free(" + expr.toString + ")"
+    }
+
+    case class If(val cond: Expr, val ifStats: Stats, val elseStats: Stats)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "if " + cond.toString + " then \n" +
+          ifStats.toString + " else \n" + elseStats.toString + " fi"
+    }
+
+    case class While(val cond: Expr, val body: Stats)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "while " + cond + " do \n" + body.toString + " done"
+    }
+
+    case class Print(val expr: Expr)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "print(" + expr.toString + ")"
+    }
+
+    case class Scope(val xs: Stats)(val pos: (Int, Int)) extends Stat {
+        override def toString: String = "{" + xs.toString + "}"
+    }
+
     case class ParamList(params: List[Param])(pos: (Int, Int))
     case class Param(typ: Type, ident: Ident)(pos: (Int, Int))
 
@@ -35,7 +163,7 @@ object ast {
 
     case class ArgList(args: List[Expr])(pos: (Int, Int))
 
-    sealed trait PairElem extends LValue with InvalidRoleValueException
+    sealed trait PairElem extends LValue with RValue
     case class PairFst(lValue: LValue)(pos: (Int, Int))
     case class PairSnd(lValue: LValue)(pos: (Int, Int))
 
@@ -78,7 +206,6 @@ object ast {
 
     /* Literals */
     case class IntLit(x: BigInt)(pos: (Int, Int)) extends Expr
-    case class Ident(v: String)(pos: (Int, Int)) extends Expr
     case class BoolLit(b: Boolean)(pos: (Int, Int)) extends Expr
     case class CharLit(c: Char)(pos: (Int, Int)) extends Expr
     case class StrLit(s: String)(pos: (Int, Int)) extends Expr
