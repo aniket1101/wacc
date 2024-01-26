@@ -50,6 +50,7 @@ object ast {
             pos <**> (x, y, z).zipped(this.apply(_, _, _) _)
     }
 
+    /* Root node for AST */
     class root() {
         var sTbl: SymbolTable = null
 
@@ -57,6 +58,7 @@ object ast {
             sTbl = st
         }
     }
+
 
     case class Prog(funcs: List[Func],  stats: Stats)(val pos: (Int, Int)) extends root {
         override def toString: String = {
@@ -93,40 +95,31 @@ object ast {
     case class Skip()(val pos: (Int, Int)) extends Stat {
         override def toString: String = "skip(" + pos.toString() + ")"
     }
-
     case class Read(lvalue: LValue)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "read(" + lvalue.toString + ")"
     }
-
     case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "free(" + expr.toString + ")"
     }
-
     case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "return(" + expr.toString + ")"
     }
-
     case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "exit(" + expr.toString + ")"
     }
-
     case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "print(" + expr.toString + ")"
     }
-
     case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "println(" + expr.toString + ")"
     }
-
     case class If(cond: Expr, ifStats: Stats, elseStats: Stats)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "if " + cond.toString + " then \n" +
           ifStats.toString + " else \n" + elseStats.toString + " fi"
     }
-
     case class While(cond: Expr, body: Stats)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "while " + cond + " do \n" + body.toString + " done"
     }
-
     case class Scope(xs: Stats)(val pos: (Int, Int)) extends Stat {
         override def toString: String = "{" + xs.toString + "}"
     }
@@ -136,11 +129,8 @@ object ast {
     sealed trait PairElemType extends Type
 
     case class PairT(expr1: PairElemType, expr2: PairElemType)(val pos: (Int, Int)) extends Type {
-        override def toString: String = "Pair(" +
-                                                  expr1.toString + "," +
-                                                  expr2.toString + ")" +
-                                                  "(" + pos.toString() +
-                                        ")"
+        override def toString: String = "Pair(" + expr1.toString + "," + expr2.toString + ")" +
+                                        "(" + pos.toString() + ")"
     }
 
     sealed trait Type1 extends PairElemType with Type
@@ -148,7 +138,6 @@ object ast {
     case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type1 {
         override def toString: String = typ.toString + "[]"
     }
-
     case class PairType()(val pos: (Int, Int)) extends PairElemType {
         override def toString: String = "PAIR"
     }
@@ -158,15 +147,12 @@ object ast {
     case class IntType()(val pos: (Int, Int)) extends BaseType {
         override def toString: String = "INT"
     }
-
     case class BoolType()(val pos: (Int, Int)) extends BaseType {
         override def toString: String = "BOOL"
     }
-
     case class CharType()(val pos: (Int, Int)) extends BaseType {
         override def toString: String = "CHAR"
     }
-
     case class StringType()(val pos: (Int, Int)) extends BaseType {
         override def toString: String = "STRING"
     }
@@ -184,7 +170,6 @@ object ast {
     case class Declaration(typeIdent: TypeIdent, rVal: RValue)(val pos: (Int, Int)) extends Stat {
         override def toString: String = typeIdent.toString + ":=" + rVal.toString
     }
-
     case class Assign(lVal: LValue, rVal: RValue)(val pos: (Int, Int)) extends Stat {
         override def toString: String = lVal.toString + ":=" + rVal.toString
     }
@@ -240,7 +225,7 @@ object ast {
 
     /* Literals */
     case class IntLiteral(num: Int)(val pos: (Int, Int)) extends Expr with IntExpr {
-        override def toString(): String = num.toString
+        override def toString: String = num.toString
     }
 
     case class BoolLiteral(bool: Boolean)(val pos: (Int, Int)) extends Expr with BoolExpr {
@@ -349,65 +334,62 @@ object ast {
         override def toString: String = "Chr(" + expr.toString + ")"
     }
 
+    /* For use of either LValue or Expr in Ident and ArrayElem */
     object identType extends ParserBridgePos2[Ident, List[Expr], identType] {
         def apply(ident: Ident, exprs: List[Expr])(pos: (Int, Int)): identType = exprs match {
             case Nil => ident
             case exprs => ArrayElem(ident, exprs)(pos)
         }
     }
+
+    /* Core */
     object Prog extends ParserBridgePos2[List[Func], Stats, Prog]
-
     object Scope extends ParserBridgePos1[Stats, Scope]
-
     object Func extends ParserBridgePos3[TypeIdent, List[Param], Stats, Func]
-
-    object Stats extends ParserBridgePos1[List[Stat], Stats]
-
-    object Skip extends ParserBridgePos0[Skip]
-
-    object PairType extends ParserBridgePos0[PairType]
-
-    object IntType extends ParserBridgePos0[IntType]
-
-    object BoolType extends ParserBridgePos0[BoolType]
-
-    object CharType extends ParserBridgePos0[CharType]
-
-    object StringType extends ParserBridgePos0[StringType]
-
-    object PairLiteral extends ParserBridgePos0[PairLiteral]
-
-    object Read extends ParserBridgePos1[LValue, Read]
-
-    object Println extends ParserBridgePos1[Expr, Println]
-
-    object Exit extends ParserBridgePos1[Expr, Exit]
-
-    object Return extends ParserBridgePos1[Expr, Return]
-
-    object Free extends ParserBridgePos1[Expr, Free]
-
-    object If extends ParserBridgePos3[Expr, Stats, Stats, If]
-
-    object While extends ParserBridgePos2[Expr, Stats, While]
-
-    object Print extends ParserBridgePos1[Expr, Print]
-
     object Param extends ParserBridgePos1[TypeIdent, Param]
-
     object TypeIdent extends ParserBridgePos2[Type, Ident, TypeIdent]
 
+    /* Statements */
+    object Stats extends ParserBridgePos1[List[Stat], Stats]
+    object Skip extends ParserBridgePos0[Skip]
     object Declaration extends ParserBridgePos2[TypeIdent, RValue, Declaration]
-
     object Assign extends ParserBridgePos2[LValue, RValue, Assign]
-    object PairT extends ParserBridgePos2[PairElemType, PairElemType, PairT]
+    object Read extends ParserBridgePos1[LValue, Read]
+    object Free extends ParserBridgePos1[Expr, Free]
+    object Return extends ParserBridgePos1[Expr, Return]
+    object Exit extends ParserBridgePos1[Expr, Exit]
+    object Print extends ParserBridgePos1[Expr, Print]
+    object Println extends ParserBridgePos1[Expr, Println]
+    object If extends ParserBridgePos3[Expr, Stats, Stats, If]
+    object While extends ParserBridgePos2[Expr, Stats, While]
+
+    /* Base Types */
+    object IntType extends ParserBridgePos0[IntType]
+    object BoolType extends ParserBridgePos0[BoolType]
+    object CharType extends ParserBridgePos0[CharType]
+    object StringType extends ParserBridgePos0[StringType]
+
+    /* Array Type */
     object ArrayType extends ParserBridgePos1[Type, ArrayType]
-    object Call extends ParserBridgePos2[Ident, ArgList, Call]
-    object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
-    object ArgList extends ParserBridgePos1[List[Expr], ArgList]
+
+    /* Pair */
+    object PairType extends ParserBridgePos0[PairType]
+    object PairLiteral extends ParserBridgePos0[PairLiteral]
+    object PairT extends ParserBridgePos2[PairElemType, PairElemType, PairT]
+
+    /* RValues */
     object ArrayLiteral extends ParserBridgePos1[List[Expr], ArrayLiteral]
+    object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
+    object Call extends ParserBridgePos2[Ident, ArgList, Call]
+
+    /* Arg-List */
+    object ArgList extends ParserBridgePos1[List[Expr], ArgList]
+
+    /* Pair-Elem */
     object PairElemFst extends ParserBridgePos1[LValue, PairElemFst]
     object PairElemSnd extends ParserBridgePos1[LValue, PairElemSnd]
+
+    /* Atoms */
     object ArrayElem extends ParserBridgePos2[Ident, List[Expr], ArrayElem]
     object Ident extends ParserBridgePos1[String, Ident]
     object IntLiteral extends ParserBridgePos1[Int, IntLiteral]
@@ -415,12 +397,14 @@ object ast {
     object CharLiteral extends ParserBridgePos1[Char, CharLiteral]
     object StrLiteral extends ParserBridgePos1[String, StrLiteral]
 
-    /* Binary Operators */
+    /* Unary Operators */
     object Not extends ParserBridgePos1[Expr, Not]
     object Neg extends ParserBridgePos1[Expr, Neg]
     object Len extends ParserBridgePos1[Expr, Len]
     object Ord extends ParserBridgePos1[Expr, Ord]
     object Chr extends ParserBridgePos1[Expr, Chr]
+
+    /* Binary Operators */
     object Add extends ParserBridgePos2[Expr, Expr, Add]
     object Sub extends ParserBridgePos2[Expr, Expr, Sub]
     object Mul extends ParserBridgePos2[Expr, Expr, Mul]
@@ -434,9 +418,5 @@ object ast {
     object NEq extends ParserBridgePos2[Expr, Expr, NEq]
     object And extends ParserBridgePos2[Expr, Expr, And]
     object Or extends ParserBridgePos2[Expr, Expr, Or]
-
-
-
-
 }
 
