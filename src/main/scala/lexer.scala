@@ -1,4 +1,4 @@
-import parsley.Parsley
+import parsley.{Parsley, character}
 import parsley.character.string
 import parsley.token.Lexer
 import parsley.token.descriptions.numeric.NumericDesc
@@ -44,16 +44,11 @@ object lexer {
 
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 
-    // Base Types
-    val intType: Parsley[Unit] = string("int").as()
-    val boolType: Parsley[Unit] = string("bool").as()
-    val charType: Parsley[Unit] = string("char").as()
-    val stringType: Parsley[Unit] = string("string").as()
-
     val identifier: Parsley[String] = lexer.lexeme.names.identifier
     val integers: Parsley[BigInt] = lexer.lexeme.unsigned.decimal
     val charLiterals: Parsley[Char] = lexer.lexeme.character.ascii
     val stringLiterals: Parsley[String] = lexer.lexeme.string.ascii
-    val boolLiterals: Parsley[Boolean] = string("true").as(true) <|> string("false").as(false)
+    val boolLiterals: Parsley[Boolean] = (string("true") <~ character.whitespaces).as(true) <|>
+      (string("false") <~ character.whitespaces).as(false)
     val implicits: ImplicitSymbol = lexer.lexeme.symbol.implicits
 }

@@ -5,23 +5,24 @@ object ast {
 
     // Statements
     sealed trait Stmt
-    case class Skip()
+    case class Skip() extends Stmt
     case class Declaration(typ: Type, x: Ident, y: RValue) extends Stmt
-    case class Assign(lValue: LValue, y: RValue)
-    case class Read(lValue: LValue)
-    case class Free(expr: Expr)
-    case class Return(expr: Expr)
-    case class Exit(expr: Expr)
-    case class Print(expr: Expr)
-    case class Println(expr: Expr)
-    case class IfStmt(cond: Expr, thenStmt: Stmt, elseStmt: Stmt)
-    case class WhileStmt(cond: Expr, doStmt: Stmt)
-    case class Begin(beginStmt: Stmt)
-    case class Stmts(stmt1: Stmt, stmt2: Stmt)
+    case class Assign(lValue: LValue, y: RValue) extends Stmt
+    case class Read(lValue: LValue) extends Stmt
+    case class Free(expr: Expr) extends Stmt
+    case class Return(expr: Expr) extends Stmt
+    case class Exit(expr: Expr) extends Stmt
+    case class Print(expr: Expr) extends Stmt
+    case class Println(expr: Expr) extends Stmt
+    case class IfStmt(cond: Expr, thenStmt: Stmt, elseStmt: Stmt) extends Stmt
+    case class WhileStmt(cond: Expr, doStmt: Stmt) extends Stmt
+    case class Begin(beginStmt: Stmt) extends Stmt
+    case class Stmts(stmt1: Stmt, stmt2: Stmt) extends Stmt
 
     sealed trait LValue
     sealed trait Expr extends RValue
-    case class Ident(name: String) extends LValue with Expr
+    sealed trait Atom extends Expr
+    case class Ident(name: String) extends LValue with Atom
     case class ArrayElem(ident: Ident, xs: List[Expr]) extends LValue with Expr
 
 
@@ -74,11 +75,11 @@ object ast {
     case class Chr(x: Expr) extends Expr
 
     /* Literals */
-    case class IntLit(x: BigInt) extends Expr
-    case class BoolLit(b: Boolean) extends Expr
-    case class CharLit(c: Char) extends Expr
-    case class StrLit(s: String) extends Expr
-    case class PairLiter() extends Expr
+    case class IntLit(x: BigInt) extends Atom
+    case class BoolLit(b: Boolean) extends Atom
+    case class CharLit(c: Char) extends Atom
+    case class StrLit(s: String) extends Atom
+    case class PairLiter() extends Atom
 
 }
 
