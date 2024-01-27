@@ -12,13 +12,13 @@ object parser {
     def parse[Err: ErrorBuilder](input: String): Either[Err, Prog] = parser.parse(input).toEither
 
     private lazy val parser = fully(prog)
-    private lazy val prog: Parsley[Prog] = ("begin" ~> funcs, stmts <~ "end").zipped(Prog)
+    private lazy val prog: Parsley[Prog] = ("begin" ~> funcs, stmt <~ "end").zipped(Prog)
     private lazy val funcs: Parsley[List[Func]] = many(func)
-    private lazy val func: Parsley[Func] = atomic(typ.zip(ident).zip(paramList).zip(stmt)).map({
+    private lazy val func: Parsley[Func] = atomic(typ.zip(ident).zip("(" ~> paramList <~ ")")).zip("is" ~> stmt <~ "end").map({
         case (((t, i), e), s) => Func(t, i, e, s)
     })
-    private lazy val stmts: Parsley[Stmt] = sepBy(stmt, ";").map{listToStmt}
-    private lazy val stmt: Parsley[Stmt] =
+    private lazy val stmt: Parsley[Stmt] = sepBy(singleStmt, ";").map(listToStmt)
+    private lazy val singleStmt: Parsley[Stmt] =
         // ‘skip’
         keyword("skip", Skip()) |
           // ⟨type⟩ ⟨ident⟩ ‘=’ ⟨rvalue⟩
@@ -38,11 +38,11 @@ object parser {
           // ‘println’ ⟨expr⟩
           ("println" ~> expr).map(Println) |
           // if’ ⟨expr⟩ ‘then’ ⟨stmt⟩ ‘else’ ⟨stmt⟩ ‘fi’
-          atomic("if" ~> expr).zip("then" ~> stmts).zip("else" ~> stmts <~ "fi").map({ case ((c, s1), s2) => IfStmt(c, s1, s2) }) |
+          atomic("if" ~> expr).zip("then" ~> stmt).zip("else" ~> stmt <~ "fi").map({ case ((c, s1), s2) => IfStmt(c, s1, s2) }) |
           // ‘while’ ⟨expr⟩ ‘do’ ⟨stmt⟩ ‘done’
-          ("while" ~> expr, "do" ~> stmts <~ "done").zipped(WhileStmt) |
+          ("while" ~> expr, "do" ~> stmt <~ "done").zipped(WhileStmt) |
           // ‘begin’ ⟨stmt⟩ ‘end’
-          ("begin" ~> stmts <~ "end").map(Begin)
+          ("begin" ~> stmt <~ "end").map(Begin)
         private lazy val ident: Parsley[Ident] = identifier.map(Ident)
 
         private lazy val typ: Parsley[Type] = baseType
@@ -71,7 +71,8 @@ object parser {
         private lazy val atom: Parsley[Atom] = identifier.map(Ident) | integers.map(IntLit) |
           boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit)
         private lazy val lvalue: Parsley[LValue] = identifier.map(Ident)
-        private lazy val rvalue: Parsley[RValue] = expr
+        private lazy val rvalue: Parsley[RValue] = expr | ("call" ~> ident, "(" ~> argList <~ ")").zipped(Call)
+        private lazy val argList: Parsley[ArgList] = sepBy(expr, ",").map(ArgList)
 
         private def keyword[A](str: String, obj: A): Parsley[A] =
             atomic(str).map(_ => obj)

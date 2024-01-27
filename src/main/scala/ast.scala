@@ -28,7 +28,7 @@ object ast {
 
     sealed trait RValue
     case class NewPair(fst: Expr, snd: Expr)
-    case class Call(x: Ident, args: ArgList)
+    case class Call(x: Ident, args: ArgList) extends RValue
     case class FunctionCall(ident: Ident, args: List[ArgList])
 
     case class ArgList(args: List[Expr])
