@@ -38,11 +38,11 @@ object parser {
           // ‘println’ ⟨expr⟩
           ("println" ~> expr).map(Println) |
           // if’ ⟨expr⟩ ‘then’ ⟨stmt⟩ ‘else’ ⟨stmt⟩ ‘fi’
-          atomic("if" ~> expr).zip("then" ~> stmt).zip("else" ~> stmt <~ "fi").map({ case ((c, s1), s2) => IfStmt(c, s1, s2) }) |
+          atomic("if" ~> expr).zip("then" ~> stmts).zip("else" ~> stmts <~ "fi").map({ case ((c, s1), s2) => IfStmt(c, s1, s2) }) |
           // ‘while’ ⟨expr⟩ ‘do’ ⟨stmt⟩ ‘done’
-          ("while" ~> expr, "do" ~> stmt <~ "done").zipped(WhileStmt) |
+          ("while" ~> expr, "do" ~> stmts <~ "done").zipped(WhileStmt) |
           // ‘begin’ ⟨stmt⟩ ‘end’
-          ("begin" ~> stmt <~ "end").map(Begin)
+          ("begin" ~> stmts <~ "end").map(Begin)
         private lazy val ident: Parsley[Ident] = identifier.map(Ident)
 
         private lazy val typ: Parsley[Type] = baseType

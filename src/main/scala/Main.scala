@@ -1,10 +1,12 @@
 object Main {
     def format(code: String): String = {"begin\n\t" + code + "\nend"}
 
-    val p = """
+    val p: String = """
           |begin
+          |    begin
           |    int x = 1 + 2;
           |    println x
+          |    end
           |end
     """.stripMargin
 

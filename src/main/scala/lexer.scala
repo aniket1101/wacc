@@ -8,11 +8,11 @@ import parsley.token.predicate.Basic
 import parsley.token.symbol.ImplicitSymbol
 
 object lexer {
-    final val keywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print",
+    private final val keywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print",
         "println", "if", "then", "else", "fi", "while", "do", "done", "newpair", "call", "fst",
         "snd", "int", "bool", "char", "string", "pair", "true", "false", "null", "len", "ord", "chr")
 
-    final val operators = Set("!", "-", "*", "/", "%", "+", ">", ">=", "<", "<=", "==", "!=", "&&", "||")
+    private final val operators = Set("!", "-", "*", "/", "%", "+", ">", ">=", "<", "<=", "==", "!=", "&&", "||")
 
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(

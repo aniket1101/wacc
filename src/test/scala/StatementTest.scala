@@ -27,5 +27,7 @@ class StatementTest extends AnyFlatSpec {
   it should "parse begin-end blocks" in {
     parser.parse(format("begin x = 1 end")) shouldBe
       Right(Prog(List(),Begin(Assign(Ident("x"),IntLit(1)))))
+    parser.parse(format("begin int x = 1 + 2; println x end")) shouldBe
+      Right(Prog(List(),Begin(Stmts(Declaration(IntType(),Ident("x"),Add(IntLit(1),IntLit(2))),Println(Ident("x"))))))
   }
 }
