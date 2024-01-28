@@ -45,7 +45,7 @@ object parser {
           ("begin" ~> stmt <~ "end").map(Begin)
     private lazy val ident: Parsley[Ident] = identifier.map(Ident)
 
-    private lazy val typ: Parsley[Type] = baseType | arrayType
+    private lazy val typ: Parsley[Type] = atomic(arrayType) | baseType
 
     private lazy val paramList: Parsley[List[Param]] = sepBy(param, ",")
      private lazy val param: Parsley[Param] = (typ, ident).zipped(Param)
@@ -72,7 +72,7 @@ object parser {
     private lazy val atom: Parsley[Atom] = identifier.map(Ident) | integers.map(IntLit) |
       boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit) | arrayElem
 
-    private lazy val lvalue: Parsley[LValue] = identifier.map(Ident) | arrayElem
+    private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | identifier.map(Ident)
     private lazy val rvalue: Parsley[RValue] = expr | ("call" ~> ident, "(" ~> argList <~ ")").zipped(Call) | arrayLit
     private lazy val argList: Parsley[ArgList] = sepBy(expr, ",").map(ArgList)
     private lazy val arrayLit: Parsley[ArrayLit] = ("[" ~> sepBy(expr, ",") <~ "]").map(ArrayLit)
