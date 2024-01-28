@@ -23,13 +23,12 @@ object ast {
     sealed trait Expr extends RValue
     sealed trait Atom extends Expr
     case class Ident(name: String) extends LValue with Atom
-    case class ArrayElem(ident: Ident, xs: List[Expr]) extends LValue with Expr
+    case class ArrayElem(ident: Ident, xs: List[Expr]) extends LValue with Atom
 
 
     sealed trait RValue
     case class NewPair(fst: Expr, snd: Expr)
     case class Call(x: Ident, args: ArgList) extends RValue
-    case class FunctionCall(ident: Ident, args: List[ArgList])
 
     case class ArgList(args: List[Expr])
 

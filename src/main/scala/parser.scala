@@ -2,7 +2,7 @@ import ast._
 import lexer.implicits.implicitSymbol
 import lexer._
 import parsley.Parsley
-import parsley.Parsley.{atomic, many}
+import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.sepBy
 import parsley.errors.ErrorBuilder
 import parsley.expr._
@@ -43,46 +43,57 @@ object parser {
           ("while" ~> expr, "do" ~> stmt <~ "done").zipped(WhileStmt) |
           // ‘begin’ ⟨stmt⟩ ‘end’
           ("begin" ~> stmt <~ "end").map(Begin)
-        private lazy val ident: Parsley[Ident] = identifier.map(Ident)
+    private lazy val ident: Parsley[Ident] = identifier.map(Ident)
 
-        private lazy val typ: Parsley[Type] = baseType
+    private lazy val typ: Parsley[Type] = baseType | arrayType
 
-        private lazy val paramList: Parsley[List[Param]] = sepBy(param, ",")
-        private lazy val param: Parsley[Param] = (typ, ident).zipped(Param)
+    private lazy val paramList: Parsley[List[Param]] = sepBy(param, ",")
+     private lazy val param: Parsley[Param] = (typ, ident).zipped(Param)
 
-        // Types
-        private lazy val baseType: Parsley[BaseType] = keyword("int", IntType()) | keyword("bool", BoolType()) |
-          keyword("char", CharType()) | keyword("string", StringType())
+    // Types
+    private lazy val baseType: Parsley[BaseType] = keyword("int", IntType()) | keyword("bool", BoolType()) |
+      keyword("char", CharType()) | keyword("string", StringType())
+    private lazy val arrayType: Parsley[ArrayType] = (baseType <~> some("[]")).map{case (bt, u) => toNestedArray(bt, u)}
 
-        private lazy val expr: Parsley[Expr] =
-            precedence(atom, "(" ~> expr <~ ")")(
-                Ops(Prefix)("!" as Not, "len" as Len, "ord" as Ord, "chr" as Chr,
-                    "-" as {
-                        case IntLit(x) => IntLit(-x)
-                        case otherExpr => Neg(otherExpr)
-                    }),
-                Ops(InfixL)("*" as Mul, "/" as Div),
-                Ops(InfixL)("+" as Add, "-" as Sub),
-                Ops(InfixN)(">=" as GTE, ">" as GT, "<=" as LTE, "<" as LT),
-                Ops(InfixN)("==" as Eq, "!=" as NEq),
-                Ops(InfixR)("&&" as And),
-                Ops(InfixR)("||" as Or)
-            )
-        private lazy val atom: Parsley[Atom] = identifier.map(Ident) | integers.map(IntLit) |
-          boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit)
-        private lazy val lvalue: Parsley[LValue] = identifier.map(Ident)
-        private lazy val rvalue: Parsley[RValue] = expr | ("call" ~> ident, "(" ~> argList <~ ")").zipped(Call)
-        private lazy val argList: Parsley[ArgList] = sepBy(expr, ",").map(ArgList)
+    private lazy val expr: Parsley[Expr] =
+        precedence(atom, "(" ~> expr <~ ")")(
+            Ops(Prefix)("!" as Not, "len" as Len, "ord" as Ord, "chr" as Chr,
+                "-" as {
+                    case IntLit(x) => IntLit(-x)
+                    case otherExpr => Neg(otherExpr)
+                }),
+            Ops(InfixL)("*" as Mul, "/" as Div),
+            Ops(InfixL)("+" as Add, "-" as Sub),
+            Ops(InfixN)(">=" as GTE, ">" as GT, "<=" as LTE, "<" as LT),
+            Ops(InfixN)("==" as Eq, "!=" as NEq),
+            Ops(InfixR)("&&" as And),
+            Ops(InfixR)("||" as Or)
+        )
+    private lazy val atom: Parsley[Atom] = identifier.map(Ident) | integers.map(IntLit) |
+      boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit) | arrayElem
 
-        private def keyword[A](str: String, obj: A): Parsley[A] =
-            atomic(str).map(_ => obj)
+    private lazy val lvalue: Parsley[LValue] = identifier.map(Ident) | arrayElem
+    private lazy val rvalue: Parsley[RValue] = expr | ("call" ~> ident, "(" ~> argList <~ ")").zipped(Call) | arrayLit
+    private lazy val argList: Parsley[ArgList] = sepBy(expr, ",").map(ArgList)
+    private lazy val arrayLit: Parsley[ArrayLit] = ("[" ~> sepBy(expr, ",") <~ "]").map(ArrayLit)
+    private lazy val arrayElem: Parsley[ArrayElem] = (identifier.map(Ident), some("[" ~> expr <~ "]")).zipped(ArrayElem)
 
-        private def listToStmt(stmts: List[Stmt]): Stmt = {
-            stmts match {
-                case Nil => Skip()
-                case head :: Nil => head
-                case stmt1 :: tail =>
-                    Stmts(stmt1, listToStmt(tail))
-            }
+    private def keyword[A](str: String, obj: A): Parsley[A] =
+        atomic(str).map(_ => obj)
+
+    private def listToStmt(stmts: List[Stmt]): Stmt = {
+        stmts match {
+            case Nil => Skip()
+            case head :: Nil => head
+            case stmt1 :: tail =>
+                Stmts(stmt1, listToStmt(tail))
         }
     }
+
+    private def toNestedArray(baseType: BaseType, brackets: List[Unit]): ArrayType = {
+        brackets match {
+            case _ :: Nil => ArrayType(baseType)
+            case _ :: tail => ArrayType(toNestedArray(baseType, tail))
+        }
+    }
+}

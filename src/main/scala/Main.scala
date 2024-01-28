@@ -29,7 +29,7 @@ object Main {
     }
 
     @tailrec
-    def printStmts(stmts: Stmt, indent: Int): Unit = {
+    private def printStmts(stmts: Stmt, indent: Int): Unit = {
         stmts match {
             case Stmts(s, ss) => {
                 println(" " * indent + s)
