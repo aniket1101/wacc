@@ -9,11 +9,16 @@ class ExpressionTest extends AnyFlatSpec {
     parser.parse(format("int x = 13")) shouldBe Right(Prog(List(), Declaration(IntType(), Ident("x"), IntLit(13))))
   }
 
+  it should "parse unary operators" in {
+    parser.parse(format("int x = + 13")) shouldBe Right(Prog(List(), Declaration(IntType(), Ident("x"), IntLit(13))))
+    parser.parse(format("int x = - 13")) shouldBe Right(Prog(List(), Declaration(IntType(), Ident("x"), IntLit(-13))))
+  }
+
   it should "parse correct precedence for +/*" in {
     parser.parse(format("int z = 4 * y + 5 * x")) shouldBe Right(Prog(List(), Declaration(IntType(), Ident("z"), Add(Mul(IntLit(4), Ident("y")), Mul(IntLit(5), Ident("x"))))))
   }
   it should "allow parentheses to override" in {
-    parser.parse(format("int a = (4 + y) * (5 + x)")) shouldBe Right(Prog(List(), Declaration(IntType(), Ident("a"), Mul(Add(IntLit(4), Ident("y")), Add(IntLit(5), Ident("x"))))))
+    parser.parse(format("int a = (4 + y) * (5 + x)")) shouldBe Right(Prog(List(), Declaration(IntType(),Ident("a"),Mul(Add(IntLit(4),Ident("y")),Add(IntLit(5),Ident("x"))))))
   }
 
   "expr" should "parse additions in a left-associative way" in {
@@ -25,7 +30,7 @@ class ExpressionTest extends AnyFlatSpec {
   }
 
   it should "not allow for missing terms" in {
-    parser.parse(format("int a = + 5")) shouldBe a[Left[_, _]]
+    parser.parse(format("int a = 5 +")) shouldBe a[Left[_, _]]
     parser.parse(format("int b = x + y +")) shouldBe a[Left[_, _]]
   }
 

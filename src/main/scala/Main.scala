@@ -33,7 +33,7 @@ object Main {
 
     val p: String = """
           |begin
-          | snd f = 1
+          | int a = + 5
           |end
     """.stripMargin.stripLeading()
 
