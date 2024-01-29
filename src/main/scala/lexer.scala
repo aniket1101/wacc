@@ -1,5 +1,5 @@
 import parsley.{Parsley, character}
-import parsley.character.string
+import parsley.character.{char, string}
 import parsley.token.Lexer
 import parsley.token.descriptions.numeric.NumericDesc
 import parsley.token.descriptions.text.{EscapeDesc, TextDesc}
@@ -16,8 +16,8 @@ object lexer {
 
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(
-            identifierStart = Basic(_.isLetter),
-            identifierLetter = Basic(_.isLetterOrDigit),
+            identifierStart = Basic((c: Char) => c.isLetter || c == '_'),
+            identifierLetter = Basic((c: Char) => c.isLetterOrDigit || c == '_'),
         ),
         symbolDesc = SymbolDesc.plain.copy(
             hardKeywords = keywords,
@@ -48,7 +48,7 @@ object lexer {
     val integers: Parsley[BigInt] = lexer.lexeme.unsigned.decimal
     val charLiterals: Parsley[Char] = lexer.lexeme.character.ascii
     val stringLiterals: Parsley[String] = lexer.lexeme.string.ascii
-    val boolLiterals: Parsley[Boolean] = (string("true") <~ character.whitespaces).as(true) <|>
+    val boolLiterals: Parsley[Boolean] = (string("true") <~ character.whitespaces).as(true) |
       (string("false") <~ character.whitespaces).as(false)
     val implicits: ImplicitSymbol = lexer.lexeme.symbol.implicits
 }

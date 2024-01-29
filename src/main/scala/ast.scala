@@ -49,14 +49,13 @@ object ast {
     case class CharType() extends BaseType
     case class StringType() extends BaseType
     case class PairType(fstType: PairElemType, sndType: PairElemType) extends Type
-    case class Fst(x: Expr) extends PairElem
-    case class Snd(x: Expr) extends PairElem
 
     /* Binary Operators */
     case class Add(x: Expr, y: Expr) extends Expr
     case class Sub(x: Expr, y: Expr) extends Expr
     case class Mul(x: Expr, y: Expr) extends Expr
     case class Div(x: Expr, y: Expr) extends Expr
+    case class Mod(x: Expr, y: Expr) extends Expr
     case class GT(x: Expr, y: Expr) extends Expr
     case class GTE(x: Expr, y: Expr) extends Expr
     case class LT(x: Expr, y: Expr) extends Expr

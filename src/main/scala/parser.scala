@@ -63,19 +63,20 @@ object parser {
                 "-" as {
                     case IntLit(x) => IntLit(-x)
                     case otherExpr => Neg(otherExpr)
-                }),
-            Ops(InfixL)("*" as Mul, "/" as Div),
+                },
+                "+" as (expr => expr)),
+            Ops(InfixL)("*" as Mul, "/" as Div, "%" as Mod),
             Ops(InfixL)("+" as Add, "-" as Sub),
             Ops(InfixN)(">=" as GTE, ">" as GT, "<=" as LTE, "<" as LT),
             Ops(InfixN)("==" as Eq, "!=" as NEq),
             Ops(InfixR)("&&" as And),
             Ops(InfixR)("||" as Or)
         )
-    private lazy val atom: Parsley[Atom] = identifier.map(Ident) | integers.map(IntLit) |
-      boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit) | arrayElem |
+    private lazy val atom: Parsley[Atom] = atomic(arrayElem) |  identifier.map(Ident) | integers.map(IntLit) |
+      boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit) |
       keyword("null", PairLiter())
 
-    private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | identifier.map(Ident)
+    private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | atomic(pairElem) | identifier.map(Ident)
     private lazy val rvalue: Parsley[RValue] = atomic(expr) | ("call" ~> ident, "(" ~> argList <~ ")").zipped(Call) | arrayLit |
       ("newpair" ~> "(" ~> expr, "," ~> expr <~ ")").zipped(NewPair) | pairElem
     private lazy val argList: Parsley[ArgList] = sepBy(expr, ",").map(ArgList)
