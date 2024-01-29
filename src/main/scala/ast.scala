@@ -27,14 +27,14 @@ object ast {
 
 
     sealed trait RValue
-    case class NewPair(fst: Expr, snd: Expr)
+    case class NewPair(fst: Expr, snd: Expr) extends RValue
     case class Call(x: Ident, args: ArgList) extends RValue
 
     case class ArgList(args: List[Expr])
 
-    sealed trait PairElem extends LValue
-    case class PairFst(lValue: LValue)
-    case class PairSnd(lValue: LValue)
+    sealed trait PairElem extends LValue with RValue
+    case class PairFst(lValue: LValue) extends PairElem
+    case class PairSnd(lValue: LValue) extends PairElem
 
     case class ArrayLit(xs: List[Expr]) extends RValue
 

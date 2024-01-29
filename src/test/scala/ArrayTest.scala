@@ -2,7 +2,7 @@ import Main.format
 import ast._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
-class ArrayTest extends AnyFlatSpec{
+class ArrayTest extends AnyFlatSpec {
   "Parser" should "parse array declarations" in {
     parser.parse(format("int[] a = []")) shouldBe Right(Prog(List(), Declaration(ArrayType(IntType()),Ident("a"),ArrayLit(List()))))
     parser.parse(format("int[] b = [1]")) shouldBe Right(Prog(List(), Declaration(ArrayType(IntType()),Ident("b"),ArrayLit(List(IntLit(1))))))

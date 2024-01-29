@@ -5,17 +5,7 @@ import scala.annotation.tailrec
 object Main {
     def format(code: String): String = {"begin\n\t" + code + "\nend"}
 
-    val p: String = """
-          |begin
-          |  int add(int x, int y) is
-          |    return x + y
-          |  end
-          |
-          |  int result = call add(3, 4)
-          |end
-    """.stripMargin.stripLeading()
-
-    private def prettyPrint(prog:  Either[String, Prog]): Unit = {
+    private def prettyPrint(prog: Either[String, Prog]): Unit = {
         prog match {
             case Right(Prog(funcs, stmts)) =>
                 funcs.foreach {
@@ -35,10 +25,16 @@ object Main {
                 println(" " * indent + s)
                 printStmts(ss, indent)
             }
-            case s => println(" " * indent +s)
+            case s => println(" " * indent + s)
 
         }
     }
+
+    val p: String = """
+          |begin
+          |    int p = snd s
+          |end
+    """.stripMargin.stripLeading()
 
     def main(args: Array[String]): Unit = {
         val ast = parser.parse(p)
