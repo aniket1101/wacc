@@ -32,7 +32,7 @@ object Main {
 
     val p: String = """
           |begin
-          |int x = 2200000000
+          |int x = +5
           |end
     """.stripMargin.stripLeading()
 

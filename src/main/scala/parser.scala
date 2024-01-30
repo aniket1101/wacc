@@ -72,7 +72,7 @@ object parser {
             Ops(InfixR)("&&" as And),
             Ops(InfixR)("||" as Or)
         )
-    private lazy val atom: Parsley[Atom] = atomic(arrayElem) |  identifier.map(Ident) | integers.map(IntLit) |
+    private lazy val atom: Parsley[Atom] = atomic(arrayElem) |  identifier.map(Ident) | integers.mapFilter(intIs32Bits) |
       boolLiterals.map(BoolLit) | charLiterals.map(CharLit) | stringLiterals.map(StrLit) |
       keyword("null", PairLiter())
 
@@ -100,6 +100,14 @@ object parser {
         brackets match {
             case _ :: Nil => ArrayType(typ)
             case _ :: tail => ArrayType(toNestedArray(typ, tail))
+        }
+    }
+
+    private def intIs32Bits(num: BigInt): Option[IntLit] = {
+        if (num >= BigInt(Int.MinValue) && num <= BigInt(Int.MaxValue) + 1) {
+            Option(IntLit(num))
+        } else {
+            None
         }
     }
 }
