@@ -3,7 +3,7 @@ import lexer.implicits.implicitSymbol
 import lexer._
 import parsley.Parsley
 import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.sepBy
+import parsley.combinator.{sepBy, sepBy1}
 import parsley.errors.ErrorBuilder
 import parsley.expr._
 import parsley.syntax.zipped._
@@ -17,7 +17,7 @@ object parser {
     private lazy val func: Parsley[Func] = atomic(typ.zip(ident).zip("(" ~> paramList <~ ")")).zip("is" ~> stmt <~ "end").map({
         case (((t, i), e), s) => Func(t, i, e, s)
     })
-    private lazy val stmt: Parsley[Stmt] = sepBy(singleStmt, ";").map(listToStmt)
+    private lazy val stmt: Parsley[Stmt] = sepBy1(singleStmt, ";").map(listToStmt)
     private lazy val singleStmt: Parsley[Stmt] =
         // ‘skip’
         keyword("skip", Skip()) |
