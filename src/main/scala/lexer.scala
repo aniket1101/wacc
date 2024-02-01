@@ -40,12 +40,12 @@ object lexer {
         )
     )
 
-    private val lexer = new Lexer(desc)
+    val lexer = new Lexer(desc)
 
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 
     val identifier: Parsley[String] = lexer.lexeme.names.identifier
-    val integers: Parsley[BigInt] = lexer.lexeme.unsigned.decimal
+    val integers: Parsley[Int] = lexer.lexeme.unsigned.decimal32
     val charLiterals: Parsley[Char] = lexer.lexeme.character.ascii
     val stringLiterals: Parsley[String] = lexer.lexeme.string.ascii
     val boolLiterals: Parsley[Boolean] = (string("true") <~ character.whitespaces).as(true) |
