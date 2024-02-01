@@ -1,11 +1,11 @@
-import parsley.{Parsley, character}
-import parsley.character.{char, string}
+import parsley.character.string
 import parsley.token.Lexer
 import parsley.token.descriptions.numeric.NumericDesc
 import parsley.token.descriptions.text.{EscapeDesc, TextDesc}
 import parsley.token.descriptions.{LexicalDesc, NameDesc, SpaceDesc, SymbolDesc}
 import parsley.token.predicate.Basic
 import parsley.token.symbol.ImplicitSymbol
+import parsley.{Parsley, character}
 
 object lexer {
     private final val keywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print",
