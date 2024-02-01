@@ -1,3 +1,4 @@
+import Main.parseProgram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
@@ -8,7 +9,7 @@ class InvalidSyntaxTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse: $testName" should "parse correctly" in {
-      parser.parse(testCode) shouldBe a[Left[_, _]]
+      parseProgram(testCode) shouldBe 100
     }
   }
 }

@@ -1,7 +1,7 @@
 import ast._
 
-import java.io.File
-import scala.annotation.tailrec
+import scala.io.Source
+import scala.util.{Failure, Success, Try}
 
 object Main {
     def format(code: String): String = {"begin\n\t" + code + "\nend"}
@@ -25,15 +25,32 @@ object Main {
         }
     }
 
-    val p: String = """
-          |begin
-          | int a = + 5
-          |end
-    """.stripMargin.stripLeading()
+    def parseProgram(str: String): Int = {
+        parser.parse(str) match {
+            case Right(_) => 0
+            case Left(_) => 100
+        }
+    }
+
+    def readFileContents(filename: String): Try[String] = {
+        Try {
+            val source = Source.fromFile(filename)
+            try {
+                source.mkString
+            } finally {
+                source.close()
+            }
+        }
+    }
 
     def main(args: Array[String]): Unit = {
-        val ast = parser.parse(p)
-        println(p + "\npassed as:\n")
-        prettyPrint(ast)
+        args.headOption match {
+            case Some(filename) =>
+                readFileContents(filename) match {
+                    case Success(contents) => println(parseProgram(contents))
+                    case Failure(_) => println(s"No file: $filename exists.")
+                }
+            case None => println("Please pass in a file.")
+        }
     }
 }

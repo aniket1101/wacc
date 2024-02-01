@@ -9,7 +9,7 @@ object ast {
         // Bridge between singleton and parser
     trait ParserSingletonBridgePos[+A] {
         def con(pos: (Int, Int)): A
-        def <#(op: Parsley[_]): Parsley[A] = pos.map(this.con(_)) <* op
+        def <#(op: Parsley[_]): Parsley[A] = pos.map(this.con) <* op
     }
 
     // Bridge with no arguments
@@ -25,7 +25,7 @@ object ast {
 
         def apply(x: A)(pos: (Int, Int)): B
 
-        def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply(_) _)
+        def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply)
     }
 
     // Bridge with 2 arguments
@@ -33,7 +33,7 @@ object ast {
         def apply(x: A, y: B)(pos: (Int, Int)): C
 
         def apply(x: Parsley[A], y: Parsley[B]): Parsley[C] =
-            pos <**> (x, y).zipped(this.apply(_, _) _)
+            pos <**> (x, y).zipped(this.apply)
 
         def con(pos: (Int, Int)): (A, B) => C = this.apply(_, _)(pos)
     }
@@ -46,7 +46,7 @@ object ast {
         def apply(x: A, y: B, z: C)(pos: (Int, Int)): D
 
         def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C]): Parsley[D] =
-            pos <**> (x, y, z).zipped(this.apply(_, _, _) _)
+            pos <**> (x, y, z).zipped(this.apply)
     }
 
     trait ParserBridgePos4[-A, -B, -C, -D, +E] extends ParserSingletonBridgePos[(A, B, C, D) => E] {
@@ -56,7 +56,7 @@ object ast {
         def apply(x: A, y: B, z: C, w: D)(pos: (Int, Int)): E
 
         def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C], w: => Parsley[D]): Parsley[E] =
-            pos <**> (x, y, z, w).zipped(this.apply(_, _, _, _) _)
+            pos <**> (x, y, z, w).zipped(this.apply)
   }
 
 
@@ -136,7 +136,7 @@ object ast {
     case class Len(v: Expr)(val pos: (Int, Int)) extends UnOpp
     case class Ord(v: Expr)(val pos: (Int, Int)) extends UnOpp
     case class Chr(x: Expr)(val pos: (Int, Int)) extends UnOpp
-    case class Postv(x: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Plus(x: Expr)(val pos: (Int, Int)) extends UnOpp
 
     /* Literals */
     case class IntLit(x: Int)(val pos: (Int, Int)) extends Atom
@@ -206,7 +206,7 @@ object ast {
     object Len extends ParserBridgePos1[Expr, Len]
     object Ord extends ParserBridgePos1[Expr, Ord]
     object Chr extends ParserBridgePos1[Expr, Chr]
-    object Postv extends ParserBridgePos1[Expr, Postv]
+    object Plus extends ParserBridgePos1[Expr, Plus]
 
     /* Binary Operators */
     object Add extends ParserBridgePos2[Expr, Expr, Add]

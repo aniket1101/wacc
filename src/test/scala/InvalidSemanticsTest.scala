@@ -1,3 +1,4 @@
+import Main.parseProgram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
@@ -8,7 +9,8 @@ class InvalidSemanticsTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parser.parse(testCode) shouldBe a[Right[_, _]]
+      // TODO Change this to error code 200
+      parseProgram(testCode) shouldBe 0
     }
   }
 }

@@ -45,7 +45,7 @@ object lexer {
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 
     val identifier: Parsley[String] = lexer.lexeme.names.identifier
-    val integers: Parsley[Int] = lexer.lexeme.unsigned.decimal32
+    val integers: Parsley[Int] = lexer.lexeme.signed.decimal32
     val charLiterals: Parsley[Char] = lexer.lexeme.character.ascii
     val stringLiterals: Parsley[String] = lexer.lexeme.string.ascii
     val boolLiterals: Parsley[Boolean] = (string("true") <~ character.whitespaces).as(true) |
