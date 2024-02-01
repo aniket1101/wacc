@@ -1,5 +1,6 @@
 import ast._
 
+import java.io.File
 import scala.annotation.tailrec
 
 object Main {
@@ -26,7 +27,7 @@ object Main {
 
     val p: String = """
           |begin
-          |int x = +5
+          | int a = + 5
           |end
     """.stripMargin.stripLeading()
 

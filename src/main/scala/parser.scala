@@ -4,7 +4,6 @@ import lexer._
 import parsley.Parsley
 import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
-import parsley.combinator.{sepBy, sepBy1}
 import parsley.combinator.countSome
 import parsley.errors.ErrorBuilder
 import parsley.expr._
@@ -14,7 +13,7 @@ object parser {
     def parse[Err: ErrorBuilder](input: String): Either[Err, Prog] = parser.parse(input).toEither
 
     private lazy val parser = fully(prog)
-    private lazy val prog: Parsley[Prog] = fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
+    private lazy val prog: Parsley[Prog] = fully("begin" *> Prog(many(func), sepBy1(singleStat, ";")) <* "end")
     private lazy val func: Parsley[Func] = atomic(Func(typ, ident, "(" ~> sepBy(param, ",") <~ ")", "is" ~> sepBy1(singleStat, ";") <~ "end"))
 
     private lazy val stats = sepBy1(singleStat, ";")
@@ -75,41 +74,6 @@ object parser {
     private lazy val atom: Parsley[Expr] = atomic(arrayElem) |  Ident(identifier) | IntLit(integers) |
       BoolLit(boolLiterals) | CharLit(charLiterals) | StrLit(stringLiterals) | unOpp |
       (PairLiter <# "null")
-
-    private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | atomic(pairElem) | identifier.map(Ident)
-    private lazy val rvalue: Parsley[RValue] = atomic(expr) | ("call" ~> ident, "(" ~> argList <~ ")").zipped(Call) | arrayLit |
-      ("newpair" ~> "(" ~> expr, "," ~> expr <~ ")").zipped(NewPair) | pairElem
-    private lazy val argList: Parsley[ArgList] = sepBy(expr, ",").map(ArgList)
-    private lazy val arrayLit: Parsley[ArrayLit] = ("[" ~> sepBy(expr, ",") <~ "]").map(ArrayLit)
-    private lazy val arrayElem: Parsley[ArrayElem] = (identifier.map(Ident), some("[" ~> expr <~ "]")).zipped(ArrayElem)
-    private lazy val pairElem: Parsley[PairElem] = ("fst" ~> lvalue).map(PairFst) | ("snd" ~> lvalue).map(PairSnd)
-
-    private def keyword[A](str: String, obj: A): Parsley[A] =
-        atomic(str).map(_ => obj)
-
-    private def listToStmt(stmts: List[Stmt]): Stmt = {
-        stmts match {
-            case Nil => Skip()
-            case head :: Nil => head
-            case stmt1 :: tail =>
-                Stmts(stmt1, listToStmt(tail))
-        }
-    }
-
-    private def toNestedArray(typ: Type, brackets: List[Unit]): ArrayType = {
-        brackets match {
-            case _ :: Nil => ArrayType(typ)
-            case _ :: tail => ArrayType(toNestedArray(typ, tail))
-        }
-    }
-
-    private def intIs32Bits(num: BigInt): Option[IntLit] = {
-        if (num >= BigInt(Int.MinValue) && num <= BigInt(Int.MaxValue) + 1) {
-            Option(IntLit(num))
-        } else {
-            None
-        }
-    }
 
     private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | atomic(pairElem) | Ident(identifier)
     private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> argList <~ ")") | arrayLit |
