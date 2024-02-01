@@ -1,4 +1,4 @@
-import Main.parseProgram
+import Main._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
@@ -9,8 +9,7 @@ class InvalidSemanticsTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      // TODO Change this to error code 200
-      parseProgram(testCode) shouldBe 0
+      parseProgram(testCode) shouldBe SEMANTIC_ERROR_EXIT_STATUS
     }
   }
 }

@@ -1,4 +1,4 @@
-import Main.parseProgram
+import Main._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
@@ -9,7 +9,7 @@ class ValidExamplesTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parseProgram(testCode) shouldBe 0
+      parseProgram(testCode) shouldBe VALID_EXIT_STATUS
     }
   }
 

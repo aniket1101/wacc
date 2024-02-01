@@ -5,8 +5,8 @@ stages:          # List of stages for jobs and their order of execution
   - build
   - testUnit
   - testValidExamples
-  - testInvalidSemantics
   - testInvalidSyntax
+  - testInvalidSemantics
 
 build:
   stage: build
@@ -31,14 +31,6 @@ testValidExamples:
     - echo "Running valid examples finished"
   environment: production
 
-testInvalidSemantics:
-    stage: testInvalidSemantics
-    script:
-      - echo "Testing invalid semantics examples..."
-      - sbt "testOnly *InvalidSemanticsTest"
-      - echo "Running invalid semantics examples finished"
-    environment: production
-
 testInvalidSyntax:
   stage: testInvalidSyntax
   script:
@@ -46,3 +38,11 @@ testInvalidSyntax:
     - sbt "testOnly *InvalidSyntaxTest"
     - echo "Running invalid syntax examples finished"
   environment: production
+
+testInvalidSemantics:
+    stage: testInvalidSemantics
+    script:
+      - echo "Testing invalid semantics examples..."
+      - sbt "testOnly *InvalidSemanticsTest"
+      - echo "Running invalid semantics examples finished"
+    environment: production

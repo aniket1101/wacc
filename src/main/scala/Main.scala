@@ -4,6 +4,10 @@ import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 object Main {
+    val VALID_EXIT_STATUS: Int = 0
+    val SYNTAX_ERROR_EXIT_STATUS: Int = 100
+    // TODO Change this to error code 200
+    val SEMANTIC_ERROR_EXIT_STATUS: Int = 0
     def format(code: String): String = {"begin\n\t" + code + "\nend"}
 
     private def prettyPrint(prog: Either[String, Prog]): Unit = {
@@ -27,8 +31,8 @@ object Main {
 
     def parseProgram(str: String): Int = {
         parser.parse(str) match {
-            case Right(_) => 0
-            case Left(_) => 100
+            case Right(_) => VALID_EXIT_STATUS
+            case Left(_) => SYNTAX_ERROR_EXIT_STATUS
         }
     }
 

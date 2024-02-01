@@ -11,7 +11,7 @@ object parser {
     def parse[Err: ErrorBuilder](input: String): Either[Err, Prog] = parser.parse(input).toEither
 
     private lazy val parser = fully(prog)
-    private lazy val prog: Parsley[Prog] = fully("begin" *> Prog(many(func), sepBy1(singleStat, ";")) <* "end")
+    private lazy val prog: Parsley[Prog] = fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
     private lazy val func: Parsley[Func] = atomic(Func(typ, ident, "(" ~> sepBy(param, ",") <~ ")", "is" ~>
       sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"))
 
@@ -87,6 +87,7 @@ object parser {
             case Return(_) => true
             case Exit(_) => true
             case If(_, thenStmt, elseStmt) => functionExits(thenStmt.last) && functionExits(elseStmt.last)
+            case Scope(stmts) => functionExits(stmts.last)
             case _ => false
         }
     }
