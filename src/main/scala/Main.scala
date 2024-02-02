@@ -1,5 +1,6 @@
 import ast._
 
+import scala.Option
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 import scala.sys.exit
@@ -32,16 +33,16 @@ object Main {
     def parseProgram(str: String): Int = {
         parser.parse(str) match {
             case Right(ast) => {
-//                validator.check(ast) match {
-//                    case Right(_) => VALID_EXIT_STATUS
-//                    case Left(_) => SEMANTIC_ERROR_EXIT_STATUS
-//                }
-                if (str.contains("#semantic_error#")) SEMANTIC_ERROR_EXIT_STATUS else VALID_EXIT_STATUS
+                validator.check(ast) match {
+                    case Some(_) => SEMANTIC_ERROR_EXIT_STATUS
+                    case None => VALID_EXIT_STATUS
+                }
             }
             case Left(_) => SYNTAX_ERROR_EXIT_STATUS
         }
     }
 
+    // TO DO: Use parseFile for error builder
     def readFileContents(filename: String): Try[String] = {
         Try {
             val source = Source.fromFile(filename)

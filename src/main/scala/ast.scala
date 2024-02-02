@@ -77,7 +77,7 @@ object ast {
     case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat
     case class If(cond: Expr, thenStat: List[Stat], elseStat: List[Stat])(val pos: (Int, Int)) extends Stat
     case class While(cond: Expr, doStat: List[Stat])(val pos: (Int, Int)) extends Stat
-    case class Begin(beginStat: Stat)(val pos: (Int, Int)) extends Stat
+
     case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
 
     sealed trait LValue
