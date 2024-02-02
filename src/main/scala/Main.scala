@@ -2,6 +2,7 @@ import ast._
 
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
+import scala.sys.exit
 
 object Main {
     val VALID_EXIT_STATUS: Int = 0
@@ -51,7 +52,7 @@ object Main {
         args.headOption match {
             case Some(filename) =>
                 readFileContents(filename) match {
-                    case Success(contents) => println(parseProgram(contents))
+                    case Success(contents) => exit(parseProgram(contents))
                     case Failure(_) => println(s"No file: $filename exists.")
                 }
             case None => println("Please pass in a file.")
