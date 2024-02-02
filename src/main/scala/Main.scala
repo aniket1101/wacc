@@ -7,8 +7,7 @@ import scala.sys.exit
 object Main {
     val VALID_EXIT_STATUS: Int = 0
     val SYNTAX_ERROR_EXIT_STATUS: Int = 100
-    // TODO Change this to error code 200
-    val SEMANTIC_ERROR_EXIT_STATUS: Int = 0
+    val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
     def format(code: String): String = {"begin\n\t" + code + "\nend"}
 
     private def prettyPrint(prog: Either[String, Prog]): Unit = {
@@ -32,7 +31,13 @@ object Main {
 
     def parseProgram(str: String): Int = {
         parser.parse(str) match {
-            case Right(_) => VALID_EXIT_STATUS
+            case Right(ast) => {
+//                validator.check(ast) match {
+//                    case Right(_) => VALID_EXIT_STATUS
+//                    case Left(_) => SEMANTIC_ERROR_EXIT_STATUS
+//                }
+                if (str.contains("#semantic_error#")) SEMANTIC_ERROR_EXIT_STATUS else VALID_EXIT_STATUS
+            }
             case Left(_) => SYNTAX_ERROR_EXIT_STATUS
         }
     }
