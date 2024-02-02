@@ -3,7 +3,10 @@ image: gumjoe/wacc-ci-scala:slim
 
 stages:          # List of stages for jobs and their order of execution
   - build
-  - test
+  - testUnit
+  - testValidExamples
+  - testInvalidSyntax
+  - testInvalidSemantics
 
 build:
   stage: build
@@ -12,13 +15,34 @@ build:
     - sbt compile
     - echo "Compile complete"
 
-test:
-  stage: test
+testUnit:
+  stage: testUnit
   script: 
-      - echo "Running tests..."
-      - sbt test
-      - echo "All tests finished"
-  only:
-    - master
-    - merge_requests
+      - echo "Running unit tests..."
+      - sbt "testOnly *ArrayTest *ExpressionTest *FunctionTest *PairTest *StatementTest"
+      - echo "All unit tests finished"
   environment: production
+
+testValidExamples:
+  stage: testValidExamples
+  script:
+    - echo "Testing valid examples..."
+    - sbt "testOnly *ValidExamplesTest"
+    - echo "Running valid examples finished"
+  environment: production
+
+testInvalidSyntax:
+  stage: testInvalidSyntax
+  script:
+    - echo "Testing invalid syntax examples..."
+    - sbt "testOnly *InvalidSyntaxTest"
+    - echo "Running invalid syntax examples finished"
+  environment: production
+
+testInvalidSemantics:
+    stage: testInvalidSemantics
+    script:
+      - echo "Testing invalid semantics examples..."
+      - sbt "testOnly *InvalidSemanticsTest"
+      - echo "Running invalid semantics examples finished"
+    environment: production

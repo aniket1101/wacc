@@ -2,14 +2,14 @@ import parsley.Parsley
 import parsley.position.pos
 import parsley.syntax.zipped.Zipped2
 import parsley.syntax.zipped.Zipped3
-import parserTools.SymbolTable
+import parsley.syntax.zipped.Zipped4
 
 object ast {
 
-    // Bridge between singleton and parser
+        // Bridge between singleton and parser
     trait ParserSingletonBridgePos[+A] {
         def con(pos: (Int, Int)): A
-        def <#(op: Parsley[_]): Parsley[A] = pos.map(this.con(_)) <* op
+        def <#(op: Parsley[_]): Parsley[A] = pos.map(this.con) <* op
     }
 
     // Bridge with no arguments
@@ -25,16 +25,15 @@ object ast {
 
         def apply(x: A)(pos: (Int, Int)): B
 
-        def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply(_) _)
+        def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply)
     }
 
     // Bridge with 2 arguments
     trait ParserBridgePos2[-A, -B, +C] extends ParserSingletonBridgePos[(A, B) => C] {
         def apply(x: A, y: B)(pos: (Int, Int)): C
 
-        def apply(x: Parsley[A], y: Parsley[B]): Parsley[C] = {
-            pos <**> (x, y).zipped(this.apply(_, _) _)
-        }
+        def apply(x: Parsley[A], y: Parsley[B]): Parsley[C] =
+            pos <**> (x, y).zipped(this.apply)
 
         def con(pos: (Int, Int)): (A, B) => C = this.apply(_, _)(pos)
     }
@@ -42,317 +41,120 @@ object ast {
     // Bridge with 3 arguments
     trait ParserBridgePos3[-A, -B, -C, +D] extends ParserSingletonBridgePos[(A, B, C) => D] {
         override final def con(pos: (Int, Int)): (A, B, C) => D =
-            this.apply(_, _, _)(pos)
+        this.apply(_, _, _)(pos)
 
         def apply(x: A, y: B, z: C)(pos: (Int, Int)): D
 
         def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C]): Parsley[D] =
-            pos <**> (x, y, z).zipped(this.apply(_, _, _) _)
+            pos <**> (x, y, z).zipped(this.apply)
     }
 
-    /* Root node for AST */
-    class root() {
-        var sTbl: SymbolTable = null
+    trait ParserBridgePos4[-A, -B, -C, -D, +E] extends ParserSingletonBridgePos[(A, B, C, D) => E] {
+        override final def con(pos: (Int, Int)): (A, B, C, D) => E =
+        this.apply(_, _, _, _)(pos)
 
-        def addSt(st: SymbolTable): Unit = {
-            sTbl = st
-        }
-    }
+        def apply(x: A, y: B, z: C, w: D)(pos: (Int, Int)): E
+
+        def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C], w: => Parsley[D]): Parsley[E] =
+            pos <**> (x, y, z, w).zipped(this.apply)
+  }
 
 
-    case class Prog(funcs: List[Func],  stats: Stats)(val pos: (Int, Int)) extends root {
-        override def toString: String = {
-            var output: String = null
-            for (f <- funcs) {
-                output += f.toString
-            }
-            output + stats.toString
-        }
-    }
-
-    case class Func(ident: TypeIdent, params: List[Param], stats: Stats)(val pos: (Int, Int)) extends root {
-        override def toString: String = {
-            var output = ident.toString + "("
-            for (param <- params) {
-                output += param.toString + ","
-            }
-            output + "):\n" + stats.toString + "funcEnd"
-        }
-    }
+    case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int))
+    case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int))
+    case class Param(typ: Type, ident: Ident)(val pos: (Int, Int))
 
     // Statements
     sealed trait Stat
-    case class Stats(stats: List[Stat])(pos: (Int, Int)) {
-        override def toString: String = {
-            var output: String = ""
-            for (s <- stats) {
-                output += s.toString + ";\n"
-            }
-            output
-        }
-    }
+    case class Skip()(val pos: (Int, Int)) extends Stat
+    case class Declaration(typ: Type, x: Ident, y: RValue)(val pos: (Int, Int)) extends Stat
+    case class Assign(lValue: LValue, y: RValue)(val pos: (Int, Int)) extends Stat
+    case class Read(lValue: LValue)(val pos: (Int, Int)) extends Stat
+    case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
+    case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
+    case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat
+    case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat
+    case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat
+    case class If(cond: Expr, thenStat: List[Stat], elseStat: List[Stat])(val pos: (Int, Int)) extends Stat
+    case class While(cond: Expr, doStat: List[Stat])(val pos: (Int, Int)) extends Stat
+    case class Begin(beginStat: Stat)(val pos: (Int, Int)) extends Stat
+    case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
 
-    case class Skip()(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "skip(" + pos.toString() + ")"
-    }
-    case class Read(lvalue: LValue)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "read(" + lvalue.toString + ")"
-    }
-    case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "free(" + expr.toString + ")"
-    }
-    case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "return(" + expr.toString + ")"
-    }
-    case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "exit(" + expr.toString + ")"
-    }
-    case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "print(" + expr.toString + ")"
-    }
-    case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "println(" + expr.toString + ")"
-    }
-    case class If(cond: Expr, ifStats: Stats, elseStats: Stats)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "if " + cond.toString + " then \n" +
-          ifStats.toString + " else \n" + elseStats.toString + " fi"
-    }
-    case class While(cond: Expr, body: Stats)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "while " + cond + " do \n" + body.toString + " done"
-    }
-    case class Scope(xs: Stats)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = "{" + xs.toString + "}"
-    }
+    sealed trait LValue
+    sealed trait Expr extends RValue
+    sealed trait Atom extends Expr
+    case class Ident(name: String)(val pos: (Int, Int)) extends LValue with Atom
+    case class ArrayElem(ident: Ident, xs: List[Expr])(val pos: (Int, Int)) extends LValue with Atom
 
-    sealed trait Type extends root
 
-    sealed trait PairElemType extends Type
+    sealed trait RValue
+    case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int)) extends RValue
+    case class Call(x: Ident, args: ArgList)(val pos: (Int, Int)) extends RValue
 
-    case class PairT(expr1: PairElemType, expr2: PairElemType)(val pos: (Int, Int)) extends Type {
-        override def toString: String = "Pair(" + expr1.toString + "," + expr2.toString + ")" +
-                                        "(" + pos.toString() + ")"
-    }
-
-    sealed trait Type1 extends PairElemType with Type
-
-    case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type1 {
-        override def toString: String = typ.toString + "[]"
-    }
-    case class PairType()(val pos: (Int, Int)) extends PairElemType {
-        override def toString: String = "PAIR"
-    }
-
-    sealed trait BaseType extends Type1
-
-    case class IntType()(val pos: (Int, Int)) extends BaseType {
-        override def toString: String = "INT"
-    }
-    case class BoolType()(val pos: (Int, Int)) extends BaseType {
-        override def toString: String = "BOOL"
-    }
-    case class CharType()(val pos: (Int, Int)) extends BaseType {
-        override def toString: String = "CHAR"
-    }
-    case class StringType()(val pos: (Int, Int)) extends BaseType {
-        override def toString: String = "STRING"
-    }
-
-    sealed trait LValue extends root
-
-    case class TypeIdent(typ: Type, ident: Ident)(val pos: (Int, Int)) extends LValue {
-        override def toString: String = typ.toString + " " + ident.toString
-    }
-
-    case class Param(typeIdent: TypeIdent)(val pos: (Int, Int)) extends root {
-        override def toString: String = "param(" + typeIdent.toString + ")"
-    }
-
-    case class Declaration(typeIdent: TypeIdent, rVal: RValue)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = typeIdent.toString + ":=" + rVal.toString
-    }
-    case class Assign(lVal: LValue, rVal: RValue)(val pos: (Int, Int)) extends Stat {
-        override def toString: String = lVal.toString + ":=" + rVal.toString
-    }
-
-    sealed trait RValue extends root
-
-    case class ArrayLiteral(exprs: List[Expr])(val pos: (Int, Int)) extends RValue {
-        override def toString: String = {
-            var output = "["
-            for (expr <- exprs) {
-                output += expr.toString + ","
-            }
-            output + "]"
-        }
-    }
-
-    case class ArgList(exprs: List[Expr])(val pos: (Int, Int)) extends RValue {
-        override def toString: String = {
-            var output = "("
-            for (expr <- exprs) {
-                output += expr.toString + ","
-            }
-            output + ")"
-        }
-    }
-
-    case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends RValue {
-        override def toString: String = "newPair(" + expr1.toString + "," + expr2.toString + ")"
-    }
-
-    case class Call(ident: Ident, args: ArgList)(val pos: (Int, Int)) extends RValue {
-        override def toString: String = "call:" + ident.toString + args.toString
-    }
+    case class ArgList(args: List[Expr])(val pos: (Int, Int))
 
     sealed trait PairElem extends LValue with RValue
+    case class PairFst(lValue: LValue)(val pos: (Int, Int)) extends PairElem
+    case class PairSnd(lValue: LValue)(val pos: (Int, Int)) extends PairElem
 
-    case class PairElemFst(lVal: LValue)(val pos: (Int, Int)) extends PairElem {
-        override def toString: String = "fst(" + lVal.toString + ")"
-    }
+    case class ArrayLit(xs: List[Expr])(val pos: (Int, Int)) extends RValue
 
-    case class PairElemSnd(lVal: LValue)(val pos: (Int, Int)) extends PairElem {
-        override def toString: String = "snd(" + lVal.toString + ")"
-    }
-
-    sealed trait Expr extends RValue
-
-    sealed trait IntExpr extends root
-    sealed trait StringExpr extends root
-    sealed trait BoolExpr extends root
-    sealed trait CharExpr extends root
-    sealed trait PairExpr extends root
-    sealed trait ArrayExpr extends root
-
-    /* Literals */
-    case class IntLiteral(num: Int)(val pos: (Int, Int)) extends Expr with IntExpr {
-        override def toString: String = num.toString
-    }
-
-    case class BoolLiteral(bool: Boolean)(val pos: (Int, Int)) extends Expr with BoolExpr {
-        override def toString: String = bool.toString
-    }
-
-    case class CharLiteral(ch: Char)(val pos: (Int, Int)) extends Expr with CharExpr {
-        override def toString: String = "'" + ch + "'"
-    }
-
-    case class StrLiteral(str: String)(val pos: (Int, Int)) extends Expr with StringExpr {
-        override def toString: String = str
-    }
-
-    case class PairLiteral()(val pos: (Int, Int)) extends Expr with PairExpr {
-        override def toString: String = "null"
-    }
-
-    sealed trait identType extends LValue with Expr
-
-    case class Ident(name: String)(val pos: (Int, Int)) extends identType {
-        override def toString: String = name
-    }
-
-    case class ArrayElem(id: Ident, expr: List[Expr])(val pos: (Int, Int)) extends identType {
-        override def toString: String = {
-            var output = id.toString()
-            for (x <- expr) {
-                output += "[" + x.toString + "]"
-            }
-            output
-        }
-    }
+    // Types
+    sealed trait Type
+    sealed trait BaseType extends Type with PairElemType
+    sealed trait PairElemType
+    case class Pair()(val pos: (Int, Int)) extends PairElemType
+    case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType
+    case class IntType()(val pos: (Int, Int)) extends BaseType
+    case class BoolType()(val pos: (Int, Int)) extends BaseType
+    case class CharType()(val pos: (Int, Int)) extends BaseType
+    case class StringType()(val pos: (Int, Int)) extends BaseType
+    case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type
 
     /* Binary Operators */
-    sealed class BinOpp(val expr1: Expr, val expr2: Expr)(val pos:(Int,Int)) extends Expr
+    sealed class BinOpp(val x: Expr, val y: Expr)(val pos:(Int,Int)) extends Expr
 
-    case class Add(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with IntExpr {
-        override def toString: String = "(" + expr1.toString + "+" + expr2.toString + ")"
-    }
+    case class Sub(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class Add(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class Mul(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class Div(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class Mod(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class GT(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class GTE(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class LT(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class LTE(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class Eq(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class NEq(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class And(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
+    case class Or(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
 
-    case class Sub(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with IntExpr {
-        override def toString: String = "(" + expr1.toString + "-" + expr2.toString + ")"
-    }
-
-    case class Mul(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with IntExpr {
-        override def toString: String = "(" + expr1.toString + "*" + expr2.toString + ")"
-    }
-
-    case class Div(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with IntExpr {
-        override def toString: String = "(" + expr1.toString + "/" + expr2.toString + ")"
-    }
-
-    case class Mod(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with IntExpr {
-        override def toString: String = "(" + expr1.toString + "%" + expr2.toString + ")"
-    }
-
-    case class GT(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + ">" + expr2.toString + ")"
-    }
-
-    case class GTE(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + ">=" + expr2.toString + ")"
-    }
-
-    case class LT(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + "<" + expr2.toString + ")"
-    }
-
-    case class LTE(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + "<=" + expr2.toString + ")"
-    }
-
-    case class Eq(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr { // Equals
-        override def toString: String = "(" + expr1.toString + "==" + expr2.toString + ")"
-    }
-
-    case class NEq(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + "!=" + expr2.toString + ")"
-    }
-
-    case class And(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + "&&" + expr2.toString + ")"
-    }
-
-    case class Or(override val expr1: Expr, override val expr2: Expr)(override val pos: (Int, Int)) extends BinOpp(expr1, expr2)(pos) with BoolExpr {
-        override def toString: String = "(" + expr1.toString + "||" + expr2.toString + ")"
-    }
-
-    /* Unary Operators */
     sealed trait UnOpp extends Expr
 
-    case class Not(val expr: Expr)(val pos: (Int, Int)) extends UnOpp with BoolExpr {
-        override def toString: String = "Not(" + expr.toString + ")"
-    }
-    case class Neg(val expr: Expr)(val pos: (Int, Int)) extends UnOpp with IntExpr {
-        override def toString: String = "Neg(" + expr.toString + ")"
-    }
-    case class Len(val expr: Expr)(val pos: (Int, Int)) extends UnOpp with IntExpr {
-        override def toString: String = "Len(" + expr.toString + ")"
-    }
-    case class Ord(val expr: Expr)(val pos: (Int, Int)) extends UnOpp with IntExpr {
-        override def toString: String = "Ord(" + expr.toString + ")"
-    }
-    case class Chr(val expr: Expr)(val pos: (Int, Int)) extends UnOpp with CharExpr {
-        override def toString: String = "Chr(" + expr.toString + ")"
-    }
+    /* Unary Operators */
+    case class Not(v: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Neg(x: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Len(v: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Ord(v: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Chr(x: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Plus(x: Expr)(val pos: (Int, Int)) extends UnOpp
 
-    /* For use of either LValue or Expr in Ident and ArrayElem */
-    object identType extends ParserBridgePos2[Ident, List[Expr], identType] {
-        def apply(ident: Ident, exprs: List[Expr])(pos: (Int, Int)): identType = exprs match {
-            case Nil => ident
-            case exprs => ArrayElem(ident, exprs)(pos)
-        }
-    }
+    /* Literals */
+    case class IntLit(x: Int)(val pos: (Int, Int)) extends Atom
+    case class BoolLit(b: Boolean)(val pos: (Int, Int)) extends Atom
+    case class CharLit(c: Char)(val pos: (Int, Int)) extends Atom
+    case class StrLit(s: String)(val pos: (Int, Int)) extends Atom
+    case class PairLiter()(val pos: (Int, Int)) extends Atom
+
+    /* PARSER BRIDGE CONNECTIONS */
 
     /* Core */
-    object Prog extends ParserBridgePos2[List[Func], Stats, Prog]
-    object Scope extends ParserBridgePos1[Stats, Scope]
-    object Func extends ParserBridgePos3[TypeIdent, List[Param], Stats, Func]
-    object Param extends ParserBridgePos1[TypeIdent, Param]
-    object TypeIdent extends ParserBridgePos2[Type, Ident, TypeIdent]
+    object Prog extends ParserBridgePos2[List[Func], List[Stat], Prog]
+    object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func]
+    object Param extends ParserBridgePos2[Type, Ident, Param]
 
     /* Statements */
-    object Stats extends ParserBridgePos1[List[Stat], Stats]
     object Skip extends ParserBridgePos0[Skip]
-    object Declaration extends ParserBridgePos2[TypeIdent, RValue, Declaration]
+    object Declaration extends ParserBridgePos3[Type, Ident, RValue, Declaration]
     object Assign extends ParserBridgePos2[LValue, RValue, Assign]
     object Read extends ParserBridgePos1[LValue, Read]
     object Free extends ParserBridgePos1[Expr, Free]
@@ -360,8 +162,9 @@ object ast {
     object Exit extends ParserBridgePos1[Expr, Exit]
     object Print extends ParserBridgePos1[Expr, Print]
     object Println extends ParserBridgePos1[Expr, Println]
-    object If extends ParserBridgePos3[Expr, Stats, Stats, If]
-    object While extends ParserBridgePos2[Expr, Stats, While]
+    object If extends ParserBridgePos3[Expr, List[Stat], List[Stat], If]
+    object While extends ParserBridgePos2[Expr, List[Stat], While]
+    object Scope extends ParserBridgePos1[List[Stat], Scope]
 
     /* Base Types */
     object IntType extends ParserBridgePos0[IntType]
@@ -373,12 +176,11 @@ object ast {
     object ArrayType extends ParserBridgePos1[Type, ArrayType]
 
     /* Pair */
-    object PairType extends ParserBridgePos0[PairType]
-    object PairLiteral extends ParserBridgePos0[PairLiteral]
-    object PairT extends ParserBridgePos2[PairElemType, PairElemType, PairT]
+    object Pair extends ParserBridgePos0[Pair]
+    object PairType extends ParserBridgePos2[PairElemType, PairElemType, PairType]
 
     /* RValues */
-    object ArrayLiteral extends ParserBridgePos1[List[Expr], ArrayLiteral]
+    object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit]
     object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
     object Call extends ParserBridgePos2[Ident, ArgList, Call]
 
@@ -386,16 +188,17 @@ object ast {
     object ArgList extends ParserBridgePos1[List[Expr], ArgList]
 
     /* Pair-Elem */
-    object PairElemFst extends ParserBridgePos1[LValue, PairElemFst]
-    object PairElemSnd extends ParserBridgePos1[LValue, PairElemSnd]
+    object PairFst extends ParserBridgePos1[LValue, PairFst]
+    object PairSnd extends ParserBridgePos1[LValue, PairSnd]
 
     /* Atoms */
     object ArrayElem extends ParserBridgePos2[Ident, List[Expr], ArrayElem]
     object Ident extends ParserBridgePos1[String, Ident]
-    object IntLiteral extends ParserBridgePos1[Int, IntLiteral]
-    object BoolLiteral extends ParserBridgePos1[Boolean, BoolLiteral]
-    object CharLiteral extends ParserBridgePos1[Char, CharLiteral]
-    object StrLiteral extends ParserBridgePos1[String, StrLiteral]
+    object IntLit extends ParserBridgePos1[Int, IntLit]
+    object BoolLit extends ParserBridgePos1[Boolean, BoolLit]
+    object CharLit extends ParserBridgePos1[Char, CharLit]
+    object StrLit extends ParserBridgePos1[String, StrLit]
+    object PairLiter extends ParserBridgePos0[PairLiter]
 
     /* Unary Operators */
     object Not extends ParserBridgePos1[Expr, Not]
@@ -403,6 +206,7 @@ object ast {
     object Len extends ParserBridgePos1[Expr, Len]
     object Ord extends ParserBridgePos1[Expr, Ord]
     object Chr extends ParserBridgePos1[Expr, Chr]
+    object Plus extends ParserBridgePos1[Expr, Plus]
 
     /* Binary Operators */
     object Add extends ParserBridgePos2[Expr, Expr, Add]
@@ -418,5 +222,7 @@ object ast {
     object NEq extends ParserBridgePos2[Expr, Expr, NEq]
     object And extends ParserBridgePos2[Expr, Expr, And]
     object Or extends ParserBridgePos2[Expr, Expr, Or]
+
 }
+
 
