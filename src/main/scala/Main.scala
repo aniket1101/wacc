@@ -1,16 +1,18 @@
 import ast._
 
-import scala.Option
+import scala.annotation.unused
 import scala.io.Source
-import scala.util.{Failure, Success, Try}
 import scala.sys.exit
+import scala.util.{Failure, Success, Try}
 
 object Main {
     val VALID_EXIT_STATUS: Int = 0
     val SYNTAX_ERROR_EXIT_STATUS: Int = 100
     val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
+    @unused
     def format(code: String): String = {"begin\n\t" + code + "\nend"}
 
+    @unused
     private def prettyPrint(prog: Either[String, Prog]): Unit = {
         prog match {
             case Right(Prog(funcs, stats)) =>
@@ -32,12 +34,14 @@ object Main {
 
     def parseProgram(str: String): Int = {
         parser.parse(str) match {
-            case Right(ast) => {
+            case Right(ast) =>
                 validator.check(ast) match {
-                    case Some(_) => SEMANTIC_ERROR_EXIT_STATUS
+                    case Some(errorMsg) => {
+                        println(errorMsg)
+                        SEMANTIC_ERROR_EXIT_STATUS
+                    }
                     case None => VALID_EXIT_STATUS
                 }
-            }
             case Left(_) => SYNTAX_ERROR_EXIT_STATUS
         }
     }

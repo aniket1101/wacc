@@ -82,9 +82,9 @@ object ast {
 
     sealed trait LValue
     sealed trait Expr extends RValue
-    sealed trait Atom extends Expr
-    case class Ident(name: String)(val pos: (Int, Int)) extends LValue with Atom
-    case class ArrayElem(ident: Ident, xs: List[Expr])(val pos: (Int, Int)) extends LValue with Atom
+    sealed class Atom(val pos:(Int,Int)) extends Expr
+    case class Ident(name: String)(override val pos: (Int, Int)) extends Atom(pos) with LValue
+    case class ArrayElem(ident: Ident, xs: List[Expr])(override val pos: (Int, Int)) extends Atom(pos) with LValue
 
 
     sealed trait RValue
@@ -127,23 +127,22 @@ object ast {
     case class NEq(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
     case class And(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
     case class Or(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
-
-    sealed trait UnOpp extends Expr
+    sealed class UnOpp(val x: Expr)(val pos:(Int,Int)) extends Expr
 
     /* Unary Operators */
-    case class Not(v: Expr)(val pos: (Int, Int)) extends UnOpp
-    case class Neg(x: Expr)(val pos: (Int, Int)) extends UnOpp
-    case class Len(v: Expr)(val pos: (Int, Int)) extends UnOpp
-    case class Ord(v: Expr)(val pos: (Int, Int)) extends UnOpp
-    case class Chr(x: Expr)(val pos: (Int, Int)) extends UnOpp
-    case class Plus(x: Expr)(val pos: (Int, Int)) extends UnOpp
+    case class Not(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
+    case class Neg(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
+    case class Len(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
+    case class Ord(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
+    case class Chr(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
+    case class Plus(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
 
     /* Literals */
-    case class IntLit(x: Int)(val pos: (Int, Int)) extends Atom
-    case class BoolLit(b: Boolean)(val pos: (Int, Int)) extends Atom
-    case class CharLit(c: Char)(val pos: (Int, Int)) extends Atom
-    case class StrLit(s: String)(val pos: (Int, Int)) extends Atom
-    case class PairLiter()(val pos: (Int, Int)) extends Atom
+    case class IntLit(x: Int)(override val pos: (Int, Int)) extends Atom(pos)
+    case class BoolLit(b: Boolean)(override val pos: (Int, Int)) extends Atom(pos)
+    case class CharLit(c: Char)(override val pos: (Int, Int)) extends Atom(pos)
+    case class StrLit(s: String)(override val pos: (Int, Int)) extends Atom(pos)
+    case class PairLiter()(override val pos: (Int, Int)) extends Atom(pos)
 
     /* PARSER BRIDGE CONNECTIONS */
 
