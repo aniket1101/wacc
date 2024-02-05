@@ -35,6 +35,7 @@ object Main {
     def parseProgram(str: String): Int = {
         parser.parse(str) match {
             case Right(ast) =>
+                val validator = new Validator(str.split("\n"))
                 validator.check(ast) match {
                     case Some(errorMsg) => {
                         println(errorMsg)
