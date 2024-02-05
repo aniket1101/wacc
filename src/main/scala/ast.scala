@@ -84,15 +84,14 @@ object ast {
 
   case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
 
-  sealed trait LRValue extends Position
-  sealed trait LValue extends LRValue
-  sealed trait Expr extends LRValue with Position
+  sealed trait LValue extends Position
+  sealed trait Expr extends RValue with Position
   sealed class Atom(val pos:(Int,Int)) extends Expr
   case class Ident(name: String)(override val pos: (Int, Int)) extends Atom(pos) with LValue
   case class ArrayElem(ident: Ident, xs: List[Expr])(override val pos: (Int, Int)) extends Atom(pos) with LValue
 
 
-  sealed trait RValue extends LRValue
+  sealed trait RValue extends Position
   case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int)) extends RValue
   case class Call(x: Ident, args: ArgList)(val pos: (Int, Int)) extends RValue
 
