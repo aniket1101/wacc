@@ -84,14 +84,15 @@ object ast {
 
   case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
 
-  sealed trait LValue extends Position
+  sealed trait LRValue extends Position
+  sealed trait LValue extends LRValue
   sealed trait Expr extends RValue with Position
   sealed class Atom(val pos:(Int,Int)) extends Expr
   case class Ident(name: String)(override val pos: (Int, Int)) extends Atom(pos) with LValue
   case class ArrayElem(ident: Ident, xs: List[Expr])(override val pos: (Int, Int)) extends Atom(pos) with LValue
 
 
-  sealed trait RValue extends Position
+  sealed trait RValue extends LRValue
   case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int)) extends RValue
   case class Call(x: Ident, args: ArgList)(val pos: (Int, Int)) extends RValue
 
@@ -103,10 +104,19 @@ object ast {
 
   case class ArrayLit(xs: List[Expr])(val pos: (Int, Int)) extends RValue
 
+  // Special Cases for Semantic Analysis
+  case object NoTypeExists extends Type with PairElemType {
+    override val pos: (Int, Int) = (-1, -1)
+  }
+
+  case object AnyType extends Type with PairElemType {
+    override val pos: (Int, Int) = (-1, -1)
+  }
+
   // Types
   sealed trait Type extends Position
   sealed trait BaseType extends Type with PairElemType
-  sealed trait PairElemType
+  sealed trait PairElemType extends Type
   case class Pair()(val pos: (Int, Int)) extends PairElemType
   case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType
   case class IntType()(val pos: (Int, Int)) extends BaseType

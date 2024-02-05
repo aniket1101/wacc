@@ -34,16 +34,18 @@ object Main {
 
     def parseProgram(str: String): Int = {
         parser.parse(str) match {
-            case Right(ast) =>
-                val validator = new Validator(str.split("\n"))
-                validator.check(ast) match {
-                    case Some(errorMsg) => {
-                        println(errorMsg)
-                        SEMANTIC_ERROR_EXIT_STATUS
-                    }
-                    case None => VALID_EXIT_STATUS
-                }
-            case Left(_) => SYNTAX_ERROR_EXIT_STATUS
+        //TODO: Implement semantic checker and edit this function
+
+//            case Right(ast) =>
+//                val validator = new Validator(str.split("\n"))
+//                validator.check(ast) match {
+//                    case Some(errorMsg) => {
+//                        println(errorMsg)
+//                        SEMANTIC_ERROR_EXIT_STATUS
+//                    }
+//                    case None => VALID_EXIT_STATUS
+//                }
+//            case Left(_) => SYNTAX_ERROR_EXIT_STATUS
         }
     }
 

@@ -1,7 +1,7 @@
 import parsley.errors.ErrorBuilder
 import parsley.errors.tokenextractors
 
-object Errors {
+object waccErrors {
 
   sealed trait ErrorLines {
     val errorType: String
@@ -104,7 +104,7 @@ object Errors {
 
     override def message(msg: String): Message = msg
 
-    type LineInfo = Errors.LineInfo
+    type LineInfo = waccErrors.LineInfo
 
     override def lineInfo(line: String,  linesBefore: Seq[String], linesAfter: Seq[String], errorAt: Int, errorWidth: Int): LineInfo =
       LineInfo(line, linesBefore, linesAfter, errorAt)
