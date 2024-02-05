@@ -19,6 +19,41 @@ class Validator(val code: Array[String]) {
             case Some(err) => Option.apply(err)
             case None => checkStatements(stmts)
           }
+        case Read(lValue) => getLValueType(lValue) match {
+          case Left(err) => Some(err)
+          case Right(_) => checkStatements(stmts)
+        }
+        case Assign(lValue, y) =>
+          checkAssignment(lValue, y) match {
+            case Some(err) => Option.apply(err)
+            case None => checkStatements(stmts)
+          }
+        case Free(expr: Expr) =>
+          checkExpr(expr: Expr) match {
+            case Some(err) => Option.apply(err)
+            case None => checkStatements(stmts)
+          }
+        case Return(expr: Expr) =>
+          checkExpr(expr: Expr) match {
+            case Some(err) => Option.apply(err)
+            case None => checkStatements(stmts)
+          }
+        case Exit(expr: Expr) =>
+          checkExpr(expr: Expr) match {
+            case Some(err) => Option.apply(err)
+            case None => checkStatements(stmts)
+          }
+        case Print(expr: Expr) =>
+          checkExpr(expr: Expr) match {
+            case Some(err) => Option.apply(err)
+            case None => checkStatements(stmts)
+          }
+        case Println(expr: Expr) =>
+          checkExpr(expr: Expr) match {
+            case Some(err) => Option.apply(err)
+            case None => checkStatements(stmts)
+          }
+        // TODO: Remove Duplication
         // TODO: Add all cases
         case _ => Option.empty
       }
@@ -33,16 +68,66 @@ class Validator(val code: Array[String]) {
     }
   }
 
+  private def getLValueType(l: LValue): Either[String, Type] = {
+    l match {
+      case i: Ident => getIdentType(i)
+      case p: PairElem => getPairElemType(p)
+      case ArrayElem(ident, xs) => checkArrayIndex(xs) match {
+        case Some(err) => Left(err)
+        case _ => getIdentType(ident)
+      }
+    }
+  }
+
+  private def checkArrayIndex(exprs: List[Expr]): Option[String] = {
+    for (expr <- exprs) {
+      getExprType(expr) match {
+        case Right(IntType()) =>
+        case Right(typ) => return typeErrorStr(expr.pos, "Array Indexes must be of type int", "array[...][⟨int⟩][...]",
+          s"array[...][${typeToStr(typ)}][...]") match {
+          case Left(err) => Option.apply(err)
+        }
+        case Left(error) => return Option.apply(error)
+      }
+    }
+    None
+  }
+
+  private def getIdentType(i:Ident): Either[String, Type] = {
+    Right(new IntType()(i.pos))
+  }
+
+  private def getPairElemType(p:PairElem): Either[String, Type] = {
+    p match {
+      case PairFst(lVal) => getLValueType(lVal)
+      case PairSnd(lVal) => getLValueType(lVal)
+    }
+  }
 
   // x = y
-  private def checkAssignment(x: LValue, y: RValue): Option[String] = ???
-
-  // read
-  private def checkRead(x: LValue): Option[String] = ???
+  private def checkAssignment(x: LValue, y: RValue): Option[String] = {
+    getLValueType(x) match {
+      case Right(lType) => getRvalueType(y) match {
+        case Right(rType) => if (lType == rType) None else typeErrorStr((0, 0), "Assignment value must be of same type as variable", typeToStr(lType),
+          typeToStr(lType)) match {
+          case Left(err) => Option.apply(err)
+        }
+      }
+    }
+  }
 
   private def getRvalueType(r: RValue): Either[String, Type] = {
     r match {
       case expr: Expr => getExprType(expr)
+    }
+  }
+
+  private def checkExpr(exp: Expr): Option[String] = {
+    exp match {
+      case expr: Expr => getExprType(expr) match {
+          case Right(rType) => None
+          case Left(errorMsg) => Some(errorMsg)
+        }
     }
   }
 
@@ -173,7 +258,7 @@ class Validator(val code: Array[String]) {
       case Chr(expr) =>
         getExprType(expr) match {
           case Right(IntType()) => Right(CharType()(u.pos))
-          case Right(uType) => typeErrorStr(u.pos, "Can only apply 'chr' unary operator on ints", "chr ⟨int⟩]⟩",
+          case Right(uType) => typeErrorStr(u.pos, "Can only apply 'chr' unary operator on ints", "chr ⟨int⟩",
             s"chr ${typeToStr(uType)}")
         }
     }
@@ -185,6 +270,7 @@ class Validator(val code: Array[String]) {
       case BoolLit(_) => Right(BoolType()(a.pos))
       case CharLit(_) => Right(CharType()(a.pos))
       case StrLit(_) => Right(StringType()(a.pos))
+      case i: Ident => getIdentType(i)
     }
   }
 
@@ -213,7 +299,7 @@ class Validator(val code: Array[String]) {
     case BoolType() => "⟨bool⟩"
     case CharType() => "⟨char⟩"
     case StringType() => "⟨string⟩"
-    case PairType(_, _) => "pair⟩"
+    case PairType(_, _) => "⟨pair⟩"
     case ArrayType(innerType) => typeToStr(innerType) + "[]"
   }
 }

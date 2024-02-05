@@ -81,8 +81,8 @@ object ast {
     case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
 
     sealed trait LValue
-    sealed trait Expr extends RValue
-    sealed class Atom(val pos:(Int,Int)) extends Expr
+    sealed class Expr(val pos:(Int,Int)) extends RValue
+    sealed class Atom(override val pos:(Int,Int)) extends Expr(pos)
     case class Ident(name: String)(override val pos: (Int, Int)) extends Atom(pos) with LValue
     case class ArrayElem(ident: Ident, xs: List[Expr])(override val pos: (Int, Int)) extends Atom(pos) with LValue
 
@@ -112,7 +112,7 @@ object ast {
     case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type
 
     /* Binary Operators */
-    sealed class BinOpp(val x: Expr, val y: Expr)(val pos:(Int,Int)) extends Expr
+    sealed class BinOpp(val x: Expr, val y: Expr)(override val pos:(Int,Int)) extends Expr(pos)
 
     case class Sub(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
     case class Add(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
@@ -127,7 +127,7 @@ object ast {
     case class NEq(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
     case class And(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
     case class Or(override val x: Expr, override val y: Expr)(override val pos: (Int, Int)) extends BinOpp(x, y)(pos)
-    sealed class UnOpp(val x: Expr)(val pos:(Int,Int)) extends Expr
+    sealed class UnOpp(val x: Expr)(override val pos:(Int,Int)) extends Expr(pos)
 
     /* Unary Operators */
     case class Not(override val x: Expr)(override val pos: (Int, Int)) extends UnOpp(x)(pos)
