@@ -33,7 +33,8 @@ object Main {
     }
 
     def parseProgram(str: String): Int = {
-        parser.parse(str) match {
+      0
+//        parser.parse(str) match {
         //TODO: Implement semantic checker and edit this function
 
 //            case Right(ast) =>
@@ -46,7 +47,7 @@ object Main {
 //                    case None => VALID_EXIT_STATUS
 //                }
 //            case Left(_) => SYNTAX_ERROR_EXIT_STATUS
-        }
+//        }
     }
 
     // TO DO: Use parseFile for error builder
