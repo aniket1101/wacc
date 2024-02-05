@@ -2,8 +2,10 @@ import ast._
 import parsley.errors.ErrorBuilder
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 class Validator(val code: Array[String]) {
+  private val symbolTable = mutable.Map[Ident, Type]()
 
   def check(prog: Prog): Option[String] = {
     checkStatements(prog.stats)
@@ -28,6 +30,7 @@ class Validator(val code: Array[String]) {
             case Some(err) => Option.apply(err)
             case None => checkStatements(stmts)
           }
+
         case Free(expr: Expr) =>
           checkExpr(expr: Expr) match {
             case Some(err) => Option.apply(err)
@@ -62,8 +65,15 @@ class Validator(val code: Array[String]) {
 
   // typ x = y
   private def checkDeclaration[T <: Type](typ: T, x: Ident, y: RValue): Option[String] = {
+    if (symbolTable.contains(x)) {
+      return Option.apply(identError(x.pos, s"Variable name '${x.name}' is already defined"))
+    }
     getRvalueType(y) match {
-      case Right(rType) => if (rType == typ) None else Some(s"Type Error: Cannot assign $rType to $typ")
+      case Right(rType) => if (rType == typ) {
+        symbolTable += (x -> typ)
+        None
+      } else Option.apply(typeErrorStr(rType.pos,
+        s"Cannot assign ${typeToStr(rType, brackets_? = false)} to ${typeToStr(typ, brackets_? = false)}", typeToStr(typ), typeToStr(rType)))
       case Left(errorMsg) => Some(errorMsg)
     }
   }
@@ -83,21 +93,23 @@ class Validator(val code: Array[String]) {
     for (expr <- exprs) {
       getExprType(expr) match {
         case Right(IntType()) =>
-        case Right(typ) => return typeErrorStr(expr.pos, "Array Indexes must be of type int", "array[...][⟨int⟩][...]",
-          s"array[...][${typeToStr(typ)}][...]") match {
-          case Left(err) => Option.apply(err)
-        }
+        case Right(typ) => return Option.apply(typeErrorStr(expr.pos, "Array Indexes must be of type int", "array[...][⟨int⟩][...]",
+          s"array[...][${typeToStr(typ)}][...]"))
         case Left(error) => return Option.apply(error)
       }
     }
     None
   }
 
-  private def getIdentType(i:Ident): Either[String, Type] = {
-    Right(new IntType()(i.pos))
+  private def getIdentType(i: Ident): Either[String, Type] = {
+    if (symbolTable.contains(i)) {
+      Right(symbolTable(i))
+    } else {
+      Left(identError(i.pos, s"Variable '${i.name}' undefined"))
+    }
   }
 
-  private def getPairElemType(p:PairElem): Either[String, Type] = {
+  private def getPairElemType(p: PairElem): Either[String, Type] = {
     p match {
       case PairFst(lVal) => getLValueType(lVal)
       case PairSnd(lVal) => getLValueType(lVal)
@@ -108,11 +120,11 @@ class Validator(val code: Array[String]) {
   private def checkAssignment(x: LValue, y: RValue): Option[String] = {
     getLValueType(x) match {
       case Right(lType) => getRvalueType(y) match {
-        case Right(rType) => if (lType == rType) None else typeErrorStr((0, 0), "Assignment value must be of same type as variable", typeToStr(lType),
-          typeToStr(lType)) match {
-          case Left(err) => Option.apply(err)
-        }
+        case Right(rType) => if (lType == rType) None else Option.apply(typeErrorStr(rType.pos, "Assignment value must be of same type as variable", typeToStr(lType),
+          typeToStr(rType)))
+        case Left(err) => Option.apply(err)
       }
+      case Left(err) => Option.apply(err)
     }
   }
 
@@ -125,9 +137,9 @@ class Validator(val code: Array[String]) {
   private def checkExpr(exp: Expr): Option[String] = {
     exp match {
       case expr: Expr => getExprType(expr) match {
-          case Right(rType) => None
-          case Left(errorMsg) => Some(errorMsg)
-        }
+        case Right(rType) => None
+        case Left(errorMsg) => Some(errorMsg)
+      }
     }
   }
 
@@ -145,86 +157,86 @@ class Validator(val code: Array[String]) {
       case Add(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '+' binary operator on ints", "⟨int⟩ + ⟨int⟩",
-            s"${typeToStr(typeL)} + ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '+' binary operator on ints", "⟨int⟩ + ⟨int⟩",
+            s"${typeToStr(typeL)} + ${typeToStr(typeR)}"))
         }
       case Sub(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '-' binary operator on ints", "⟨int⟩ - ⟨int⟩",
-            s"${typeToStr(typeL)} - ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '-' binary operator on ints", "⟨int⟩ - ⟨int⟩",
+            s"${typeToStr(typeL)} - ${typeToStr(typeR)}"))
         }
       case Mul(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '*' binary operator on ints", "⟨int⟩ * ⟨int⟩",
-            s"${typeToStr(typeL)} * ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '*' binary operator on ints", "⟨int⟩ * ⟨int⟩",
+            s"${typeToStr(typeL)} * ${typeToStr(typeR)}"))
         }
       case Div(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '/' binary operator on ints", "⟨int⟩ / ⟨int⟩",
-            s"${typeToStr(typeL)} / ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '/' binary operator on ints", "⟨int⟩ / ⟨int⟩",
+            s"${typeToStr(typeL)} / ${typeToStr(typeR)}"))
         }
       case Mod(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '%' binary operator on ints", "⟨int⟩ % ⟨int⟩",
-            s"${typeToStr(typeL)} % ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '%' binary operator on ints", "⟨int⟩ % ⟨int⟩",
+            s"${typeToStr(typeL)} % ${typeToStr(typeR)}"))
         }
 
       // Comparison Operators
       case GT(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '>' binary operator on ints or chars", "⟨int⟩ > ⟨int⟩ | ⟨char⟩ > ⟨char⟩",
-            s"${typeToStr(typeL)} > ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '>' binary operator on ints or chars", "⟨int⟩ > ⟨int⟩ | ⟨char⟩ > ⟨char⟩",
+            s"${typeToStr(typeL)} > ${typeToStr(typeR)}"))
         }
       case GTE(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '>=' binary operator on ints or chars", "⟨int⟩ >= ⟨int⟩ | ⟨char⟩ >= ⟨char⟩",
-            s"${typeToStr(typeL)} >= ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '>=' binary operator on ints or chars", "⟨int⟩ >= ⟨int⟩ | ⟨char⟩ >= ⟨char⟩",
+            s"${typeToStr(typeL)} >= ${typeToStr(typeR)}"))
         }
       case LT(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '<' binary operator on ints or chars", "⟨int⟩ < ⟨int⟩ | ⟨char⟩ < ⟨char⟩",
-            s"${typeToStr(typeL)} > ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '<' binary operator on ints or chars", "⟨int⟩ < ⟨int⟩ | ⟨char⟩ < ⟨char⟩",
+            s"${typeToStr(typeL)} > ${typeToStr(typeR)}"))
         }
       case LTE(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '<=' binary operator on ints or chars", "⟨int⟩ <= ⟨int⟩ | ⟨char⟩ <= ⟨char⟩",
-            s"${typeToStr(typeL)} <= ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '<=' binary operator on ints or chars", "⟨int⟩ <= ⟨int⟩ | ⟨char⟩ <= ⟨char⟩",
+            s"${typeToStr(typeL)} <= ${typeToStr(typeR)}"))
         }
 
       // Equality Operators
       case Eq(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (t1, t2) if t1 == t2 => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '==' binary operator on the same types", "⟨type⟩ == ⟨type⟩",
-            s"${typeToStr(typeL)} == ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '==' binary operator on the same types", "⟨type⟩ == ⟨type⟩",
+            s"${typeToStr(typeL)} == ${typeToStr(typeR)}"))
         }
       case NEq(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(IntType()), Right(IntType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '!=' binary operator on the same types", "⟨type⟩ != ⟨type⟩",
-            s"${typeToStr(typeL)} != ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '!=' binary operator on the same types", "⟨type⟩ != ⟨type⟩",
+            s"${typeToStr(typeL)} != ${typeToStr(typeR)}"))
         }
 
       // Logical Operators
       case And(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(BoolType()), Right(BoolType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '&&' binary operator on bools", "⟨bool⟩ && ⟨bool⟩",
-            s"${typeToStr(typeL)} && ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '&&' binary operator on bools", "⟨bool⟩ && ⟨bool⟩",
+            s"${typeToStr(typeL)} && ${typeToStr(typeR)}"))
         }
       case Or(x, y) =>
         (getExprType(x), getExprType(y)) match {
           case (Right(BoolType()), Right(BoolType())) => Right(BoolType()(b.pos))
-          case (Right(typeL), Right(typeR)) => typeErrorStr(b.pos, "Can only apply '||' binary operator on bools", "⟨bool⟩ || ⟨bool⟩",
-            s"${typeToStr(typeL)} || ${typeToStr(typeR)}")
+          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '||' binary operator on bools", "⟨bool⟩ || ⟨bool⟩",
+            s"${typeToStr(typeL)} || ${typeToStr(typeR)}"))
         }
     }
   }
@@ -234,32 +246,32 @@ class Validator(val code: Array[String]) {
       case Not(expr) =>
         getExprType(expr) match {
           case Right(BoolType()) => Right(BoolType()(u.pos))
-          case Right(uType) => typeErrorStr(u.pos, "Can only apply '!' unary operator on bools", "!⟨bool⟩",
-            s"!${typeToStr(uType)}")
+          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply '!' unary operator on bools", "!⟨bool⟩",
+            s"!${typeToStr(uType)}"))
         }
       case Neg(expr) =>
         getExprType(expr) match {
           case Right(IntType()) => Right(IntType()(u.pos))
-          case Right(uType) => typeErrorStr(u.pos, "Can only apply '-' unary operator on ints", "-⟨int⟩",
-            s"-${typeToStr(uType)}")
+          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply '-' unary operator on ints", "-⟨int⟩",
+            s"-${typeToStr(uType)}"))
         }
       case Len(expr) =>
         getExprType(expr) match {
           case Right(_: StringType | _: ArrayType) => Right(IntType()(u.pos))
-          case Right(uType) => typeErrorStr(u.pos, "Can only apply 'len' unary operator on strings or arrays", "len ⟨string⟩ | len ⟨type[]⟩",
-            s"len ${typeToStr(uType)}")
+          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply 'len' unary operator on strings or arrays", "len ⟨string⟩ | len ⟨type[]⟩",
+            s"len ${typeToStr(uType)}"))
         }
       case Ord(expr) =>
         getExprType(expr) match {
           case Right(CharType()) => Right(IntType()(u.pos))
-          case Right(uType) => typeErrorStr(u.pos, "Can only apply 'ord' unary operator on chars", "ord ⟨char⟩",
-            s"ord ${typeToStr(uType)}")
+          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply 'ord' unary operator on chars", "ord ⟨char⟩",
+            s"ord ${typeToStr(uType)}"))
         }
       case Chr(expr) =>
         getExprType(expr) match {
           case Right(IntType()) => Right(CharType()(u.pos))
-          case Right(uType) => typeErrorStr(u.pos, "Can only apply 'chr' unary operator on ints", "chr ⟨int⟩",
-            s"chr ${typeToStr(uType)}")
+          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply 'chr' unary operator on ints", "chr ⟨int⟩",
+            s"chr ${typeToStr(uType)}"))
         }
     }
   }
@@ -274,24 +286,38 @@ class Validator(val code: Array[String]) {
     }
   }
 
-  private def typeErrorStr(pos: (Int, Int), msg: String, expected: String, actual: String): Either[String, Type] = {
+  private def typeErrorStr(pos: (Int, Int), msg: String, expected: String, actual: String): String = {
     val (line, col) = pos
-    val prevLine = code(line-2)
-    val curLine = code(line-1)
+    val prevLine = code(line - 2)
+    val curLine = code(line - 1)
     val afterLine = code(line)
     val beforeCode = s"$line:"
     val afterCode = " " * (beforeCode.length + col + 1)
-    Left(
-      s"""Type Error (line=$line, col=$col):
-         |  $msg.
-         |  Expected:   $expected
-         |  Actual:     $actual
-         |
-         || ${line-1}:$prevLine
-         || $beforeCode$curLine
-         |$afterCode↑
-         || ${line+1}:$afterLine""".stripMargin
-    )
+    s"""Type Error (line=$line, col=$col):
+       |  $msg.
+       |  Expected:   $expected
+       |  Actual:     $actual
+       |
+       || ${line - 1}:$prevLine
+       || $beforeCode$curLine
+       |$afterCode↑
+       || ${line + 1}:$afterLine""".stripMargin
+  }
+
+  private def identError(pos: (Int, Int), msg: String): String = {
+    val (line, col) = pos
+    val prevLine = code(line - 2)
+    val curLine = code(line - 1)
+    val afterLine = code(line)
+    val beforeCode = s"$line:"
+    val afterCode = " " * (beforeCode.length + col + 1)
+    s"""Name Error (line=$line, col=$col):
+       |  $msg.
+       |
+       || ${line - 1}:$prevLine
+       || $beforeCode$curLine
+       |$afterCode↑
+       || ${line + 1}:$afterLine""".stripMargin
   }
 
   private def typeToStr(lit: Type): String = lit match {
@@ -302,4 +328,20 @@ class Validator(val code: Array[String]) {
     case PairType(_, _) => "⟨pair⟩"
     case ArrayType(innerType) => typeToStr(innerType) + "[]"
   }
+
+  private def typeToStr(lit: Type, brackets_? : Boolean): String = {
+    if (!brackets_?) {
+      lit match {
+        case IntType() => "int"
+        case BoolType() => "bool"
+        case CharType() => "char"
+        case StringType() => "string"
+        case PairType(_, _) => "pair"
+        case ArrayType(innerType) => typeToStr(innerType, brackets_?) + "[]"
+      }
+    } else {
+      typeToStr(lit)
+    }
+  }
+
 }

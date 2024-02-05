@@ -100,16 +100,16 @@ object ast {
     case class ArrayLit(xs: List[Expr])(val pos: (Int, Int)) extends RValue
 
     // Types
-    sealed trait Type
-    sealed trait BaseType extends Type with PairElemType
+    sealed class Type(val pos: (Int, Int))
+    sealed class BaseType(override val pos: (Int, Int)) extends Type(pos) with PairElemType
     sealed trait PairElemType
     case class Pair()(val pos: (Int, Int)) extends PairElemType
-    case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType
-    case class IntType()(val pos: (Int, Int)) extends BaseType
-    case class BoolType()(val pos: (Int, Int)) extends BaseType
-    case class CharType()(val pos: (Int, Int)) extends BaseType
-    case class StringType()(val pos: (Int, Int)) extends BaseType
-    case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type
+    case class ArrayType(typ: Type)(override val pos: (Int, Int)) extends Type(pos) with PairElemType
+    case class IntType()(override val pos: (Int, Int)) extends BaseType(pos)
+    case class BoolType()(override val pos: (Int, Int)) extends BaseType(pos)
+    case class CharType()(override val pos: (Int, Int)) extends BaseType(pos)
+    case class StringType()(override val pos: (Int, Int)) extends BaseType(pos)
+    case class PairType(fstType: PairElemType, sndType: PairElemType)(override val pos: (Int, Int)) extends Type(pos)
 
     /* Binary Operators */
     sealed class BinOpp(val x: Expr, val y: Expr)(override val pos:(Int,Int)) extends Expr(pos)
