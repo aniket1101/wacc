@@ -129,7 +129,7 @@ object validator {
       case Ord(_) => IntType()(nullPos)
       case Chr(_) => CharType()(nullPos)
       case Plus(_) => IntType()(nullPos)
-      case ArrayElem(id, exprs) => {
+      case ArrayElem(id, exprs) =>
         var arrayType = checkType(id: Expr)
         for (expr <- exprs) {
           checkType(expr) match {
@@ -141,7 +141,6 @@ object validator {
           }
         }
         arrayType
-      }
       case PairLiter() => NoTypeExists
       case BoolLit(_) => BoolType()(nullPos)
       case IntLit(_) => IntType()(nullPos)
@@ -211,7 +210,7 @@ object validator {
 
   private def getDimension(array:Type): Int = {
     array match {
-      case (ArrayType(x)) => 1 + getDimension(x)
+      case ArrayType(x) => 1 + getDimension(x)
       case _ => 0
     }
   }
@@ -240,9 +239,9 @@ object validator {
         }
         new NewPair(newExp1, newExp2)(expr.pos)
       case Call(id, params) =>
-        val newId = Ident(waccPrefix + id.name)(id.pos)
         val newParams = params.map(checkExpr(_, varsInScope))
-        funcTable.find(x => x.ident.name == id.name) match {
+        val newId = Ident(waccPrefix + id.name)(id.pos)
+        funcTable.find(x => x.ident.name == newId.name) match {
           case Some(funcCalled) =>
             if (funcCalled.paramList.length != newParams.length) {
               semanticErrorOccurred(s"Call to function ${id.name} has the incorrect number of arguments", expr.pos)
@@ -286,8 +285,9 @@ object validator {
           case Some((err, pos)) => semanticErrorOccurred(err, pos)
           case _ =>
         }
-        if (getDimension(checkType(checkExpr(id: Expr, varsInScope))) != indexes.length) {
-          semanticErrorOccurred("Array invalid dimensions do not match", id.pos)
+        val arrDim = getDimension(checkType(checkExpr(id: Expr, varsInScope)))
+        if (arrDim < indexes.length) {
+          semanticErrorOccurred(s"Array invalid dimensions do not match: indexes passed in are $indexes, expected ${indexes.length} , found $arrDim", id.pos)
         }
 
         id match {
@@ -388,7 +388,7 @@ object validator {
     def returnsIntType(op: String): Unit = {
       checkType(newX) match {
         case IntType() =>
-        case _ => semanticErrorOccurred(s"Left expression in $op is not of type Int", newX.pos)
+        case _ => semanticErrorOccurred(s"Left expression in $op is not of type Int, is ${checkType(newX)} instead", newX.pos)
       }
       checkType(newY) match {
         case IntType() =>
