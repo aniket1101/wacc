@@ -23,6 +23,7 @@ object validator {
       case (PairType(t1l, t1r), PairType(t2l, t2r)) => sameType(t1l, t2l) && sameType(t1r, t2r)
       case (PairType(_, _), Pair()) => true
       case (Pair(), PairType(_, _)) => true
+      case (StringType(), ArrayType(CharType())) => true
       case _ => if (t1 == AnyType || t2 == AnyType) true else false
     }
   }
