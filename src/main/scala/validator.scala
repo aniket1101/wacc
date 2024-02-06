@@ -141,12 +141,12 @@ object validator {
           }
         }
         arrayType
-      case PairLiter() => NoTypeExists
       case BoolLit(_) => BoolType()(nullPos)
       case IntLit(_) => IntType()(nullPos)
       case CharLit(_) => CharType()(nullPos)
       case Ident(name) => symTable.getOrElse(name, NoTypeExists)
       case StrLit(_) => StringType()(nullPos)
+      case PairLiter() => PairType(AnyType, AnyType)(nullPos)
     }
   }
 
