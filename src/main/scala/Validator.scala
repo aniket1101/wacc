@@ -1,6 +1,7 @@
 import ast._
 import waccErrors._
-//import scala.annotation.tailrec
+import java.io.File
+import scala.io.Source
 import scala.collection.mutable
 
 object Validator {
@@ -123,7 +124,7 @@ object Validator {
           semanticErrorOccurred(s"Identifier not in scope: $name", expr.pos)
           expr
         } else {
-          new Ident(varsInScope.get(name).get)(expr.pos)
+          new Ident(varsInScope(name))(expr.pos)
         }
       case ArrayElem(id, index) =>
         val newIndex = checkExpr(index: Expr, varsInScope)
@@ -142,7 +143,7 @@ object Validator {
           case Ident(name) =>
             symTable.get(varsInScope.getOrElse(name, "")) match {
               case Some(value) => value match {
-                case ArrayType(_) => new ArrayElem(new Ident(varsInScope.get(name).get)(id.pos), newIndex)(expr.pos)
+                case ArrayType(_) => new ArrayElem(new Ident(varsInScope(name))(id.pos), newIndex)(expr.pos)
                 case _ =>
                   semanticErrorOccurred(s"Attempting to access array element from non-array identifier: $name", id.pos)
                   expr
@@ -205,7 +206,7 @@ object Validator {
     }
   }
 
-  // Check that any Expression passed in as a BinOp/UnOp is syntactically sound according to the WACC specification
+  // Check that other Expressions passed in as are syntactically sound according to the WACC specification
   def checkExpr(expr: Expr, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
                                                                  symTable: mutable.Map[String, Type],
                                                                  funcTable: List[Func], source: String,
@@ -218,7 +219,6 @@ object Validator {
         checkType(newIndex) match {
           case IntType() =>
           case _ => semanticErrorOccurred("Array Index is not an int", newIndex.pos)
-          expr
         }
         id match {
           case ArrayElem(_, _) =>
@@ -231,7 +231,7 @@ object Validator {
           case Ident(name) =>
             symTable.get(varsInScope.getOrElse(name, "")) match {
               case Some(value) => value match {
-                case ArrayType(_) => new ArrayElem(new Ident(varsInScope.get(name).get)(id.pos), newIndex)(expr.pos)
+                case ArrayType(_) => new ArrayElem(new Ident(varsInScope(name))(id.pos), newIndex)(expr.pos)
                 case _ =>
                   semanticErrorOccurred(s"Attempting to access array element from non-array identifier $name", id.pos)
                   expr
@@ -246,40 +246,41 @@ object Validator {
           semanticErrorOccurred(s"Identifier not in scope: $name", expr.pos)
           expr
         } else {
-          new Ident(varsInScope.get(name).get)(expr.pos)
+          new Ident(varsInScope(name))(expr.pos)
         }
       case _ => expr
     }
   }
 
+  // Check that Unary Operators are syntactically sound according to the WACC specification
   def checkUnOp(expr: UnOpp, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
                                                               symTable: mutable.Map[String, Type],
                                                               funcTable: List[Func], source: String,
                                                               waccLines: Array[String]): UnOpp = {
     val inside = checkExpr(expr.x, varsInScope)
 
-    def isIntType(op: String): Unit = {
+    def returnsIntType(op: String): Unit = {
       checkType(inside) match {
         case IntType() =>
         case _ => semanticErrorOccurred(s"Argument $op is not of type Int", inside.pos)
       }
     }
 
-    def isCharType(op: String): Unit = {
+    def returnsCharType(op: String): Unit = {
       checkType(inside) match {
         case CharType() =>
         case _ => semanticErrorOccurred(s"Argument $op is not of type Char", inside.pos)
       }
     }
 
-    def isBoolType(op: String): Unit = {
+    def returnsBoolType(op: String): Unit = {
       checkType(inside) match {
         case BoolType() =>
         case _ => semanticErrorOccurred(s"Argument $op is not of type Bool", inside.pos)
       }
     }
 
-    def isSeqType(op: String): Unit = {
+    def returnsSeqType(op: String): Unit = {
       checkType(inside) match {
         case ArrayType(_) =>
         case StringType() =>
@@ -288,22 +289,24 @@ object Validator {
     }
     expr match {
       case Chr(_) =>
-        isIntType("chr")
+        returnsIntType("chr")
         new Chr(inside)(expr.pos)
       case Len(_) =>
-        isSeqType("len")
+        returnsSeqType("len")
         new Len(inside)(expr.pos)
       case Neg(_) =>
-        isIntType("neg")
+        returnsIntType("neg")
         new Neg(inside)(expr.pos)
       case Not(_) =>
-        isBoolType("!")
+        returnsBoolType("!")
         new Not(inside)(expr.pos)
       case Ord(_) =>
-        isCharType("ord")
+        returnsCharType("ord")
         new Ord(inside)(expr.pos)
     }
   }
+
+  // Check that Binary Operators are syntactically sound according to the WACC specification
   def checkBinOp(expr: BinOpp, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
                                                                symTable: mutable.Map[String, Type],
                                                                funcTable: List[Func], source: String,
@@ -311,7 +314,7 @@ object Validator {
     val newX = checkExpr(expr.x, varsInScope)
     val newY = checkExpr(expr.y, varsInScope)
 
-    def isIntType(op: String): Unit = {
+    def returnsIntType(op: String): Unit = {
       checkType(newX) match {
         case IntType() =>
         case _ => semanticErrorOccurred(s"Left expression in $op is not of type Int", newX.pos)
@@ -322,7 +325,7 @@ object Validator {
       }
     }
 
-    def isBoolType(op: String): Unit = {
+    def returnsBoolType(op: String): Unit = {
       checkType(newX) match {
         case BoolType() =>
         case _ => semanticErrorOccurred(s"Left expression in $op is not of type Bool", newX.pos)
@@ -333,7 +336,7 @@ object Validator {
       }
     }
 
-    def isIntOrCharType(op: String): Unit = {
+    def returnsIntOrCharType(op: String): Unit = {
       val exp1Typ = checkType(newX)
       exp1Typ match {
         case IntType() =>
@@ -351,7 +354,7 @@ object Validator {
       }
     }
 
-    def isSameType(op: String): Unit = {
+    def returnsSameType(op: String): Unit = {
       val exp1Typ = checkType(newX)
       val exp2Typ = checkType(newY)
       if (!sameType(exp1Typ, exp2Typ)) {
@@ -361,405 +364,174 @@ object Validator {
 
     expr match {
       case Sub(_, _) =>
-        isIntType("subtraction")
+        returnsIntType("subtraction")
         new Sub(newX, newY)(expr.pos)
       case Add(_, _) =>
-        isIntType("addition")
+        returnsIntType("addition")
         new Add(newX, newY)(expr.pos)
       case Mul(_, _) =>
-        isIntType("multiplication")
+        returnsIntType("multiplication")
         new Mul(newX, newY)(expr.pos)
       case Div(_, _) =>
-        isIntType("division")
+        returnsIntType("division")
         new Div(newX, newY)(expr.pos)
       case Mod(_, _) =>
-        isIntType("modulusation")
+        returnsIntType("modulusation")
         new Mod(newX, newY)(expr.pos)
       case GT(_, _) =>
-        isIntOrCharType("\'>\'")
+        returnsIntOrCharType("\'>\'")
         new GT(newX, newY)(expr.pos)
       case GTE(_, _) =>
-        isIntOrCharType("\'>=\'")
+        returnsIntOrCharType("\'>=\'")
         new GTE(newX, newY)(expr.pos)
       case LT(_, _) =>
-        isIntOrCharType("\'<\'")
+        returnsIntOrCharType("\'<\'")
         new LT(newX, newY)(expr.pos)
       case LTE(_, _) =>
-        isIntOrCharType("\'<=\'")
+        returnsIntOrCharType("\'<=\'")
         new LTE(newX, newY)(expr.pos)
       case Eq(_, _) =>
-        isSameType("\'==\'")
+        returnsSameType("\'==\'")
         new Eq(newX, newY)(expr.pos)
       case NEq(_, _) =>
-        isSameType("\'!=\'")
+        returnsSameType("\'!=\'")
         new NEq(newX, newY)(expr.pos)
       case And(_, _) =>
-        isBoolType("and operation")
+        returnsBoolType("and operation")
         new And(newX, newY)(expr.pos)
       case Or(_, _) =>
-        isBoolType("or operation")
+        returnsBoolType("or operation")
         new Or(newX, newY)(expr.pos)
     }
   }
 
-//  def checkStatements(stats: List[Stat], varsInScope: Map[String, String], returnType: Type,
-//                      scopePrefix: String)(implicit errors: mutable.ListBuffer[Error],
-//                                                             symTable: mutable.Map[String, Type],
-//                                                             funcTable: List[Func], source: String,
-//                                                             waccLines: Array[String]): List[Stat] = {
-//
-//    var localSymTable: Map[String, String] = Map.empty[String, String]
-//    val newStats: mutable.ListBuffer[Stat] = mutable.ListBuffer.empty[Stat]
-//    var scopeIndex = 0
-//
-//    for(stat <- stats){
-//      val checkedStat: Stat = stat match {
-//        case Skip() => stat
-//        case Declaration(idType, id, value)
-//      }
-//    }
-//
-//  }
-}
+  def checkStatements(stats: List[Stat], varsInScope: Map[String, String], returnType: Type,
+                      scopePrefix: String)(implicit errors: mutable.ListBuffer[Error],
+                                                             symTable: mutable.Map[String, Type],
+                                                             funcTable: List[Func], source: String,
+                                                             waccLines: Array[String]): List[Stat] = {
 
-//class Validator(val code: Array[String]) {
-//  private val symbolTable = mutable.Map[Ident, Type]()
-//
-//  def check(prog: Prog): Option[String] = {
-//    checkStatements(prog.stats)
-//  }
-//
-//  @tailrec
-//  private def checkStatements(stats: List[Stat]): Option[String] = {
-//    stats match {
-//      case Nil => None
-//      case stmt :: stmts => stmt match {
-//        case Declaration(typ, x, y) =>
-//          checkDeclaration(typ, x, y) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//        case Read(lValue) => getLValueType(lValue) match {
-//          case Left(err) => Some(err)
-//          case Right(_) => checkStatements(stmts)
-//        }
-//        case Assign(lValue, y) =>
-//          checkAssignment(lValue, y) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//
-//        case Free(expr: Expr) =>
-//          checkExpr(expr: Expr) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//        case Return(expr: Expr) =>
-//          checkExpr(expr: Expr) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//        case Exit(expr: Expr) =>
-//          checkExpr(expr: Expr) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//        case Print(expr: Expr) =>
-//          checkExpr(expr: Expr) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//        case Println(expr: Expr) =>
-//          checkExpr(expr: Expr) match {
-//            case Some(err) => Option.apply(err)
-//            case None => checkStatements(stmts)
-//          }
-//        // TODO: Remove Duplication
-//        // TODO: Add all cases
-//        case _ => Option.empty
-//      }
-//    }
-//  }
-//
-//  // typ x = y
-//  private def checkDeclaration[T <: Type](typ: T, x: Ident, y: RValue): Option[String] = {
-//    if (symbolTable.contains(x)) {
-//      return Option.apply(identError(x.pos, s"Variable name '${x.name}' is already defined"))
-//    }
-//    getRvalueType(y) match {
-//      case Right(rType) => if (rType == typ) {
-//        symbolTable += (x -> typ)
-//        None
-//      } else Option.apply(typeErrorStr(rType.pos,
-//        s"Cannot assign ${typeToStr(rType, brackets_? = false)} to ${typeToStr(typ, brackets_? = false)}", typeToStr(typ), typeToStr(rType)))
-//      case Left(errorMsg) => Some(errorMsg)
-//    }
-//  }
-//
-//  private def getLValueType(l: LValue): Either[String, Type] = {
-//    l match {
-//      case i: Ident => getIdentType(i)
-//      case p: PairElem => getPairElemType(p)
-//      case ArrayElem(ident, xs) => checkArrayIndex(xs) match {
-//        case Some(err) => Left(err)
-//        case _ => getIdentType(ident)
-//      }
-//    }
-//  }
-//
-//  private def checkArrayIndex(exprs: List[Expr]): Option[String] = {
-//    for (expr <- exprs) {
-//      getExprType(expr) match {
-//        case Right(IntType()) =>
-//        case Right(typ) => return Option.apply(typeErrorStr(expr.pos, "Array Indexes must be of type int", "array[...][⟨int⟩][...]",
-//          s"array[...][${typeToStr(typ)}][...]"))
-//        case Left(error) => return Option.apply(error)
-//      }
-//    }
-//    None
-//  }
-//
-//  private def getIdentType(i: Ident): Either[String, Type] = {
-//    if (symbolTable.contains(i)) {
-//      Right(symbolTable(i))
-//    } else {
-//      Left(identError(i.pos, s"Variable '${i.name}' undefined"))
-//    }
-//  }
-//
-//  private def getPairElemType(p: PairElem): Either[String, Type] = {
-//    p match {
-//      case PairFst(lVal) => getLValueType(lVal)
-//      case PairSnd(lVal) => getLValueType(lVal)
-//    }
-//  }
-//
-//  // x = y
-//  private def checkAssignment(x: LValue, y: RValue): Option[String] = {
-//    getLValueType(x) match {
-//      case Right(lType) => getRvalueType(y) match {
-//        case Right(rType) => if (lType == rType) None else Option.apply(typeErrorStr(rType.pos, "Assignment value must be of same type as variable", typeToStr(lType),
-//          typeToStr(rType)))
-//        case Left(err) => Option.apply(err)
-//      }
-//      case Left(err) => Option.apply(err)
-//    }
-//  }
-//
-//  private def getRvalueType(r: RValue): Either[String, Type] = {
-//    r match {
-//      case expr: Expr => getExprType(expr)
-//    }
-//  }
-//
-//  private def checkExpr(exp: Expr): Option[String] = {
-//    exp match {
-//      case expr: Expr => getExprType(expr) match {
-//        case Right(rType) => None
-//        case Left(errorMsg) => Some(errorMsg)
-//      }
-//    }
-//  }
-//
-//  private def getExprType(e: Expr): Either[String, Type] = {
-//    e match {
-//      case atom: Atom => getAtomType(atom)
-//      case unOpp: UnOpp => getUnOpType(unOpp)
-//      case binOpp: BinOpp => getBinOpType(binOpp)
-//    }
-//  }
-//
-//  private def getBinOpType(b: BinOpp): Either[String, Type] = {
-//    b match {
-//      // Arithmetic Operators
-//      case Add(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '+' binary operator on ints", "⟨int⟩ + ⟨int⟩",
-//            s"${typeToStr(typeL)} + ${typeToStr(typeR)}"))
-//        }
-//      case Sub(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '-' binary operator on ints", "⟨int⟩ - ⟨int⟩",
-//            s"${typeToStr(typeL)} - ${typeToStr(typeR)}"))
-//        }
-//      case Mul(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '*' binary operator on ints", "⟨int⟩ * ⟨int⟩",
-//            s"${typeToStr(typeL)} * ${typeToStr(typeR)}"))
-//        }
-//      case Div(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '/' binary operator on ints", "⟨int⟩ / ⟨int⟩",
-//            s"${typeToStr(typeL)} / ${typeToStr(typeR)}"))
-//        }
-//      case Mod(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType()), Right(IntType())) => Right(IntType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '%' binary operator on ints", "⟨int⟩ % ⟨int⟩",
-//            s"${typeToStr(typeL)} % ${typeToStr(typeR)}"))
-//        }
-//
-//      // Comparison Operators
-//      case GT(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '>' binary operator on ints or chars", "⟨int⟩ > ⟨int⟩ | ⟨char⟩ > ⟨char⟩",
-//            s"${typeToStr(typeL)} > ${typeToStr(typeR)}"))
-//        }
-//      case GTE(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '>=' binary operator on ints or chars", "⟨int⟩ >= ⟨int⟩ | ⟨char⟩ >= ⟨char⟩",
-//            s"${typeToStr(typeL)} >= ${typeToStr(typeR)}"))
-//        }
-//      case LT(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '<' binary operator on ints or chars", "⟨int⟩ < ⟨int⟩ | ⟨char⟩ < ⟨char⟩",
-//            s"${typeToStr(typeL)} > ${typeToStr(typeR)}"))
-//        }
-//      case LTE(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType() | CharType()), Right(IntType() | CharType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '<=' binary operator on ints or chars", "⟨int⟩ <= ⟨int⟩ | ⟨char⟩ <= ⟨char⟩",
-//            s"${typeToStr(typeL)} <= ${typeToStr(typeR)}"))
-//        }
-//
-//      // Equality Operators
-//      case Eq(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (t1, t2) if t1 == t2 => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '==' binary operator on the same types", "⟨type⟩ == ⟨type⟩",
-//            s"${typeToStr(typeL)} == ${typeToStr(typeR)}"))
-//        }
-//      case NEq(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(IntType()), Right(IntType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '!=' binary operator on the same types", "⟨type⟩ != ⟨type⟩",
-//            s"${typeToStr(typeL)} != ${typeToStr(typeR)}"))
-//        }
-//
-//      // Logical Operators
-//      case And(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(BoolType()), Right(BoolType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '&&' binary operator on bools", "⟨bool⟩ && ⟨bool⟩",
-//            s"${typeToStr(typeL)} && ${typeToStr(typeR)}"))
-//        }
-//      case Or(x, y) =>
-//        (getExprType(x), getExprType(y)) match {
-//          case (Right(BoolType()), Right(BoolType())) => Right(BoolType()(b.pos))
-//          case (Right(typeL), Right(typeR)) => Left(typeErrorStr(b.pos, "Can only apply '||' binary operator on bools", "⟨bool⟩ || ⟨bool⟩",
-//            s"${typeToStr(typeL)} || ${typeToStr(typeR)}"))
-//        }
-//    }
-//  }
-//
-//  private def getUnOpType(u: UnOpp): Either[String, Type] = {
-//    u match {
-//      case Not(expr) =>
-//        getExprType(expr) match {
-//          case Right(BoolType()) => Right(BoolType()(u.pos))
-//          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply '!' unary operator on bools", "!⟨bool⟩",
-//            s"!${typeToStr(uType)}"))
-//        }
-//      case Neg(expr) =>
-//        getExprType(expr) match {
-//          case Right(IntType()) => Right(IntType()(u.pos))
-//          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply '-' unary operator on ints", "-⟨int⟩",
-//            s"-${typeToStr(uType)}"))
-//        }
-//      case Len(expr) =>
-//        getExprType(expr) match {
-//          case Right(_: StringType | _: ArrayType) => Right(IntType()(u.pos))
-//          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply 'len' unary operator on strings or arrays", "len ⟨string⟩ | len ⟨type[]⟩",
-//            s"len ${typeToStr(uType)}"))
-//        }
-//      case Ord(expr) =>
-//        getExprType(expr) match {
-//          case Right(CharType()) => Right(IntType()(u.pos))
-//          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply 'ord' unary operator on chars", "ord ⟨char⟩",
-//            s"ord ${typeToStr(uType)}"))
-//        }
-//      case Chr(expr) =>
-//        getExprType(expr) match {
-//          case Right(IntType()) => Right(CharType()(u.pos))
-//          case Right(uType) => Left(typeErrorStr(u.pos, "Can only apply 'chr' unary operator on ints", "chr ⟨int⟩",
-//            s"chr ${typeToStr(uType)}"))
-//        }
-//    }
-//  }
-//
-//  private def getAtomType(a: Atom): Either[String, Type] = {
-//    a match {
-//      case IntLit(_) => Right(IntType()(a.pos))
-//      case BoolLit(_) => Right(BoolType()(a.pos))
-//      case CharLit(_) => Right(CharType()(a.pos))
-//      case StrLit(_) => Right(StringType()(a.pos))
-//      case i: Ident => getIdentType(i)
-//    }
-//  }
-//
-//  private def typeErrorStr(pos: (Int, Int), msg: String, expected: String, actual: String): String = {
-//    val (line, col) = pos
-//    val prevLine = code(line - 2)
-//    val curLine = code(line - 1)
-//    val afterLine = code(line)
-//    val beforeCode = s"$line:"
-//    val afterCode = " " * (beforeCode.length + col + 1)
-//    s"""Type Error (line=$line, col=$col):
-//       |  $msg.
-//       |  Expected:   $expected
-//       |  Actual:     $actual
-//       |
-//       || ${line - 1}:$prevLine
-//       || $beforeCode$curLine
-//       |$afterCode↑
-//       || ${line + 1}:$afterLine""".stripMargin
-//  }
-//
-//  private def identError(pos: (Int, Int), msg: String): String = {
-//    val (line, col) = pos
-//    val prevLine = code(line - 2)
-//    val curLine = code(line - 1)
-//    val afterLine = code(line)
-//    val beforeCode = s"$line:"
-//    val afterCode = " " * (beforeCode.length + col + 1)
-//    s"""Name Error (line=$line, col=$col):
-//       |  $msg.
-//       |
-//       || ${line - 1}:$prevLine
-//       || $beforeCode$curLine
-//       |$afterCode↑
-//       || ${line + 1}:$afterLine""".stripMargin
-//  }
-//
-//  private def typeToStr(lit: Type): String = lit match {
-//    case IntType() => "⟨int⟩"
-//    case BoolType() => "⟨bool⟩"
-//    case CharType() => "⟨char⟩"
-//    case StringType() => "⟨string⟩"
-//    case PairType(_, _) => "⟨pair⟩"
-//    case ArrayType(innerType) => typeToStr(innerType) + "[]"
-//  }
-//
-//  private def typeToStr(lit: Type, brackets_? : Boolean): String = {
-//    if (!brackets_?) {
-//      lit match {
-//        case IntType() => "int"
-//        case BoolType() => "bool"
-//        case CharType() => "char"
-//        case StringType() => "string"
-//        case PairType(_, _) => "pair"
-//        case ArrayType(innerType) => typeToStr(innerType, brackets_?) + "[]"
-//      }
-//    } else {
-//      typeToStr(lit)
-//    }
-//  }
-//
-//}
+    var localSymTable: Map[String, String] = Map.empty[String, String]
+    val newStats: mutable.ListBuffer[Stat] = mutable.ListBuffer.empty[Stat]
+    var scopeIndex = 0
+
+    for(stat <- stats){
+      val checkedStat: Stat = stat match {
+        case Skip() => stat
+        case Declaration(idType, id, value) =>
+          val newValue = checkExpr(value, varsInScope ++ localSymTable)
+          val newIdName = scopePrefix ++ id.name
+
+          if(localSymTable.contains(id.name)) {
+            semanticErrorOccurred(s"Variable named '${id.name}' is already defined", id.pos)
+          } else if (!sameType(idType, checkType(newValue))) {
+            semanticErrorOccurred(s"Type mismatch in declaration of ${id.name}: expected $idType, found ${checkType(newValue)}", stat.pos)
+          }
+          localSymTable = localSymTable + (id.name -> newIdName)
+          symTable += (newIdName -> idType)
+          new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
+        case Assign(lVal, rVal) =>
+          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
+          val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
+
+          if(!sameType(checkType(newLVal), checkType(newRVal))) {
+            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(newLVal)}, found ${checkType(newRVal)}", stat.pos)
+          } else if (checkType(newLVal) == AnyType && checkType(newRVal) == AnyType) {
+            semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
+          }
+          new Assign(newLVal, newRVal)(stat.pos)
+        case Read(expr) =>
+          val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
+          checkType(newExpr) match {
+            case IntType() =>
+            case CharType() =>
+            case StringType() =>
+            case _ => semanticErrorOccurred("Variable attempting read has incorrect type, can only be of type Int, Char or String", stat.pos)
+          }
+          new Read(newExpr)(stat.pos)
+        case Free(expr) =>
+          val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
+          checkType(newExpr) match {
+            case PairType(_, _) | ArrayType(_) =>
+            case _ => semanticErrorOccurred("Only Pair and Array types can be freed", stat.pos)
+          }
+          new Free(newExpr)(stat.pos)
+        case Return(expr) =>
+          val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
+          if (returnType == null) {
+            semanticErrorOccurred("Return is misused in main program", stat.pos)
+          } else if (!sameType(checkType(newExpr), returnType)) {
+            semanticErrorOccurred(s"Type mismatch in Return: expected $returnType, found ${checkType(expr)}", stat.pos)
+          }
+          new Return(newExpr)(stat.pos)
+        case Exit(expr) =>
+          val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
+          checkType(newExpr) match {
+            case IntType() =>
+            case _ => semanticErrorOccurred("Exit code defined is not of type Int", newExpr.pos)
+          }
+          new Exit(newExpr)(stat.pos)
+        case Print(expr) => new Print(checkExpr(expr, varsInScope ++ localSymTable))(stat.pos)
+        case Println(expr) => new Println(checkExpr(expr, varsInScope ++ localSymTable))(stat.pos)
+        case If(expr, thenStat, elseStat) =>
+          val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
+          checkType(newExpr) match {
+            case BoolType() =>
+            case _ => semanticErrorOccurred("Condition for If statement is not of type Bool", expr.pos)
+          }
+          val newThenStat = checkStatements(thenStat, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}ifthen-")
+          val newElseStat = checkStatements(elseStat, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}ifelse-")
+          scopeIndex += 1
+          new If(newExpr, newThenStat, newElseStat)(stat.pos)
+        case While(expr, whileBody) =>
+          val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
+          checkType(newExpr) match {
+            case BoolType() =>
+            case _ => semanticErrorOccurred("Condition for While statement is not of type Bool", expr.pos)
+          }
+          val newBody = checkStatements(whileBody, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}while-")
+          scopeIndex += 1
+          new While(newExpr, newBody)(stat.pos)
+        case Scope(body) =>
+          val newBody = checkStatements(body, varsInScope ++ localSymTable, returnType, s"$scopePrefix%${scopeIndex}subscope-")
+          scopeIndex += 1
+          new Scope(newBody)(stat.pos)
+      }
+      newStats += checkedStat
+    }
+    newStats.toList
+  }
+
+  def checkSemantics(inProg: Prog, file: String): (List[Error], Prog, mutable.Map[String, Type]) = {
+    implicit val funcTable: List[Func] = inProg.funcs.map {
+      case x@Func(funcType, id, params, funcStats) => new Func(funcType, Ident(waccPrefix + id.name)(id.pos), params, funcStats)(x.pos)
+    }
+    implicit val fileName: String = file
+    val fileSource = Source.fromFile(new File(file))
+    implicit val fileContents: Array[String] = fileSource.getLines().toArray
+    fileSource.close()
+    implicit val symTable: mutable.Map[String, Type] = mutable.LinkedHashMap[String, Type] ()
+    implicit val errors: mutable.ListBuffer[Error] = mutable.ListBuffer.empty[Error]
+
+    var tempFuncTable: List[Func] = Nil
+    val newFuncs = funcTable.map(x => {
+      if (tempFuncTable.exists(y => y.ident.name == x.ident.name)) {
+        semanticErrorOccurred(s"Duplicated function declaration: ${x.ident.name}", x.pos)
+      } else {
+        tempFuncTable = tempFuncTable :+ x
+      }
+      var argList: List[Param] = Nil
+      x.paramList.foreach(a => if (argList.exists(b => a.ident.name == b.ident.name)) {
+        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name} in function ${x.ident.name}", a.pos)
+      } else {
+        argList = argList :+ a
+      })
+      val funcScopePrefix = s"func-${x.ident.name}-"
+      x.paramList.foreach(y => symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ)
+      new Func(x.typ, x.ident, x.paramList,
+        checkStatements(x.stats, x.paramList.map(y => y.ident.name -> (funcScopePrefix ++ "param-" ++ y.ident.name)).toMap, x.typ, funcScopePrefix))(x.pos)
+    })
+    val newProg = new Prog(newFuncs, checkStatements(inProg.stats, Map.empty, null, "main-"))(inProg.pos)
+    (errors.toList, newProg, symTable)
+  }
+}

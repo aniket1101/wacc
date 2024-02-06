@@ -90,9 +90,7 @@ object ast {
   sealed class Atom(val pos:(Int,Int)) extends Expr
 
   sealed trait IdentArray extends LValue with Expr
-  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray {
-    def toStringName: String = name
-  }
+  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray
   case class ArrayElem(ident: IdentArray, expr: Expr)(override val pos: (Int, Int)) extends IdentArray
 
 
