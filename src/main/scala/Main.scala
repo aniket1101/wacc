@@ -29,8 +29,8 @@ object Main {
               checkSemantics(value.get, file) match {
                 case (errors, newProg, symTable) =>
                   if(errors.isEmpty) {
-                    println(newProg)
-                    println(symTable)
+//                    println(newProg)
+//                    println(symTable)
                     exit(VALID_EXIT_STATUS)
                   } else {
                     println(errors.mkString("\n"))

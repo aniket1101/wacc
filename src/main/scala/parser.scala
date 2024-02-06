@@ -4,7 +4,6 @@ import lexer._
 import parsley.Parsley
 import parsley.Parsley.{atomic, many}
 import parsley.combinator.{sepBy, sepBy1}
-import parsley.errors.ErrorBuilder
 import parsley.expr._
 import java.io.File
 
