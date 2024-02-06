@@ -1,5 +1,5 @@
 import parser._
-import Validator.checkSemantics
+import validator.checkSemantics
 
 import java.io.File
 import scala.sys.exit
@@ -14,36 +14,35 @@ object Main {
     val FAIL: Int = -1
 
     def main(args: Array[String]): Unit = {
-      if(args.length < 1) {
+      if (args.length < 1) {
         System.out.println("Source file unspecified")
         exit(FAIL)
       }
 
-      val file = args.head
-      val source = new File(file)
-      val result = parse(source)
-      result match {
-        case Success(value) =>
-          value match {
-            case parsley.Success(_) =>
-              checkSemantics(value.get, file) match {
-                case (errors, newProg, symTable) =>
-                  if(errors.isEmpty) {
-//                    println(newProg)
-//                    println(symTable)
-                    exit(VALID_EXIT_STATUS)
-                  } else {
-                    println(errors.mkString("\n"))
-                    exit(SEMANTIC_ERROR_EXIT_STATUS)
-                  }
-              }
-            case parsley.Failure(err) =>
-              println(err)
-              exit(SYNTAX_ERROR_EXIT_STATUS)
-          }
-        case Failure(err) =>
-          println(err)
-          exit(FAIL)
-      }
+      exit(parseProgram(new File(args.head)))
     }
+  def parseProgram(source: File): Int = {
+    val result = parse(source)
+    result match {
+      case Success(value) =>
+        value match {
+          case parsley.Success(_) =>
+            checkSemantics(value.get, source.toString) match {
+              case (errors, _, _) =>
+                if (errors.isEmpty) {
+                  VALID_EXIT_STATUS
+                } else {
+                  println(errors.mkString("\n"))
+                  SEMANTIC_ERROR_EXIT_STATUS
+                }
+            }
+          case parsley.Failure(err) =>
+            println(err)
+            SYNTAX_ERROR_EXIT_STATUS
+        }
+      case Failure(err) =>
+        println(err)
+        FAIL
+    }
+  }
 }

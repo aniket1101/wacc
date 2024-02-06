@@ -4,17 +4,37 @@ import java.io.File
 import scala.io.Source
 import scala.collection.mutable
 
-object Validator {
+object validator {
 
   val nullPos: (Int, Int) = (-1, -1)
   val waccPrefix = "wacc_"
 
+  // char array in a string array is valid
+  // string[] = [char[]]
+  // string[] != char[][]
+  // Only weakening is char[] = string in arrays?
+  // yeah string cannot be weakened to char[]
+  // Which section of the spec does it say this? Alejandro:2.1.2
   def sameType(t1: Type, t2: Type): Boolean = {
     if (t1 == t2) {
       true
     } else (t1, t2) match {
       case (ArrayType(arrt1), ArrayType(arrt2)) => sameType(arrt1, arrt2)
       case (PairType(t1l, t1r), PairType(t2l, t2r)) => sameType(t1l, t2l) && sameType(t1r, t2r)
+      case (PairType(_, _), Pair()) => true
+      case (Pair(), PairType(_, _)) => true
+      case _ => if (t1 == AnyType || t2 == AnyType) true else false
+    }
+  }
+
+  def weakingPermitted(t1: Type, t2: Type): Boolean = {
+    if (t1 == t2) {
+      true
+    } else (t1, t2) match {
+      case (ArrayType(CharType()), StringType()) => true
+      case (StringType(), ArrayType(CharType())) => true
+      case (ArrayType(arrt1), ArrayType(arrt2)) => weakingPermitted(arrt1, arrt2)
+      case (PairType(t1l, t1r), PairType(t2l, t2r)) => weakingPermitted(t1l, t2l) && weakingPermitted(t1r, t2r)
       case (PairType(_, _), Pair()) => true
       case (Pair(), PairType(_, _)) => true
       case _ => if (t1 == AnyType || t2 == AnyType) true else false
@@ -76,7 +96,15 @@ object Validator {
       case PairType(_, pairTyp) => pairTyp
       case _ => NoTypeExists
     }
-    case ArrayLit(elems) => if (elems.isEmpty) ArrayType(AnyType)(nullPos) else ArrayType(checkType(elems.head))(nullPos)
+    case ArrayLit(elems) => if (elems.isEmpty) ArrayType(AnyType)(nullPos) else {
+      val arrayElementTypes: List[Type] = elems.map(checkType)
+
+      if (arrayElementTypes.contains(StringType()((-1, -1)))) {
+        ArrayType(StringType()(nullPos))(nullPos)
+      } else {
+        ArrayType(arrayElementTypes.head)(nullPos)
+      }
+    }
   }
 
   // Check that any Expression passed in as a BinOp or UnOp is of and/or contain the expected type(s)
@@ -101,10 +129,20 @@ object Validator {
       case Ord(_) => IntType()(nullPos)
       case Chr(_) => CharType()(nullPos)
       case Plus(_) => IntType()(nullPos)
-      case ArrayElem(id, _) => checkType(id: Expr) match {
-        case ArrayType(arrTyp) => arrTyp
-        case _ => NoTypeExists
+      case ArrayElem(id, exprs) => {
+        var arrayType = checkType(id: Expr)
+        for (expr <- exprs) {
+          checkType(expr) match {
+            case IntType() => arrayType = arrayType match {
+              case ArrayType(a) => a
+              case _ => return arrayType
+            }
+            case _ => return NoTypeExists
+          }
+        }
+        arrayType
       }
+      case PairLiter() => NoTypeExists
       case BoolLit(_) => BoolType()(nullPos)
       case IntLit(_) => IntType()(nullPos)
       case CharLit(_) => CharType()(nullPos)
@@ -126,16 +164,16 @@ object Validator {
         } else {
           new Ident(varsInScope(name))(expr.pos)
         }
-      case ArrayElem(id, index) =>
-        val newIndex = checkExpr(index: Expr, varsInScope)
-        checkType(newIndex) match {
-          case IntType() =>
-          case _ => semanticErrorOccurred("Array index is not an int", newIndex.pos)
+      case ArrayElem(id, indexes) =>
+        checkArrayIndex(indexes, symTable) match {
+          case Some((err, pos)) => semanticErrorOccurred(err, pos)
+          case _ =>
         }
+
         id match {
           case ArrayElem(_, _) =>
             checkExpr(id: Expr, varsInScope) match {
-              case newId: Ident => new ArrayElem(newId, newIndex)(expr.pos)
+              case newId: Ident => new ArrayElem(newId, indexes)(expr.pos)
               case _ =>
                 semanticErrorOccurred(s"Array identifier evaluates to incorrect type: $id", id.pos)
                 expr
@@ -143,7 +181,7 @@ object Validator {
           case Ident(name) =>
             symTable.get(varsInScope.getOrElse(name, "")) match {
               case Some(value) => value match {
-                case ArrayType(_) => new ArrayElem(new Ident(varsInScope(name))(id.pos), newIndex)(expr.pos)
+                case ArrayType(_) => new ArrayElem(new Ident(varsInScope(name))(id.pos), indexes)(expr.pos)
                 case _ =>
                   semanticErrorOccurred(s"Attempting to access array element from non-array identifier: $name", id.pos)
                   expr
@@ -157,6 +195,28 @@ object Validator {
       case PairSnd(value) => new PairSnd(checkExpr(value, varsInScope))(expr.pos)
     }
   }
+
+  private def checkArrayIndex(exprs: List[Expr], varsInScope: mutable.Map[String, Type])(implicit errors: mutable.ListBuffer[Error],
+                                                                                         symTable: mutable.Map[String, Type],
+                                                                                         funcTable: List[Func], source: String,
+                                                                                         waccLines: Array[String]): Option[(String, (Int, Int))] = {
+    for (expr <- exprs) {
+      checkType(expr)(varsInScope) match {
+        case IntType() =>
+        case _ => Option("Array Indexes must be of type int", expr.pos)
+      }
+    }
+    None
+  }
+
+  private def getDimension(array:Type): Int = {
+    array match {
+      case (ArrayType(x)) => 1 + getDimension(x)
+      case _ => 0
+    }
+  }
+
+
 
   // Check that any Expression passed in as a RValue is syntactically sound according to the WACC specification
   def checkExpr(expr: RValue, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
@@ -187,7 +247,7 @@ object Validator {
             if (funcCalled.paramList.length != newParams.length) {
               semanticErrorOccurred(s"Call to function ${id.name} has the incorrect number of arguments", expr.pos)
             }
-            (funcCalled.paramList zip newParams).foreach({case (x, y) =>
+            (funcCalled.paramList zip newParams).foreach({ case (x, y) =>
               if (!sameType(x.typ, checkType(y))) {
                 semanticErrorOccurred(s"Argument ${x.ident.name} in the call to function ${id.name} has the incorrect type. Expected ${x.typ}. Received ${checkType(y)}", y.pos)
               }
@@ -197,8 +257,15 @@ object Validator {
         new Call(newId, newParams)(expr.pos)
       case ArrayLit(elems) =>
         val newElems = elems.map(checkExpr(_, varsInScope))
+        // Here we need a different function, not sameType.
+        // To allow char[] as a valid element in string[]
+        // Agreed
+        // How do you get the type of the array?
         newElems.foreach(x =>
-          if (!sameType(checkType(x), checkType(newElems.head)))
+          // sameType() // Does not allow string = char[]
+          // Char[] Elem = string elem
+          // weakeningPermitted() // Does allow string = char[]
+          if (!weakingPermitted(checkType(x), checkType(newElems.head)))
             semanticErrorOccurred("Elements in array literal have different types", expr.pos))
         new ArrayLit(newElems)(expr.pos)
       case PairFst(value) => new PairFst(checkExpr(value, varsInScope))(expr.pos)
@@ -208,22 +275,25 @@ object Validator {
 
   // Check that other Expressions passed in as are syntactically sound according to the WACC specification
   def checkExpr(expr: Expr, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                                 symTable: mutable.Map[String, Type],
-                                                                 funcTable: List[Func], source: String,
-                                                                 waccLines: Array[String]): Expr = {
+                                                              symTable: mutable.Map[String, Type],
+                                                              funcTable: List[Func], source: String,
+                                                              waccLines: Array[String]): Expr = {
     expr match {
       case binOp: BinOpp => checkBinOp(binOp, varsInScope)
       case unOp: UnOpp => checkUnOp(unOp, varsInScope)
-      case ArrayElem(id, index) =>
-        val newIndex = checkExpr(index: Expr, varsInScope)
-        checkType(newIndex) match {
-          case IntType() =>
-          case _ => semanticErrorOccurred("Array Index is not an int", newIndex.pos)
+      case ArrayElem(id, indexes) =>
+        checkArrayIndex(indexes, symTable) match {
+          case Some((err, pos)) => semanticErrorOccurred(err, pos)
+          case _ =>
         }
+        if (getDimension(checkType(checkExpr(id: Expr, varsInScope))) != indexes.length) {
+          semanticErrorOccurred("Array invalid dimensions do not match", id.pos)
+        }
+
         id match {
           case ArrayElem(_, _) =>
             checkExpr(id: Expr, varsInScope) match {
-              case newId: Ident => new ArrayElem(newId, newIndex)(expr.pos)
+              case newId: Ident => new ArrayElem(newId, indexes)(expr.pos)
               case _ =>
                 semanticErrorOccurred(s"Array identifier evaluates to the wrong type", id.pos)
                 expr
@@ -231,7 +301,7 @@ object Validator {
           case Ident(name) =>
             symTable.get(varsInScope.getOrElse(name, "")) match {
               case Some(value) => value match {
-                case ArrayType(_) => new ArrayElem(new Ident(varsInScope(name))(id.pos), newIndex)(expr.pos)
+                case ArrayType(_) => new ArrayElem(new Ident(varsInScope(name))(id.pos), indexes)(expr.pos)
                 case _ =>
                   semanticErrorOccurred(s"Attempting to access array element from non-array identifier $name", id.pos)
                   expr
@@ -254,9 +324,9 @@ object Validator {
 
   // Check that Unary Operators are syntactically sound according to the WACC specification
   def checkUnOp(expr: UnOpp, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                              symTable: mutable.Map[String, Type],
-                                                              funcTable: List[Func], source: String,
-                                                              waccLines: Array[String]): UnOpp = {
+                                                               symTable: mutable.Map[String, Type],
+                                                               funcTable: List[Func], source: String,
+                                                               waccLines: Array[String]): UnOpp = {
     val inside = checkExpr(expr.x, varsInScope)
 
     def returnsIntType(op: String): Unit = {
@@ -287,6 +357,7 @@ object Validator {
         case _ => semanticErrorOccurred(s"Argument $op is not of type String", inside.pos)
       }
     }
+
     expr match {
       case Chr(_) =>
         returnsIntType("chr")
@@ -308,9 +379,9 @@ object Validator {
 
   // Check that Binary Operators are syntactically sound according to the WACC specification
   def checkBinOp(expr: BinOpp, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                               symTable: mutable.Map[String, Type],
-                                                               funcTable: List[Func], source: String,
-                                                               waccLines: Array[String]): BinOpp = {
+                                                                 symTable: mutable.Map[String, Type],
+                                                                 funcTable: List[Func], source: String,
+                                                                 waccLines: Array[String]): BinOpp = {
     val newX = checkExpr(expr.x, varsInScope)
     val newY = checkExpr(expr.y, varsInScope)
 
@@ -407,22 +478,22 @@ object Validator {
 
   def checkStatements(stats: List[Stat], varsInScope: Map[String, String], returnType: Type,
                       scopePrefix: String)(implicit errors: mutable.ListBuffer[Error],
-                                                             symTable: mutable.Map[String, Type],
-                                                             funcTable: List[Func], source: String,
-                                                             waccLines: Array[String]): List[Stat] = {
+                                           symTable: mutable.Map[String, Type],
+                                           funcTable: List[Func], source: String,
+                                           waccLines: Array[String]): List[Stat] = {
 
     var localSymTable: Map[String, String] = Map.empty[String, String]
     val newStats: mutable.ListBuffer[Stat] = mutable.ListBuffer.empty[Stat]
     var scopeIndex = 0
 
-    for(stat <- stats){
+    for (stat <- stats) {
       val checkedStat: Stat = stat match {
         case Skip() => stat
         case Declaration(idType, id, value) =>
           val newValue = checkExpr(value, varsInScope ++ localSymTable)
           val newIdName = scopePrefix ++ id.name
 
-          if(localSymTable.contains(id.name)) {
+          if (localSymTable.contains(id.name)) {
             semanticErrorOccurred(s"Variable named '${id.name}' is already defined", id.pos)
           } else if (!sameType(idType, checkType(newValue))) {
             semanticErrorOccurred(s"Type mismatch in declaration of ${id.name}: expected $idType, found ${checkType(newValue)}", stat.pos)
@@ -434,7 +505,7 @@ object Validator {
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
-          if(!sameType(checkType(newLVal), checkType(newRVal))) {
+          if (!sameType(checkType(newLVal), checkType(newRVal))) {
             semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(newLVal)}, found ${checkType(newRVal)}", stat.pos)
           } else if (checkType(newLVal) == AnyType && checkType(newRVal) == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
@@ -510,7 +581,7 @@ object Validator {
     val fileSource = Source.fromFile(new File(file))
     implicit val fileContents: Array[String] = fileSource.getLines().toArray
     fileSource.close()
-    implicit val symTable: mutable.Map[String, Type] = mutable.LinkedHashMap[String, Type] ()
+    implicit val symTable: mutable.Map[String, Type] = mutable.LinkedHashMap[String, Type]()
     implicit val errors: mutable.ListBuffer[Error] = mutable.ListBuffer.empty[Error]
 
     var tempFuncTable: List[Func] = Nil

@@ -2,9 +2,10 @@ import ast._
 import lexer.implicits.implicitSymbol
 import lexer._
 import parsley.Parsley
-import parsley.Parsley.{atomic, many}
+import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
 import parsley.expr._
+
 import java.io.File
 
 object parser {
@@ -78,7 +79,7 @@ object parser {
     private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
       NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")") | pairElem
     private lazy val arrayLit: Parsley[ArrayLit] = ArrayLit("[" ~> sepBy(expr, ",") <~ "]")
-    private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), "[" ~> expr <~ "]")
+    private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
     private lazy val pairElem: Parsley[PairElem] = PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue)
 
     private def functionExits(stmt: Stat): Boolean = {

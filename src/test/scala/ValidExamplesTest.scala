@@ -12,7 +12,7 @@ class ValidExamplesTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parse(testCode) shouldBe VALID_EXIT_STATUS
+      parseProgram(testCode) shouldBe VALID_EXIT_STATUS
     }
   }
 
