@@ -89,14 +89,12 @@ object ast {
   sealed trait Expr extends RValue with Position
   sealed class Atom(val pos:(Int,Int)) extends Expr
   case class Ident(name: String)(override val pos: (Int, Int)) extends Atom(pos) with LValue
-  case class ArrayElem(ident: Ident, xs: List[Expr])(override val pos: (Int, Int)) extends Atom(pos) with LValue
+  case class ArrayElem(ident: Ident, expr: Expr)(override val pos: (Int, Int)) extends Atom(pos) with LValue
 
 
   sealed trait RValue extends LRValue
   case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int)) extends RValue
-  case class Call(x: Ident, args: ArgList)(val pos: (Int, Int)) extends RValue
-
-  case class ArgList(args: List[Expr])(val pos: (Int, Int))
+  case class Call(x: Ident, args: List[Expr])(val pos: (Int, Int)) extends RValue
 
   sealed trait PairElem extends LValue with RValue
   case class PairFst(lValue: LValue)(val pos: (Int, Int)) extends PairElem
@@ -196,17 +194,14 @@ object ast {
   /* RValues */
   object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit]
   object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
-  object Call extends ParserBridgePos2[Ident, ArgList, Call]
-
-  /* Arg-List */
-  object ArgList extends ParserBridgePos1[List[Expr], ArgList]
+  object Call extends ParserBridgePos2[Ident, List[Expr], Call]
 
   /* Pair-Elem */
   object PairFst extends ParserBridgePos1[LValue, PairFst]
   object PairSnd extends ParserBridgePos1[LValue, PairSnd]
 
   /* Atoms */
-  object ArrayElem extends ParserBridgePos2[Ident, List[Expr], ArrayElem]
+  object ArrayElem extends ParserBridgePos2[Ident, Expr, ArrayElem]
   object Ident extends ParserBridgePos1[String, Ident]
   object IntLit extends ParserBridgePos1[Int, IntLit]
   object BoolLit extends ParserBridgePos1[Boolean, BoolLit]

@@ -75,11 +75,10 @@ object parser {
       (PairLiter <# "null")
 
     private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | atomic(pairElem) | Ident(identifier)
-    private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> argList <~ ")") | arrayLit |
+    private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
       NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")") | pairElem
-    private lazy val argList: Parsley[ArgList] = ArgList(sepBy(expr, ","))
     private lazy val arrayLit: Parsley[ArrayLit] = ArrayLit("[" ~> sepBy(expr, ",") <~ "]")
-    private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
+    private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), "[" ~> expr <~ "]")
     private lazy val pairElem: Parsley[PairElem] = PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue)
 
     private def functionExits(stmt: Stat): Boolean = {
