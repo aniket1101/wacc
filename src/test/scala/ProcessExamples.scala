@@ -3,15 +3,15 @@ import java.io.File
 class ProcessExamples(val folderPath: String) {
   val fileExt = ".wacc"
 
-  def processFolder(): List[(String, String)] = processFolderHelper(new File(folderPath))
-  def processFolderHelper(folder: File): List[(String, String)] = {
+  def processFolder(): List[(String, File)] = processFolderHelper(new File(folderPath))
+  def processFolderHelper(folder: File): List[(String, File)] = {
     if (folder.isDirectory) {
       val files = folder.listFiles.toList
       files.flatMap { file =>
         if (file.isDirectory)
           processFolderHelper(file)
         else if (file.getName.endsWith(fileExt))
-          List((generateTestName(file.getPath), readFileContents(file)))
+          List((generateTestName(file.getPath), file))
         else
           List.empty
       }
@@ -27,12 +27,4 @@ class ProcessExamples(val folderPath: String) {
     s"$lastFolder($fileName)"
   }
 
-  def readFileContents(file: File): String = {
-    val source = scala.io.Source.fromFile(file)
-    try {
-      source.mkString
-    } finally {
-      source.close()
-    }
-  }
 }
