@@ -11,7 +11,7 @@ object Validator {
   def sameType(t1: Type, t2: Type): Boolean = {
     if (t1 == t2) {
       true
-    } else {
+    } else (t1, t2) match {
       case (ArrayType(arrt1), ArrayType(arrt2)) => sameType(arrt1, arrt2)
       case (PairType(t1l, t1r), PairType(t2l, t2r)) => sameType(t1l, t2l) && sameType(t1r, t2r)
       case (PairType(_, _), Pair()) => true
