@@ -2,13 +2,14 @@ import ast._
 import lexer.implicits.implicitSymbol
 import lexer._
 import parsley.Parsley
-import parsley.Parsley.{atomic, many, some}
+import parsley.Parsley.{atomic, many}
 import parsley.combinator.{sepBy, sepBy1}
 import parsley.errors.ErrorBuilder
 import parsley.expr._
+import java.io.File
 
 object parser {
-    def parse[Err: ErrorBuilder](input: String): Either[Err, Prog] = parser.parse(input).toEither
+    def parse(file: File) = parser.parseFile(file)
 
     private lazy val parser = fully(prog)
     private lazy val prog: Parsley[Prog] = fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
