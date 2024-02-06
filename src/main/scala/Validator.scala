@@ -16,7 +16,7 @@ object Validator {
       case (PairType(t1l, t1r), PairType(t2l, t2r)) => sameType(t1l, t2l) && sameType(t1r, t2r)
       case (PairType(_, _), Pair()) => true
       case (Pair(), PairType(_, _)) => true
-      case _ => t1 == AnyType || t2 == AnyType
+      case _ => if (t1 == AnyType || t2 == AnyType) true else false
     }
   }
 
@@ -114,7 +114,7 @@ object Validator {
 
   // Check that any Expression passed in as a LValue is syntactically sound according to the WACC specification
   def checkExpr(expr: LValue, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                                varTable: mutable.Map[String, Type],
+                                                                symTable: mutable.Map[String, Type],
                                                                 funcTable: List[Func], source: String,
                                                                 waccLines: Array[String]): LValue = {
     expr match {
@@ -140,7 +140,7 @@ object Validator {
                 expr
             }
           case Ident(name) =>
-            varTable.get(varsInScope.getOrElse(name, "")) match {
+            symTable.get(varsInScope.getOrElse(name, "")) match {
               case Some(value) => value match {
                 case ArrayType(_) => new ArrayElem(new Ident(varsInScope.get(name).get)(id.pos), newIndex)(expr.pos)
                 case _ =>
@@ -159,7 +159,7 @@ object Validator {
 
   // Check that any Expression passed in as a RValue is syntactically sound according to the WACC specification
   def checkExpr(expr: RValue, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                                varTable: mutable.Map[String, Type],
+                                                                symTable: mutable.Map[String, Type],
                                                                 funcTable: List[Func], source: String,
                                                                 waccLines: Array[String]): RValue = {
     expr match {
@@ -207,7 +207,7 @@ object Validator {
 
   // Check that any Expression passed in as a BinOp/UnOp is syntactically sound according to the WACC specification
   def checkExpr(expr: Expr, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                                 varTable: mutable.Map[String, Type],
+                                                                 symTable: mutable.Map[String, Type],
                                                                  funcTable: List[Func], source: String,
                                                                  waccLines: Array[String]): Expr = {
     expr match {
@@ -229,7 +229,7 @@ object Validator {
                 expr
             }
           case Ident(name) =>
-            varTable.get(varsInScope.getOrElse(name, "")) match {
+            symTable.get(varsInScope.getOrElse(name, "")) match {
               case Some(value) => value match {
                 case ArrayType(_) => new ArrayElem(new Ident(varsInScope.get(name).get)(id.pos), newIndex)(expr.pos)
                 case _ =>
@@ -253,7 +253,7 @@ object Validator {
   }
 
   def checkUnOp(expr: UnOpp, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                              varTable: mutable.Map[String, Type],
+                                                              symTable: mutable.Map[String, Type],
                                                               funcTable: List[Func], source: String,
                                                               waccLines: Array[String]): UnOpp = {
     val inside = checkExpr(expr.x, varsInScope)
@@ -305,7 +305,7 @@ object Validator {
     }
   }
   def checkBinOp(expr: BinOpp, varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
-                                                               varTable: mutable.Map[String, Type],
+                                                               symTable: mutable.Map[String, Type],
                                                                funcTable: List[Func], source: String,
                                                                waccLines: Array[String]): BinOpp = {
     val newX = checkExpr(expr.x, varsInScope)
@@ -401,6 +401,25 @@ object Validator {
         new Or(newX, newY)(expr.pos)
     }
   }
+
+//  def checkStatements(stats: List[Stat], varsInScope: Map[String, String], returnType: Type,
+//                      scopePrefix: String)(implicit errors: mutable.ListBuffer[Error],
+//                                                             symTable: mutable.Map[String, Type],
+//                                                             funcTable: List[Func], source: String,
+//                                                             waccLines: Array[String]): List[Stat] = {
+//
+//    var localSymTable: Map[String, String] = Map.empty[String, String]
+//    val newStats: mutable.ListBuffer[Stat] = mutable.ListBuffer.empty[Stat]
+//    var scopeIndex = 0
+//
+//    for(stat <- stats){
+//      val checkedStat: Stat = stat match {
+//        case Skip() => stat
+//        case Declaration(idType, id, value)
+//      }
+//    }
+//
+//  }
 }
 
 //class Validator(val code: Array[String]) {

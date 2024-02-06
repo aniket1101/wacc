@@ -88,8 +88,12 @@ object ast {
   sealed trait LValue extends LRValue
   sealed trait Expr extends RValue with Position
   sealed class Atom(val pos:(Int,Int)) extends Expr
-  case class Ident(name: String)(override val pos: (Int, Int)) extends Atom(pos) with LValue
-  case class ArrayElem(ident: Ident, expr: Expr)(override val pos: (Int, Int)) extends Atom(pos) with LValue
+
+  sealed trait IdentArray extends LValue with Expr
+  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray {
+    def toStringName: String = name
+  }
+  case class ArrayElem(ident: IdentArray, expr: Expr)(override val pos: (Int, Int)) extends IdentArray
 
 
   sealed trait RValue extends LRValue
@@ -201,7 +205,7 @@ object ast {
   object PairSnd extends ParserBridgePos1[LValue, PairSnd]
 
   /* Atoms */
-  object ArrayElem extends ParserBridgePos2[Ident, Expr, ArrayElem]
+  object ArrayElem extends ParserBridgePos2[IdentArray, Expr, ArrayElem]
   object Ident extends ParserBridgePos1[String, Ident]
   object IntLit extends ParserBridgePos1[Int, IntLit]
   object BoolLit extends ParserBridgePos1[Boolean, BoolLit]
