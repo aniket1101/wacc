@@ -14,8 +14,13 @@ object validator {
     if (t1 == t2) {
       true
     } else (t1, t2) match {
+      case (ArrayType(StringType()), ArrayType(ArrayType(CharType()))) => false
       case (ArrayType(arrt1), ArrayType(arrt2)) => sameType(arrt1, arrt2)
+
+      case (PairType(StringType(), _), PairType(ArrayType(CharType()), _)) => false
+      case (PairType(_, StringType()), PairType(_, ArrayType(CharType()))) => false
       case (PairType(t1l, t1r), PairType(t2l, t2r)) => sameType(t1l, t2l) && sameType(t1r, t2r)
+
       case (PairType(_, _), Pair()) => true
       case (Pair(), PairType(_, _)) => true
       case (StringType(), ArrayType(CharType())) => true
@@ -79,12 +84,19 @@ object validator {
       case _ => NoTypeExists
     }
     case ArrayLit(elems) => if (elems.isEmpty) ArrayType(AnyType)(nullPos) else {
-      val arrayElementTypes: List[Type] = elems.map(checkType)
+      ArrayType(getArrayLitType(elems))(nullPos)
+    }
+  }
 
-      if (arrayElementTypes.contains(StringType()((-1, -1)))) {
-        ArrayType(StringType()(nullPos))(nullPos)
+  def getArrayLitType(elems: List[Expr])(implicit symTable: mutable.Map[String, Type]): Type = {
+    if (elems.isEmpty) {
+      NoTypeExists
+    } else {
+      val arrayElementTypes: List[Type] = elems.map(checkType)
+      if (arrayElementTypes.contains(StringType()(nullPos))) {
+        StringType()(nullPos)
       } else {
-        ArrayType(arrayElementTypes.head)(nullPos)
+        arrayElementTypes.head
       }
     }
   }
@@ -138,7 +150,7 @@ object validator {
           new Ident(varsInScope(name))(expr.pos)
         }
       case ArrayElem(id, indexes) =>
-        checkArrayIndex(indexes, symTable) match {
+        checkArrayIndex(indexes, varsInScope) match {
           case Some((err, pos)) => semanticErrorOccurred(err, pos)
           case _ =>
         }
@@ -169,14 +181,15 @@ object validator {
     }
   }
 
-  private def checkArrayIndex(exprs: List[Expr], varsInScope: mutable.Map[String, Type])(implicit errors: mutable.ListBuffer[Error],
-                                                                                         symTable: mutable.Map[String, Type],
+  private def checkArrayIndex(exprs: List[Expr], varsInScope: Map[String, String])(implicit errors: mutable.ListBuffer[Error],
+                                                                                        symTable: mutable.Map[String, Type],
                                                                                          funcTable: List[Func], source: String,
                                                                                          waccLines: Array[String]): Option[(String, (Int, Int))] = {
     for (expr <- exprs) {
-      checkType(expr)(varsInScope) match {
+      val newExpr = checkExpr(expr, varsInScope)
+      checkType(newExpr)(symTable) match {
         case IntType() =>
-        case _ => Option("Array Indexes must be of type int", expr.pos)
+        case _ => return Option("Array Indexes must be of type int", expr.pos)
       }
     }
     None
@@ -230,8 +243,9 @@ object validator {
         new Call(newId, newParams)(expr.pos)
       case ArrayLit(elems) =>
         val newElems = elems.map(checkExpr(_, varsInScope))
+        val arrayType = getArrayLitType(newElems)
         newElems.foreach(x =>
-          if (!sameType(checkType(x), checkType(newElems.head)))
+          if (!sameType(arrayType, checkType(x)))
             semanticErrorOccurred("Elements in array literal have different types", expr.pos))
         new ArrayLit(newElems)(expr.pos)
       case PairFst(value) => new PairFst(checkExpr(value, varsInScope))(expr.pos)
@@ -248,7 +262,7 @@ object validator {
       case binOp: BinOpp => checkBinOp(binOp, varsInScope)
       case unOp: UnOpp => checkUnOp(unOp, varsInScope)
       case ArrayElem(id, indexes) =>
-        checkArrayIndex(indexes, symTable) match {
+        checkArrayIndex(indexes, varsInScope) match {
           case Some((err, pos)) => semanticErrorOccurred(err, pos)
           case _ =>
         }
