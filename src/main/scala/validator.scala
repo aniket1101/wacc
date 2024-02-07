@@ -9,12 +9,7 @@ object validator {
   val nullPos: (Int, Int) = (-1, -1)
   val waccPrefix = "wacc_"
 
-  // char array in a string array is valid
-  // string[] = [char[]]
-  // string[] != char[][]
-  // Only weakening is char[] = string in arrays?
-  // yeah string cannot be weakened to char[]
-  // Which section of the spec does it say this? Alejandro:2.1.2
+// Pair erasure, string weakening and other type flattening
   def sameType(t1: Type, t2: Type): Boolean = {
     if (t1 == t2) {
       true
@@ -24,20 +19,6 @@ object validator {
       case (PairType(_, _), Pair()) => true
       case (Pair(), PairType(_, _)) => true
       case (StringType(), ArrayType(CharType())) => true
-      case _ => if (t1 == AnyType || t2 == AnyType) true else false
-    }
-  }
-
-  def weakingPermitted(t1: Type, t2: Type): Boolean = {
-    if (t1 == t2) {
-      true
-    } else (t1, t2) match {
-      case (ArrayType(CharType()), StringType()) => true
-      case (StringType(), ArrayType(CharType())) => true
-      case (ArrayType(arrt1), ArrayType(arrt2)) => weakingPermitted(arrt1, arrt2)
-      case (PairType(t1l, t1r), PairType(t2l, t2r)) => weakingPermitted(t1l, t2l) && weakingPermitted(t1r, t2r)
-      case (PairType(_, _), Pair()) => true
-      case (Pair(), PairType(_, _)) => true
       case _ => if (t1 == AnyType || t2 == AnyType) true else false
     }
   }
@@ -130,18 +111,10 @@ object validator {
       case Ord(_) => IntType()(nullPos)
       case Chr(_) => CharType()(nullPos)
       case Plus(_) => IntType()(nullPos)
-      case ArrayElem(id, exprs) =>
-        var arrayType = checkType(id: Expr)
-        for (expr <- exprs) {
-          checkType(expr) match {
-            case IntType() => arrayType = arrayType match {
-              case ArrayType(a) => a
-              case _ => return arrayType
-            }
-            case _ => return NoTypeExists
-          }
-        }
-        arrayType
+      case ArrayElem(id, _) => checkType(id:Expr) match {
+        case ArrayType(insideType) => insideType
+        case _ => NoTypeExists
+      }
       case BoolLit(_) => BoolType()(nullPos)
       case IntLit(_) => IntType()(nullPos)
       case CharLit(_) => CharType()(nullPos)
@@ -257,15 +230,8 @@ object validator {
         new Call(newId, newParams)(expr.pos)
       case ArrayLit(elems) =>
         val newElems = elems.map(checkExpr(_, varsInScope))
-        // Here we need a different function, not sameType.
-        // To allow char[] as a valid element in string[]
-        // Agreed
-        // How do you get the type of the array?
         newElems.foreach(x =>
-          // sameType() // Does not allow string = char[]
-          // Char[] Elem = string elem
-          // weakeningPermitted() // Does allow string = char[]
-          if (!weakingPermitted(checkType(x), checkType(newElems.head)))
+          if (!sameType(checkType(x), checkType(newElems.head)))
             semanticErrorOccurred("Elements in array literal have different types", expr.pos))
         new ArrayLit(newElems)(expr.pos)
       case PairFst(value) => new PairFst(checkExpr(value, varsInScope))(expr.pos)
