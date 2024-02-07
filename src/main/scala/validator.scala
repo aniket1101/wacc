@@ -568,13 +568,13 @@ object validator {
     var tempFuncTable: List[Func] = Nil
     val newFuncs = funcTable.map(x => {
       if (tempFuncTable.exists(y => y.ident.name == x.ident.name)) {
-        semanticErrorOccurred(s"Duplicated function declaration: ${x.ident.name}", x.pos)
+        semanticErrorOccurred(s"Duplicated function declaration: ${x.ident.name.replace(waccPrefix, "")}", x.pos)
       } else {
         tempFuncTable = tempFuncTable :+ x
       }
       var argList: List[Param] = Nil
       x.paramList.foreach(a => if (argList.exists(b => a.ident.name == b.ident.name)) {
-        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name} in function ${x.ident.name}", a.pos)
+        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name.replace(waccPrefix, "")} in function ${x.ident.name}", a.pos)
       } else {
         argList = argList :+ a
       })
