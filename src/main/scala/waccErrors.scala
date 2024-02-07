@@ -9,7 +9,7 @@ object waccErrors {
     val lineInfo: LineInfo
   }
 
-  case class Error(pos: (Int, Int), source: String, errorLines: ErrorLines) {
+  case class WaccError(pos: (Int, Int), source: String, errorLines: ErrorLines) {
     override def toString: String = {
       s"""${errorLines.errorType}:
          |in file $source at line ${pos._1}, column ${pos._2}
@@ -29,8 +29,8 @@ object waccErrors {
   }
 
   object SemanticError {
-    def genError( reason: String, pos: (Int, Int))(implicit source: String, fileLines: Array[String]): Error = {
-      Error(pos, source, new SemanticError(None, None, Seq(reason), LineInfo.getFrom(pos)))
+    def genError( reason: String, pos: (Int, Int))(implicit source: String, fileLines: Array[String]): WaccError = {
+      WaccError(pos, source, new SemanticError(None, None, Seq(reason), LineInfo.getFrom(pos)))
     }
   }
 
@@ -62,10 +62,10 @@ object waccErrors {
     }
   }
 
-  class WaccErrorBuilder extends ErrorBuilder[Error] with tokenextractors.MatchParserDemand {
+  class WaccErrorBuilder extends ErrorBuilder[WaccError] with tokenextractors.MatchParserDemand {
 
-    override def format(pos: Position, source: Source, lines: ErrorInfoLines): Error =
-      Error(pos, source, lines)
+    override def format(pos: Position, source: Source, lines: ErrorInfoLines): WaccError =
+      WaccError(pos, source, lines)
 
     type Position = (Int, Int)
     override def pos(row: Int, col: Int): Position = (row, col)
