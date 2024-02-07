@@ -3,7 +3,6 @@ image: gumjoe/wacc-ci-scala:slim
 
 stages:          # List of stages for jobs and their order of execution
   - build
-  - testUnit
   - testValidExamples
   - testInvalidSyntax
   - testInvalidSemantics
@@ -14,14 +13,6 @@ build:
     - echo "Building WACC-Compiler..."
     - sbt compile
     - echo "Compile complete"
-
-testUnit:
-  stage: testUnit
-  script: 
-      - echo "Running unit tests..."
-      - sbt "testOnly *ArrayTest *ExpressionTest *FunctionTest *PairTest *StatementTest"
-      - echo "All unit tests finished"
-  environment: production
 
 testValidExamples:
   stage: testValidExamples

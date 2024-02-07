@@ -4,11 +4,12 @@ import lexer._
 import parsley.Parsley
 import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
-import parsley.errors.ErrorBuilder
 import parsley.expr._
 
+import java.io.File
+
 object parser {
-    def parse[Err: ErrorBuilder](input: String): Either[Err, Prog] = parser.parse(input).toEither
+    def parse(file: File) = parser.parseFile(file)
 
     private lazy val parser = fully(prog)
     private lazy val prog: Parsley[Prog] = fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
@@ -75,9 +76,8 @@ object parser {
       (PairLiter <# "null")
 
     private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | atomic(pairElem) | Ident(identifier)
-    private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> argList <~ ")") | arrayLit |
+    private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
       NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")") | pairElem
-    private lazy val argList: Parsley[ArgList] = ArgList(sepBy(expr, ","))
     private lazy val arrayLit: Parsley[ArrayLit] = ArrayLit("[" ~> sepBy(expr, ",") <~ "]")
     private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
     private lazy val pairElem: Parsley[PairElem] = PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue)

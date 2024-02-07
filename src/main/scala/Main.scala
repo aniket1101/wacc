@@ -1,66 +1,48 @@
-import ast._
+import parser._
+import validator.checkSemantics
 
-import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import java.io.File
 import scala.sys.exit
+import scala.util.Success
+import scala.util.Failure
+
 
 object Main {
     val VALID_EXIT_STATUS: Int = 0
     val SYNTAX_ERROR_EXIT_STATUS: Int = 100
     val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
-    def format(code: String): String = {"begin\n\t" + code + "\nend"}
-
-    private def prettyPrint(prog: Either[String, Prog]): Unit = {
-        prog match {
-            case Right(Prog(funcs, stats)) =>
-                funcs.foreach {
-                    case Func(typ, ident, paramList, stats) =>
-                        println(s"Func($typ $ident $paramList) is")
-                        printStats(stats, 4)
-                        println("end\n")
-                }
-                printStats(stats, 0)
-        }
-    }
-
-    private def printStats(stats: List[Stat], indent: Int): Unit = {
-        for (stat <- stats) {
-            println(" " * indent + stat)
-        }
-    }
-
-    def parseProgram(str: String): Int = {
-        parser.parse(str) match {
-            case Right(ast) => {
-//                validator.check(ast) match {
-//                    case Right(_) => VALID_EXIT_STATUS
-//                    case Left(_) => SEMANTIC_ERROR_EXIT_STATUS
-//                }
-                if (str.contains("#semantic_error#")) SEMANTIC_ERROR_EXIT_STATUS else VALID_EXIT_STATUS
-            }
-            case Left(_) => SYNTAX_ERROR_EXIT_STATUS
-        }
-    }
-
-    def readFileContents(filename: String): Try[String] = {
-        Try {
-            val source = Source.fromFile(filename)
-            try {
-                source.mkString
-            } finally {
-                source.close()
-            }
-        }
-    }
+    val FAIL: Int = -1
 
     def main(args: Array[String]): Unit = {
-        args.headOption match {
-            case Some(filename) =>
-                readFileContents(filename) match {
-                    case Success(contents) => exit(parseProgram(contents))
-                    case Failure(_) => println(s"No file: $filename exists.")
-                }
-            case None => println("Please pass in a file.")
-        }
+      if (args.length < 1) {
+        System.out.println("Source file unspecified")
+        exit(FAIL)
+      }
+
+      exit(parseProgram(new File(args.head)))
     }
+  def parseProgram(source: File): Int = {
+    val result = parse(source)
+    result match {
+      case Success(value) =>
+        value match {
+          case parsley.Success(_) =>
+            checkSemantics(value.get, source.toString) match {
+              case (errors, _, _) =>
+                if (errors.isEmpty) {
+                  VALID_EXIT_STATUS
+                } else {
+                  println(errors.mkString("\n"))
+                  SEMANTIC_ERROR_EXIT_STATUS
+                }
+            }
+          case parsley.Failure(err) =>
+            println(err)
+            SYNTAX_ERROR_EXIT_STATUS
+        }
+      case Failure(err) =>
+        println(err)
+        FAIL
+    }
+  }
 }
