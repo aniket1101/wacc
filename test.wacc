@@ -1,0 +1,4 @@
+begin
+    int x = 10;
+    x = "Hello World!"
+end
