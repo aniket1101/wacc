@@ -14,6 +14,8 @@ object Main {
     val FAIL: Int = -1
 
     def main(args: Array[String]): Unit = {
+
+      // Checks that a file has been specified
       if (args.length < 1) {
         System.out.println("Source file unspecified")
         exit(FAIL)

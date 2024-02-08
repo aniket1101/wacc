@@ -6,11 +6,11 @@ import scala.collection.mutable
 
 object validator {
 
-  val nullPos: (Int, Int) = (-1, -1)
-  val waccPrefix = "wacc_"
+  private val nullPos: (Int, Int) = (-1, -1)
+  private val waccPrefix = "wacc_"
 
 // Pair erasure, string weakening and other type flattening
-  def sameType(t1: Type, t2: Type): Boolean = {
+  private def sameType(t1: Type, t2: Type): Boolean = {
     if (t1 == t2) {
       true
     } else (t1, t2) match {
@@ -231,7 +231,7 @@ object validator {
         funcTable.find(x => x.ident.name == newId.name) match {
           case Some(funcCalled) =>
             if (funcCalled.paramList.length != newParams.length) {
-              semanticErrorOccurred(s"Call to function ${id.name} has the incorrect number of arguments", expr.pos)
+              semanticErrorOccurred(s"Call to function ${id.name} has the incorrect number of arguments, expected ${funcCalled.paramList.length}, found ${newParams.length}", expr.pos)
             }
             (funcCalled.paramList zip newParams).foreach({ case (x, y) =>
               if (!sameType(x.typ, checkType(y))) {
@@ -268,7 +268,7 @@ object validator {
         }
         val arrDim = getDimension(checkType(checkExpr(id: Expr, varsInScope)))
         if (arrDim < indexes.length) {
-          semanticErrorOccurred(s"Array invalid dimensions do not match: indexes passed in are $indexes, expected ${indexes.length} , found $arrDim", id.pos)
+          semanticErrorOccurred(s"Array invalid dimensions do not match: expected $arrDim , found ${indexes.length}", id.pos)
         }
 
         id match {
@@ -369,22 +369,26 @@ object validator {
     def returnsIntType(op: String): Unit = {
       checkType(newX) match {
         case IntType() =>
+        case NoTypeExists =>
         case _ => semanticErrorOccurred(s"Left expression in $op is not of type Int, is ${checkType(newX)} instead", newX.pos)
       }
       checkType(newY) match {
         case IntType() =>
-        case _ => semanticErrorOccurred(s"Right expression in $op is not of type Int", newY.pos)
+        case NoTypeExists =>
+        case _ => semanticErrorOccurred(s"Right expression in $op is not of type Int, is ${checkType(newY)} instead", newY.pos)
       }
     }
 
     def returnsBoolType(op: String): Unit = {
       checkType(newX) match {
         case BoolType() =>
-        case _ => semanticErrorOccurred(s"Left expression in $op is not of type Bool", newX.pos)
+        case NoTypeExists =>
+        case _ => semanticErrorOccurred(s"Left expression in $op is not of type Bool, is ${checkType(newX)} instead", newX.pos)
       }
       checkType(newY) match {
         case BoolType() =>
-        case _ => semanticErrorOccurred(s"Right expression in $op is not of type Bool", newY.pos)
+        case NoTypeExists =>
+        case _ => semanticErrorOccurred(s"Right expression in $op is not of type Bool, is ${checkType(newY)} instead", newY.pos)
       }
     }
 
@@ -393,13 +397,15 @@ object validator {
       exp1Typ match {
         case IntType() =>
         case CharType() =>
-        case _ => semanticErrorOccurred(s"Left expression in $op is not of type Int nor type Char", newX.pos)
+        case NoTypeExists =>
+        case _ => semanticErrorOccurred(s"Left expression in $op is not of type Int nor type Char, is ${checkType(newX)} instead", newX.pos)
       }
       val exp2Typ = checkType(newY)
       exp2Typ match {
         case IntType() =>
         case CharType() =>
-        case _ => semanticErrorOccurred(s"Right expression in $op is not of type Int nor type Char", newY.pos)
+        case NoTypeExists =>
+        case _ => semanticErrorOccurred(s"Right expression in $op is not of type Int nor type Char, is ${checkType(newY)} instead", newY.pos)
       }
       if (!sameType(exp1Typ, exp2Typ)) {
         semanticErrorOccurred(s"Two sides of $op has different types, left is of type $exp1Typ, right is of type $exp2Typ", expr.pos)
@@ -476,7 +482,7 @@ object validator {
 
           if (localSymTable.contains(id.name)) {
             semanticErrorOccurred(s"Variable named '${id.name}' is already defined", id.pos)
-          } else if (!sameType(idType, checkType(newValue))) {
+          } else if (!sameType(idType, checkType(newValue)) && checkType(newValue) != NoTypeExists) {
             semanticErrorOccurred(s"Type mismatch in declaration of ${id.name}: expected $idType, found ${checkType(newValue)}", stat.pos)
           }
           localSymTable = localSymTable + (id.name -> newIdName)
@@ -486,7 +492,7 @@ object validator {
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
-          if (!sameType(checkType(newLVal), checkType(newRVal))) {
+          if (!sameType(checkType(newLVal), checkType(newRVal)) && checkType(newLVal) != NoTypeExists) {
             semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(newLVal)}, found ${checkType(newRVal)}", stat.pos)
           } else if (checkType(newLVal) == AnyType && checkType(newRVal) == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
@@ -498,21 +504,21 @@ object validator {
             case IntType() =>
             case CharType() =>
             case StringType() =>
-            case _ => semanticErrorOccurred("Variable attempting read has incorrect type, can only be of type Int, Char or String", stat.pos)
+            case _ => semanticErrorOccurred(s"Variable attempting read has incorrect type (${checkType(newExpr)}), can only be of type Int, Char or String", stat.pos)
           }
           new Read(newExpr)(stat.pos)
         case Free(expr) =>
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case PairType(_, _) | ArrayType(_) =>
-            case _ => semanticErrorOccurred("Only Pair and Array types can be freed", stat.pos)
+            case _ => semanticErrorOccurred(s"Only Pair and Array types can be freed, is type ${checkType(newExpr)}", stat.pos)
           }
           new Free(newExpr)(stat.pos)
         case Return(expr) =>
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           if (returnType == null) {
-            semanticErrorOccurred("Return is misused in main program", stat.pos)
-          } else if (!sameType(checkType(newExpr), returnType)) {
+            semanticErrorOccurred("Return statement outside of a function is not allowed", stat.pos)
+          } else if (!sameType(checkType(newExpr), returnType) && checkType(newExpr) != NoTypeExists) {
             semanticErrorOccurred(s"Type mismatch in Return: expected $returnType, found ${checkType(expr)}", stat.pos)
           }
           new Return(newExpr)(stat.pos)
@@ -520,7 +526,7 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case IntType() =>
-            case _ => semanticErrorOccurred("Exit code defined is not of type Int", newExpr.pos)
+            case _ => semanticErrorOccurred(s"Exit code defined is not of type Int, is type ${checkType(newExpr)}", newExpr.pos)
           }
           new Exit(newExpr)(stat.pos)
         case Print(expr) => new Print(checkExpr(expr, varsInScope ++ localSymTable))(stat.pos)
@@ -529,6 +535,7 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case BoolType() =>
+            case NoTypeExists =>
             case _ => semanticErrorOccurred("Condition for If statement is not of type Bool", expr.pos)
           }
           val newThenStat = checkStatements(thenStat, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}ifthen-")
@@ -539,6 +546,7 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case BoolType() =>
+            case NoTypeExists =>
             case _ => semanticErrorOccurred("Condition for While statement is not of type Bool", expr.pos)
           }
           val newBody = checkStatements(whileBody, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}while-")
@@ -574,7 +582,7 @@ object validator {
       }
       var argList: List[Param] = Nil
       x.paramList.foreach(a => if (argList.exists(b => a.ident.name == b.ident.name)) {
-        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name.replace(waccPrefix, "")} in function ${x.ident.name}", a.pos)
+        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name.replace(waccPrefix, "")} in function ${x.ident.name.replace(waccPrefix, "")}", a.pos)
       } else {
         argList = argList :+ a
       })
