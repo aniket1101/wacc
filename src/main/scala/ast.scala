@@ -119,11 +119,21 @@ object ast {
   sealed trait PairElemType extends Type
   case class Pair()(val pos: (Int, Int)) extends PairElemType
   case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType
-  case class IntType()(val pos: (Int, Int)) extends BaseType
-  case class BoolType()(val pos: (Int, Int)) extends BaseType
-  case class CharType()(val pos: (Int, Int)) extends BaseType
-  case class StringType()(val pos: (Int, Int)) extends BaseType
-  case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type
+  case class IntType()(val pos: (Int, Int)) extends BaseType {
+    override def toString(): String = "<int>"
+  }
+  case class BoolType()(val pos: (Int, Int)) extends BaseType {
+    override def toString(): String = "<bool>"
+  }
+  case class CharType()(val pos: (Int, Int)) extends BaseType {
+    override def toString(): String = "<char>"
+  }
+  case class StringType()(val pos: (Int, Int)) extends BaseType {
+    override def toString(): String = "<string>"
+  }
+  case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type {
+    override def toString(): String = "pair(<type>, <type>)"
+  }
 
   /* Binary Operators */
   sealed class BinOpp(val x: Expr, val y: Expr)(val pos:(Int,Int)) extends Expr

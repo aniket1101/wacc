@@ -189,7 +189,7 @@ object validator {
       val newExpr = checkExpr(expr, varsInScope)
       checkType(newExpr)(symTable) match {
         case IntType() =>
-        case _ => return Option("Array Indexes must be of type int", expr.pos)
+        case _ => return Option(s"Array Indexes must be of type int", expr.pos)
       }
     }
     None
@@ -267,8 +267,8 @@ object validator {
           case _ =>
         }
         val arrDim = getDimension(checkType(checkExpr(id: Expr, varsInScope)))
-        if (arrDim < indexes.length) {
-          semanticErrorOccurred(s"Array invalid dimensions do not match: indexes passed in are $indexes, expected ${indexes.length} , found $arrDim", id.pos)
+        if (arrDim < indexes.length && checkType(checkExpr(id: Expr, varsInScope)) != NoTypeExists) {
+          semanticErrorOccurred(s"Array invalid dimensions do not match: expected $arrDim , found ${indexes.length}", id.pos)
         }
 
         id match {
@@ -288,6 +288,7 @@ object validator {
                   expr
               }
               case None =>
+                println("Inside Expr")
                 semanticErrorOccurred(s"Identifier not in scope: $name", id.pos)
                 expr
             }
@@ -355,6 +356,9 @@ object validator {
       case Ord(_) =>
         returnsCharType("ord")
         new Ord(inside)(expr.pos)
+      case Plus(_) =>
+        returnsIntType("+")
+        new Plus(inside)(expr.pos)
     }
   }
 
@@ -476,7 +480,7 @@ object validator {
 
           if (localSymTable.contains(id.name)) {
             semanticErrorOccurred(s"Variable named '${id.name}' is already defined", id.pos)
-          } else if (!sameType(idType, checkType(newValue))) {
+          } else if (!sameType(idType, checkType(newValue)) && idType != NoTypeExists && checkType(newValue) != NoTypeExists) {
             semanticErrorOccurred(s"Type mismatch in declaration of ${id.name}: expected $idType, found ${checkType(newValue)}", stat.pos)
           }
           localSymTable = localSymTable + (id.name -> newIdName)
@@ -486,7 +490,7 @@ object validator {
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
-          if (!sameType(checkType(newLVal), checkType(newRVal))) {
+          if (!sameType(checkType(newLVal), checkType(newRVal)) && checkType(newLVal) != NoTypeExists) {
             semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(newLVal)}, found ${checkType(newRVal)}", stat.pos)
           } else if (checkType(newLVal) == AnyType && checkType(newRVal) == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
@@ -529,6 +533,7 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case BoolType() =>
+            case NoTypeExists =>
             case _ => semanticErrorOccurred("Condition for If statement is not of type Bool", expr.pos)
           }
           val newThenStat = checkStatements(thenStat, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}ifthen-")
@@ -539,6 +544,7 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case BoolType() =>
+            case NoTypeExists =>
             case _ => semanticErrorOccurred("Condition for While statement is not of type Bool", expr.pos)
           }
           val newBody = checkStatements(whileBody, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}while-")
@@ -574,7 +580,7 @@ object validator {
       }
       var argList: List[Param] = Nil
       x.paramList.foreach(a => if (argList.exists(b => a.ident.name == b.ident.name)) {
-        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name.replace(waccPrefix, "")} in function ${x.ident.name}", a.pos)
+        semanticErrorOccurred(s"Duplicated function argument ${a.ident.name.replace(waccPrefix, "")} in function ${x.ident.name.replace(waccPrefix, "")}", a.pos)
       } else {
         argList = argList :+ a
       })
@@ -587,3 +593,7 @@ object validator {
     (errors.toList, newProg, symTable)
   }
 }
+
+// Yh that's a good idea
+// I'm going through different tests checking that the error messages are good
+// im gonna check the reference compiler to see what they do fo the same test
