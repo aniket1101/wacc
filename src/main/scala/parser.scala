@@ -55,13 +55,15 @@ object parser {
 
     private lazy val pairElemType: Parsley[PairElemType] = atomic(arrayType) | baseType | (Pair <# "pair")
 
-    private lazy val unOpp: Parsley[UnOpp] =
-      (Not("!" ~> unOppExpr) <|>
-      Neg("-" ~> unOppExpr) <|>
+    private lazy val unOpp: Parsley[Expr] = (Not("!" ~> unOppExpr) <|>
+      Neg("-" ~> unOppExpr).map({
+          case p@Neg(IntLit(x)) => IntLit(-x)(p.pos)
+          case otherExpr => Neg(otherExpr)(otherExpr.pos)
+      }) <|>
       Len("len" ~> unOppExpr) <|>
       Ord("ord" ~> unOppExpr) <|>
       Chr("chr" ~> unOppExpr)) <|>
-      Plus("+" ~> numericUnOppExpr)
+      Plus("+" ~> numericUnOppExpr).map(expr => expr)
 
     private lazy val expr: Parsley[Expr] =
         precedence(atom, "(" ~> expr <~ ")")(
