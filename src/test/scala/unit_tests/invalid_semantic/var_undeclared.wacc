@@ -1,0 +1,5 @@
+# trying to use an undeclared variable
+
+begin
+    println x
+end

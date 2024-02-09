@@ -90,7 +90,9 @@ object ast {
   sealed class Atom(val pos:(Int,Int)) extends Expr
 
   sealed trait IdentArray extends LValue with Expr
-  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray
+  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray {
+    override def toString: String = name
+  }
   case class ArrayElem(ident: IdentArray, exprs: List[Expr])(override val pos: (Int, Int)) extends IdentArray
 
 
@@ -107,23 +109,36 @@ object ast {
   // Special Cases for Semantic Analysis
   case object NoTypeExists extends Type with PairElemType {
     override val pos: (Int, Int) = (-1, -1)
+    override def toString:String = "⟨No Type⟩"
   }
-
   case object AnyType extends Type with PairElemType {
     override val pos: (Int, Int) = (-1, -1)
+    override def toString:String = "⟨Unknown Type⟩"
   }
 
-  // Types
+  // Type traits
   sealed trait Type extends Position
   sealed trait BaseType extends Type with PairElemType
   sealed trait PairElemType extends Type
   case class Pair()(val pos: (Int, Int)) extends PairElemType
-  case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType
-  case class IntType()(val pos: (Int, Int)) extends BaseType
-  case class BoolType()(val pos: (Int, Int)) extends BaseType
-  case class CharType()(val pos: (Int, Int)) extends BaseType
-  case class StringType()(val pos: (Int, Int)) extends BaseType
-  case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type
+  case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType {
+    override def toString: String = s"⟨${typ.toString.replace("⟨", "").replace("⟩", "")}[]⟩"
+  }
+  case class IntType()(val pos: (Int, Int)) extends BaseType {
+    override def toString: String = "⟨int⟩"
+  }
+  case class BoolType()(val pos: (Int, Int)) extends BaseType {
+    override def toString: String = "⟨bool⟩"
+  }
+  case class CharType()(val pos: (Int, Int)) extends BaseType {
+    override def toString: String = "⟨char⟩"
+  }
+  case class StringType()(val pos: (Int, Int)) extends BaseType {
+    override def toString: String = "⟨string⟩"
+  }
+  case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type {
+    override def toString: String = s"pair($fstType, $sndType)"
+  }
 
   /* Binary Operators */
   sealed class BinOpp(val x: Expr, val y: Expr)(val pos:(Int,Int)) extends Expr

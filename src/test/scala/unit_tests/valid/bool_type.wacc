@@ -1,0 +1,5 @@
+# bool type unit test
+
+begin
+    bool b = true
+end

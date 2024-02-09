@@ -11,9 +11,11 @@ object Main {
     val VALID_EXIT_STATUS: Int = 0
     val SYNTAX_ERROR_EXIT_STATUS: Int = 100
     val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
-    val FAIL: Int = -1
+    private val FAIL: Int = -1
 
     def main(args: Array[String]): Unit = {
+
+      // Checks that a file has been specified
       if (args.length < 1) {
         System.out.println("Source file unspecified")
         exit(FAIL)

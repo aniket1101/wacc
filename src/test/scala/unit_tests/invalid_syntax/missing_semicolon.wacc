@@ -1,0 +1,7 @@
+# missing semi colon
+
+begin
+    int x = 5
+    int y = 6
+    int z = 7
+end

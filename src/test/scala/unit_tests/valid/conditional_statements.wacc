@@ -1,0 +1,10 @@
+# conditional statement unit test
+
+begin
+    int x = 21;
+    if (x > 1) then
+        x = x - 5
+    else
+        x = x + 5
+    fi
+end

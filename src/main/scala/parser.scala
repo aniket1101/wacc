@@ -1,15 +1,20 @@
 import ast._
 import lexer.implicits.implicitSymbol
 import lexer._
-import parsley.Parsley
+import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
 import parsley.expr._
+import waccErrors._
+import parsley.token.errors._
 
 import java.io.File
+import scala.util.Try
 
 object parser {
-    def parse(file: File) = parser.parseFile(file)
+    // Use a custom error builder
+    implicit val waccErrorBuilder: WaccErrorBuilder = new WaccErrorBuilder
+    def parse(file: File): Try[Result[WaccError, Prog]] = parser.parseFile(file)
 
     private lazy val parser = fully(prog)
     private lazy val prog: Parsley[Prog] = fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
