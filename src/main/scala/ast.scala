@@ -109,11 +109,11 @@ object ast {
   // Special Cases for Semantic Analysis
   case object NoTypeExists extends Type with PairElemType {
     override val pos: (Int, Int) = (-1, -1)
-    override def toString:String = "⟨No Type⟩"
+    override def toString:String = "<No Type>"
   }
   case object AnyType extends Type with PairElemType {
     override val pos: (Int, Int) = (-1, -1)
-    override def toString:String = "⟨Unknown Type⟩"
+    override def toString:String = "<Unknown Type>"
   }
 
   // Type traits
@@ -122,19 +122,19 @@ object ast {
   sealed trait PairElemType extends Type
   case class Pair()(val pos: (Int, Int)) extends PairElemType
   case class ArrayType(typ: Type)(val pos: (Int, Int)) extends Type with PairElemType {
-    override def toString: String = s"⟨${typ.toString.replace("⟨", "").replace("⟩", "")}[]⟩"
+    override def toString: String = s"<${typ.toString.replace("<", "").replace(">", "")}[]>"
   }
   case class IntType()(val pos: (Int, Int)) extends BaseType {
-    override def toString: String = "⟨int⟩"
+    override def toString: String = "<int>"
   }
   case class BoolType()(val pos: (Int, Int)) extends BaseType {
-    override def toString: String = "⟨bool⟩"
+    override def toString: String = "<bool>"
   }
   case class CharType()(val pos: (Int, Int)) extends BaseType {
-    override def toString: String = "⟨char⟩"
+    override def toString: String = "<char>"
   }
   case class StringType()(val pos: (Int, Int)) extends BaseType {
-    override def toString: String = "⟨string⟩"
+    override def toString: String = "<string>"
   }
   case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type {
     override def toString: String = s"pair($fstType, $sndType)"

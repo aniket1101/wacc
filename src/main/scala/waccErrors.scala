@@ -66,7 +66,7 @@ object waccErrors {
     }
     def toSeq: Seq[String] = {
       linesBefore.map(line => s"> 1. $line") ++:
-        Seq(s"> 2. $line", s"${" " * (col + numDigits(row) + 2)}↑") ++:
+        Seq(s"> 2. $line", s"${" " * (col + numDigits(row) + 2)}^") ++:
         linesAfter.map(line => s"> 3. $line")
     }
   }

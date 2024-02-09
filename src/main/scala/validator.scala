@@ -195,7 +195,7 @@ object validator {
       val newExpr = checkExpr(expr, varsInScope)
       checkType(newExpr)(symTable) match {
         case IntType() =>
-        case _ => return Option("Array Indexes must be of type ⟨int⟩", expr.pos)
+        case _ => return Option("Array Indexes must be of type <int>", expr.pos)
       }
     }
     None
@@ -323,21 +323,21 @@ object validator {
     def returnsIntType(op: String): Unit = {
       checkType(inside) match {
         case IntType() =>
-        case _ => semanticErrorOccurred(s"Argument $op is not of type ⟨int⟩, is type ${checkType(inside)}", inside.pos)
+        case _ => semanticErrorOccurred(s"Argument $op is not of type <int>, is type ${checkType(inside)}", inside.pos)
       }
     }
 
     def returnsCharType(op: String): Unit = {
       checkType(inside) match {
         case CharType() =>
-        case _ => semanticErrorOccurred(s"Argument $op is not of type ⟨char⟩, is type ${checkType(inside)}", inside.pos)
+        case _ => semanticErrorOccurred(s"Argument $op is not of type <char>, is type ${checkType(inside)}", inside.pos)
       }
     }
 
     def returnsBoolType(op: String): Unit = {
       checkType(inside) match {
         case BoolType() =>
-        case _ => semanticErrorOccurred(s"Argument $op is not of type ⟨bool⟩, is type ${checkType(inside)}", inside.pos)
+        case _ => semanticErrorOccurred(s"Argument $op is not of type <bool>, is type ${checkType(inside)}", inside.pos)
       }
     }
 
@@ -345,7 +345,7 @@ object validator {
       checkType(inside) match {
         case ArrayType(_) =>
         case StringType() =>
-        case _ => semanticErrorOccurred(s"Argument $op is not of type ⟨string⟩, is type ${checkType(inside)}", inside.pos)
+        case _ => semanticErrorOccurred(s"Argument $op is not of type <string>, is type ${checkType(inside)}", inside.pos)
       }
     }
 
@@ -382,12 +382,12 @@ object validator {
       checkType(newX) match {
         case IntType() =>
         case NoTypeExists =>
-        case _ => semanticErrorOccurred(s"Left expression in $op is not of type ⟨int⟩, is ${checkType(newX)} instead", newX.pos)
+        case _ => semanticErrorOccurred(s"Left expression in $op is not of type <int>, is ${checkType(newX)} instead", newX.pos)
       }
       checkType(newY) match {
         case IntType() =>
         case NoTypeExists =>
-        case _ => semanticErrorOccurred(s"Right expression in $op is not of type ⟨int⟩, is ${checkType(newY)} instead", newY.pos)
+        case _ => semanticErrorOccurred(s"Right expression in $op is not of type <int>, is ${checkType(newY)} instead", newY.pos)
       }
     }
 
@@ -395,12 +395,12 @@ object validator {
       checkType(newX) match {
         case BoolType() =>
         case NoTypeExists =>
-        case _ => semanticErrorOccurred(s"Left expression in $op is not of type ⟨bool⟩, is ${checkType(newX)} instead", newX.pos)
+        case _ => semanticErrorOccurred(s"Left expression in $op is not of type <bool>, is ${checkType(newX)} instead", newX.pos)
       }
       checkType(newY) match {
         case BoolType() =>
         case NoTypeExists =>
-        case _ => semanticErrorOccurred(s"Right expression in $op is not of type ⟨bool⟩, is ${checkType(newY)} instead", newY.pos)
+        case _ => semanticErrorOccurred(s"Right expression in $op is not of type <bool>, is ${checkType(newY)} instead", newY.pos)
       }
     }
 
@@ -410,14 +410,14 @@ object validator {
         case IntType() =>
         case CharType() =>
         case NoTypeExists =>
-        case _ => semanticErrorOccurred(s"Left expression in $op is not of type ⟨int⟩ nor type ⟨char⟩, is ${checkType(newX)} instead", newX.pos)
+        case _ => semanticErrorOccurred(s"Left expression in $op is not of type <int> nor type <char>, is ${checkType(newX)} instead", newX.pos)
       }
       val exp2Typ = checkType(newY)
       exp2Typ match {
         case IntType() =>
         case CharType() =>
         case NoTypeExists =>
-        case _ => semanticErrorOccurred(s"Right expression in $op is not of type ⟨int⟩ nor type ⟨char⟩, is ${checkType(newY)} instead", newY.pos)
+        case _ => semanticErrorOccurred(s"Right expression in $op is not of type <int> nor type <char>, is ${checkType(newY)} instead", newY.pos)
       }
       if (!sameType(exp1Typ, exp2Typ)) {
         semanticErrorOccurred(s"Two sides of $op has different types, left is of type $exp1Typ, right is of type $exp2Typ", expr.pos)
@@ -519,7 +519,7 @@ object validator {
             case IntType() =>
             case CharType() =>
             case StringType() =>
-            case _ => semanticErrorOccurred(s"Variable attempting read has incorrect type ${checkType(newExpr)}, can only be of type ⟨int⟩, ⟨char⟩ or ⟨string⟩", stat.pos)
+            case _ => semanticErrorOccurred(s"Variable attempting read has incorrect type ${checkType(newExpr)}, can only be of type <int>, <char> or <string>", stat.pos)
           }
           new Read(newExpr)(stat.pos)
         case Free(expr) =>
@@ -541,7 +541,7 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
           checkType(newExpr) match {
             case IntType() =>
-            case _ => semanticErrorOccurred(s"Exit code defined is not of type ⟨int⟩, is type ${checkType(newExpr)}", newExpr.pos)
+            case _ => semanticErrorOccurred(s"Exit code defined is not of type <int>, is type ${checkType(newExpr)}", newExpr.pos)
           }
           new Exit(newExpr)(stat.pos)
         case Print(expr) => new Print(checkExpr(expr, varsInScope ++ localSymTable))(stat.pos)
@@ -551,7 +551,7 @@ object validator {
           checkType(newExpr) match {
             case BoolType() =>
             case NoTypeExists =>
-            case _ => semanticErrorOccurred("Condition for If statement is not of type ⟨bool⟩", expr.pos)
+            case _ => semanticErrorOccurred("Condition for If statement is not of type <bool>", expr.pos)
           }
           val newThenStat = checkStatements(thenStat, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}if-then-")
           val newElseStat = checkStatements(elseStat, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}if else-")
@@ -562,7 +562,7 @@ object validator {
           checkType(newExpr) match {
             case BoolType() =>
             case NoTypeExists =>
-            case _ => semanticErrorOccurred("Condition for While statement is not of type ⟨bool⟩", expr.pos)
+            case _ => semanticErrorOccurred("Condition for While statement is not of type <bool>", expr.pos)
           }
           val newBody = checkStatements(whileBody, varsInScope ++ localSymTable, returnType, s"$scopePrefix${scopeIndex}while-")
           scopeIndex += 1
