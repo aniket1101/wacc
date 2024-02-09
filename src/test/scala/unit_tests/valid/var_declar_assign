@@ -1,0 +1,9 @@
+# function call for var declare and assign: type unit test
+
+begin
+    int f(int x) is
+        return x ;
+    end
+    int x = call f(10) ;
+    println x
+end

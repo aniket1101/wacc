@@ -1,5 +1,8 @@
 import parsley.errors.ErrorBuilder
 import parsley.errors.tokenextractors
+import validator.waccPrefix
+
+import java.io.File
 
 object waccErrors {
 
@@ -9,55 +12,72 @@ object waccErrors {
     val lineInfo: LineInfo
   }
 
-  case class WaccError(pos: (Int, Int), source: String, errorLines: ErrorLines) {
+  case class WaccError(pos: (Int, Int), source: String, errorLines: ErrorLines, funcName: Option[String]) {
+
     override def toString: String = {
+      val scope = funcName.map(func => s", in $func()").getOrElse("")
       s"""${errorLines.errorType}:
-         |in file $source at line ${pos._1}, column ${pos._2}
+         |in file ${new File(source).getName}$scope at line ${pos._1}, column ${pos._2}
          |${errorLines.lines.mkString("\n")}
          |${errorLines.lineInfo.toSeq.mkString("\n")}
           """.stripMargin
     }
   }
 
-  case class SemanticError(unexpected: Option[String], expected: Option[String], reasons: Seq[String], lineInfo: LineInfo) extends ErrorLines {
-    override val errorType = "Semantic Error"
-    override val lines: Seq[String] = (unexpected, expected) match {
+  private def constructLines(unexpected: Option[String], expected: Option[String], reasons: Seq[String]): Seq[String] = {
+    (unexpected, expected) match {
       case (None, None) => reasons.toList
       case _ =>
         "unexpected: " + unexpected.getOrElse("") :: "expected: " + expected.getOrElse("") :: reasons.toList
     }
   }
 
+
+  case class SemanticError(unexpected: Option[String], expected: Option[String], reasons: Seq[String], lineInfo: LineInfo) extends ErrorLines {
+    override val errorType = "Semantic Error"
+    override val lines: Seq[String] = constructLines(unexpected, expected, reasons)
+
+  }
+
   object SemanticError {
-    def genError( reason: String, pos: (Int, Int))(implicit source: String, fileLines: Array[String]): WaccError = {
-      WaccError(pos, source, new SemanticError(None, None, Seq(reason), LineInfo.getFrom(pos)))
+    private def getFuncName(name: String): Option[String] = {
+      val startIndex = if (name.indexOf("-") == -1) 0 else name.indexOf("-") + 1
+      val endIndex = if (name.indexOf("-", startIndex + 1) == -1) name.length else name.indexOf("-", startIndex + 1)
+      name.substring(startIndex, endIndex) match {
+        case "main" | "" => Option.empty
+        case fName => if (fName.contains(waccPrefix)) Option(fName.replace(waccPrefix, "")) else Option.empty
+      }
+    }
+    def genError( reason: String, pos: (Int, Int))(implicit source: String, fileLines: Array[String], funcName: Option[String]): WaccError = {
+      WaccError(pos, source, new SemanticError(None, None, Seq(reason), LineInfo.getFrom(pos)), getFuncName(funcName.getOrElse("")))
     }
   }
 
-  case class SyntaxError(unexpected: Option[String], expected: Option[String], reasons: Seq[String], lineInfo: LineInfo) extends ErrorLines {
+  private case class SyntaxError(unexpected: Option[String], expected: Option[String], reasons: Seq[String], lineInfo: LineInfo) extends ErrorLines {
     override val errorType = "Syntax Error"
-    override val lines: Seq[String] = (unexpected, expected) match {
-      case (None, None) => reasons.toList
-      case _ =>
-        "unexpected: " + unexpected.getOrElse("") :: "expected: " + expected
-          .getOrElse("") :: reasons.toList
-    }
+    override val lines: Seq[String] = constructLines(unexpected, expected, reasons)
   }
 
-  case class LineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], errorAt: Int) {
+  case class LineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], col: Int, row: Int) {
+
+    private def numDigits(n: Int): Int = {
+      if (n == 0) 1
+      else math.log10(math.abs(n)).toInt + 1
+    }
     def toSeq: Seq[String] = {
-      linesBefore.map(line => s">$line") ++:
-        Seq(s">$line", s"${" " * errorAt}^") ++:
-        linesAfter.map(line => s">$line")
+      linesBefore.map(line => s"> 1. $line") ++:
+        Seq(s"> 2. $line", s"${" " * (col + numDigits(row) + 2)}↑") ++:
+        linesAfter.map(line => s"> 3. $line")
     }
   }
 
-  object LineInfo {
+   private object LineInfo {
     def getFrom(pos: (Int, Int))(implicit waccLines: Array[String]): LineInfo = pos match {
       case (row, col) if row >= 1 => LineInfo(
         waccLines(row - 1),
         if (row > 1) Seq(waccLines(row - 2)) else Nil,
-        if (row < waccLines.length) Seq(waccLines(row)) else Nil, col
+        if (row < waccLines.length) Seq(waccLines(row)) else Nil, col,
+        row
       )
     }
   }
@@ -65,7 +85,7 @@ object waccErrors {
   class WaccErrorBuilder extends ErrorBuilder[WaccError] with tokenextractors.MatchParserDemand {
 
     override def format(pos: Position, source: Source, lines: ErrorInfoLines): WaccError =
-      WaccError(pos, source, lines)
+      WaccError(pos, source, lines, Option.empty)
 
     type Position = (Int, Int)
     override def pos(row: Int, col: Int): Position = (row, col)
@@ -107,7 +127,7 @@ object waccErrors {
     type LineInfo = waccErrors.LineInfo
 
     override def lineInfo(line: String,  linesBefore: Seq[String], linesAfter: Seq[String], errorAt: Int, errorWidth: Int): LineInfo =
-      LineInfo(line, linesBefore, linesAfter, errorAt)
+      LineInfo(line, linesBefore, linesAfter, errorAt, errorWidth)
 
     type Item = String
     type Raw = String

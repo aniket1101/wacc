@@ -1,0 +1,5 @@
+# string type unit test
+
+begin
+    string s = "Great Unit Tests"
+end

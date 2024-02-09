@@ -6,6 +6,7 @@ import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
 import parsley.expr._
 import waccErrors._
+import parsley.token.errors._
 
 import java.io.File
 import scala.util.Try
