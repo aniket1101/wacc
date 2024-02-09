@@ -6,7 +6,7 @@ import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
 import parsley.expr._
 import waccErrors._
-import parsley.token.errors._
+import parsley.errors.combinator._
 
 import java.io.File
 import scala.util.Try
@@ -19,7 +19,7 @@ object parser {
     private lazy val parser = fully(prog)
     private lazy val prog: Parsley[Prog] = fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
     private lazy val func: Parsley[Func] = atomic(Func(typ, ident, "(" ~> sepBy(param, ",") <~ ")", "is" ~>
-      sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"))
+      sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end")).label("function declaration")
 
     private lazy val stats = sepBy1(singleStat, ";")
 
@@ -35,18 +35,18 @@ object parser {
       Print("print" ~> expr) <|>
       declaration <|>
       assign <|>
-      If("if" ~> expr, "then" ~> stats, "else" ~> stats <~ "fi") <|>
-      While("while" ~> expr, "do" ~> stats <~ "done") <|>
+      If("if" ~> expr, "then" ~> stats, "else".explain("all if statements must have an else statement") ~> stats <~ "fi".explain("unclosed if statement")) <|>
+      While("while" ~> expr, "do" ~> stats <~ "done".explain("unclosed while statement")) <|>
       Scope("begin" ~> stats <~ "end")
 
-    private lazy val declaration: Parsley[Declaration] = Declaration(typ, ident, "=" ~> rvalue)
-    private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue)
+    private lazy val declaration: Parsley[Declaration] = Declaration(typ, ident, "=" ~> rvalue).label("declaration")
+    private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue).label("assignment")
 
-    private lazy val ident: Parsley[Ident] = Ident(identifier)
+    private lazy val ident: Parsley[Ident] = Ident(identifier).label("identifier")
 
     private lazy val typ: Parsley[Type] =  chain.postfix(baseType <|> pairType)(ArrayType <# ("[" <* "]"))
 
-    private lazy val param: Parsley[Param] = Param(typ, ident)
+    private lazy val param: Parsley[Param] = Param(typ, ident).label("parameter")
 
     // Types
     private lazy val baseType: Parsley[BaseType] = (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string")
@@ -56,14 +56,14 @@ object parser {
     private lazy val pairElemType: Parsley[PairElemType] = atomic(arrayType) | baseType | (Pair <# "pair")
 
     private lazy val unOpp: Parsley[Expr] = (Not("!" ~> unOppExpr) <|>
-      Neg("-" ~> unOppExpr).map({
+      (Neg("-" ~> unOppExpr).map({
           case p@Neg(IntLit(x)) => IntLit(-x)(p.pos)
           case otherExpr => Neg(otherExpr)(otherExpr.pos)
       }) <|>
       Len("len" ~> unOppExpr) <|>
       Ord("ord" ~> unOppExpr) <|>
       Chr("chr" ~> unOppExpr)) <|>
-      Plus("+" ~> numericUnOppExpr).map(expr => expr)
+      Plus("+" ~> numericUnOppExpr).map(expr => expr)).label("unary operator")
 
     private lazy val expr: Parsley[Expr] =
         precedence(atom, "(" ~> expr <~ ")")(
@@ -85,9 +85,9 @@ object parser {
     private lazy val lvalue: Parsley[LValue] = atomic(arrayElem) | atomic(pairElem) | Ident(identifier)
     private lazy val rvalue: Parsley[RValue] = atomic(expr) | Call("call" ~> ident, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
       NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")") | pairElem
-    private lazy val arrayLit: Parsley[ArrayLit] = ArrayLit("[" ~> sepBy(expr, ",") <~ "]")
-    private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
-    private lazy val pairElem: Parsley[PairElem] = PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue)
+    private lazy val arrayLit: Parsley[ArrayLit] = ArrayLit("[" ~> sepBy(expr, ",") <~ "]").label("array literal")
+    private lazy val arrayElem: Parsley[ArrayElem] = ArrayElem(Ident(identifier), some("[" ~> expr <~ "]")).label("array element")
+    private lazy val pairElem: Parsley[PairElem] = PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue).label("pair element")
 
     private def functionExits(stmt: Stat): Boolean = {
         stmt match {
