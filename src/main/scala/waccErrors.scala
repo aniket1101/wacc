@@ -23,7 +23,7 @@ object waccErrors {
     /**
      * Converts the WACC error to a formatted string for display.
      */
-    override def toString: String = {
+    def display: String = {
       val scope = funcName.map(func => s", in $func()").getOrElse("")
       s"""${errorLines.errorType}:
          |in file ${new File(source).getName}$scope at line ${pos._1}, column ${pos._2}

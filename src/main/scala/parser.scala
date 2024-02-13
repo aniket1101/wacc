@@ -97,7 +97,7 @@ object parser {
             Len("len" ~> unOppExpr) <|>
             Ord("ord" ~> unOppExpr) <|>
             Chr("chr" ~> unOppExpr)) <|>
-          Plus("+" ~> numericUnOppExpr).map(expr => expr)).label("unary operator")
+          Plus("+" ~> numericUnOppExpr).map({case Plus(expr) => expr})).label("unary operator")
 
     // Parser for expressions
     private lazy val expr: Parsley[Expr] =

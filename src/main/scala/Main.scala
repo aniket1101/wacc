@@ -45,14 +45,14 @@ object Main {
                   VALID_EXIT_STATUS
                 } else {
                   // Print semantic errors and exit with semantic error status
-                  println(errors.mkString("\n"))
+                  println(errors.map(err => err.display).mkString("\n"))
                   SEMANTIC_ERROR_EXIT_STATUS
                 }
             }
           // If parsing fails according to the Parsley parser
           case parsley.Failure(err) =>
             // Print syntax error and exit with syntax error status
-            println(err)
+            println(err.display)
             SYNTAX_ERROR_EXIT_STATUS
         }
       // If parsing fails
