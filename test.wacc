@@ -1,4 +1,3 @@
 begin
-    int x = 10;
-    x = "Hello World!"
+    int x = 1234
 end

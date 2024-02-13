@@ -1,8 +1,9 @@
 // Import necessary packages and modules
+import ast.Prog
 import parser._
 import validator.checkSemantics
 
-import java.io.File
+import java.io.{File, PrintWriter}
 import scala.sys.exit
 import scala.util.Success
 import scala.util.Failure
@@ -18,48 +19,76 @@ object Main {
   // Main function of the program
   def main(args: Array[String]): Unit = {
 
-    // Check if a file has been specified
-    if (args.length < 1) {
-      System.out.println("Source file unspecified")
-      exit(FAIL)
+    args.headOption match {
+      case Some(filePath) =>
+        val file = new File(filePath)
+        parseProgram(file) match {
+          case Left(exitCode) => exit(exitCode)
+          case Right(prog) =>
+            val asmInstr = translator.translateProgram(prog)
+            writeToFile(asmInstr.mkString("\n"), removeFileExt(file.getName) + ".s") match {
+              case VALID_EXIT_STATUS => exit(VALID_EXIT_STATUS)
+              case err =>
+                println("Failed to write to output file")
+                exit(err)
+            }
+        }
+      case None =>
+        System.out.println("Source file unspecified")
+        exit(FAIL)
     }
-
-    // Parse the program and exit with the result
-    exit(parseProgram(new File(args.head)))
   }
 
   // Function to parse the program file
-  def parseProgram(source: File): Int = {
+  def parseProgram(source: File): Either[Int, Prog] = {
     val result = parse(source)
     result match {
       // If parsing is successful
       case Success(value) =>
         value match {
           // If parsing is successful according to the Parsley parser
-          case parsley.Success(_) =>
+          case parsley.Success(newValue) =>
             // Check semantics of the parsed program
-            checkSemantics(value.get, source.toString) match {
+            checkSemantics(newValue, source.toString) match {
               // If there are no semantic errors
-              case (errors, _, _) =>
+              case (errors, prog, _) =>
                 if (errors.isEmpty) {
-                  VALID_EXIT_STATUS
+                  Right(prog)
                 } else {
                   // Print semantic errors and exit with semantic error status
                   println(errors.map(err => err.display).mkString("\n"))
-                  SEMANTIC_ERROR_EXIT_STATUS
+                  Left(SEMANTIC_ERROR_EXIT_STATUS)
                 }
             }
           // If parsing fails according to the Parsley parser
           case parsley.Failure(err) =>
             // Print syntax error and exit with syntax error status
             println(err.display)
-            SYNTAX_ERROR_EXIT_STATUS
+            Left(SYNTAX_ERROR_EXIT_STATUS)
         }
       // If parsing fails
       case Failure(err) =>
         // Print parsing failure error and exit with general failure status
         println(err)
+        Left(FAIL)
+    }
+  }
+
+  private def writeToFile(contents: String, filename: String): Int = {
+    try {
+      val writer = new PrintWriter(new File(filename))
+      writer.write(contents)
+      writer.close()
+      VALID_EXIT_STATUS
+    } catch {
+      case _: Exception =>
         FAIL
     }
+  }
+
+  def removeFileExt(file: String): String = {
+    val index = file.lastIndexOf('.')
+    if (index > 0) file.substring(0, index)
+    else file
   }
 }
