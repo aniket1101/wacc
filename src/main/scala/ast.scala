@@ -1,15 +1,16 @@
 import parsley.Parsley
 import parsley.position.pos
-import parsley.syntax.zipped.Zipped2
-import parsley.syntax.zipped.Zipped3
-import parsley.syntax.zipped.Zipped4
+import parsley.generic
+import parsley.ap._
+import parsley.errors.combinator._
 
 object ast {
 
   // Bridge between singleton and parser
-  trait ParserSingletonBridgePos[+A] {
+  trait ParserSingletonBridgePos[+A] extends generic.ErrorBridge {
     def con(pos: (Int, Int)): A
-    def <#(op: Parsley[_]): Parsley[A] = pos.map(this.con) <* op
+    def from(op: Parsley[_]): Parsley[A] = error(pos.map(this.con) <* op)
+    final def <#(op: Parsley[_]): Parsley[A] = this from op
   }
 
   // Bridge with no arguments
@@ -21,21 +22,20 @@ object ast {
 
   // Bridge with 1 argument
   trait ParserBridgePos1[-A, +B] extends ParserSingletonBridgePos[A => B] {
-    override final def con(pos: (Int, Int)): A => B = this.apply(_)(pos)
-
     def apply(x: A)(pos: (Int, Int)): B
 
-    def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply)
+    def apply(x: Parsley[A]): Parsley[B] = error(ap1(pos.map(con), x))
+
+    override final def con(pos: (Int, Int)): A => B = this.apply(_)(pos)
   }
 
   // Bridge with 2 arguments
   trait ParserBridgePos2[-A, -B, +C] extends ParserSingletonBridgePos[(A, B) => C] {
     def apply(x: A, y: B)(pos: (Int, Int)): C
 
-    def apply(x: Parsley[A], y: Parsley[B]): Parsley[C] =
-      pos <**> (x, y).zipped(this.apply)
+    def apply(x: Parsley[A], y: => Parsley[B]): Parsley[C] = error(ap2(pos.map(con), x, y))
 
-    def con(pos: (Int, Int)): (A, B) => C = this.apply(_, _)(pos)
+    override final def con(pos: (Int, Int)): (A, B) => C = this.apply(_, _)(pos)
   }
 
   // Bridge with 3 arguments
@@ -46,7 +46,8 @@ object ast {
     def apply(x: A, y: B, z: C)(pos: (Int, Int)): D
 
     def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C]): Parsley[D] =
-      pos <**> (x, y, z).zipped(this.apply)
+      error(ap3(pos.map(con), x, y, z))
+
   }
 
   trait ParserBridgePos4[-A, -B, -C, -D, +E] extends ParserSingletonBridgePos[(A, B, C, D) => E] {
@@ -56,7 +57,7 @@ object ast {
     def apply(x: A, y: B, z: C, w: D)(pos: (Int, Int)): E
 
     def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C], w: => Parsley[D]): Parsley[E] =
-      pos <**> (x, y, z, w).zipped(this.apply)
+      error(ap4(pos.map(con), x, y, z, w))
   }
 
   // Positioning
@@ -178,13 +179,23 @@ object ast {
 
   /* Core */
   object Prog extends ParserBridgePos2[List[Func], List[Stat], Prog]
-  object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func]
-  object Param extends ParserBridgePos2[Type, Ident, Param]
+  object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func] {
+    override def from(op: Parsley[_]): Parsley[(Type, Ident, List[Param], List[Stat]) => Func] =
+      super.from(op).label("function declaration")
+  }
+  object Param extends ParserBridgePos2[Type, Ident, Param] {
+    override def from(op: Parsley[_]): Parsley[(Type, Ident) => Param] = super.from(op).label("parameter")
+  }
 
   /* Statements */
   object Skip extends ParserBridgePos0[Skip]
-  object Declaration extends ParserBridgePos3[Type, Ident, RValue, Declaration]
-  object Assign extends ParserBridgePos2[LValue, RValue, Assign]
+  object Declaration extends ParserBridgePos3[Type, Ident, RValue, Declaration] {
+    override def from(op: Parsley[_]): Parsley[(Type, Ident, RValue) => Declaration] =
+      super.from(op).label("declaration")
+  }
+  object Assign extends ParserBridgePos2[LValue, RValue, Assign] {
+    override def from(op: Parsley[_]): Parsley[(LValue, RValue) => Assign] = super.from(op).label("assignment")
+  }
   object Read extends ParserBridgePos1[LValue, Read]
   object Free extends ParserBridgePos1[Expr, Free]
   object Return extends ParserBridgePos1[Expr, Return]
@@ -206,10 +217,15 @@ object ast {
 
   /* Pair */
   object Pair extends ParserBridgePos0[Pair]
-  object PairType extends ParserBridgePos2[PairElemType, PairElemType, PairType]
+  object PairType extends ParserBridgePos2[PairElemType, PairElemType, PairType] {
+    override def from(op: Parsley[_]): Parsley[(PairElemType, PairElemType) => PairType] =
+      super.from(op).label("pair element")
+  }
 
   /* RValues */
-  object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit]
+  object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit] {
+    override def from(op: Parsley[_]): Parsley[List[Expr] => ArrayLit] = super.from(op).label("array literal")
+  }
   object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
   object Call extends ParserBridgePos2[Ident, List[Expr], Call]
 
@@ -218,8 +234,13 @@ object ast {
   object PairSnd extends ParserBridgePos1[LValue, PairSnd]
 
   /* Atoms */
-  object ArrayElem extends ParserBridgePos2[IdentArray, List[Expr], ArrayElem]
-  object Ident extends ParserBridgePos1[String, Ident]
+  object ArrayElem extends ParserBridgePos2[IdentArray, List[Expr], ArrayElem] {
+    override def from(op: Parsley[_]): Parsley[(IdentArray, List[Expr]) => ArrayElem] =
+      super.from(op).label("array element")
+  }
+  object Ident extends ParserBridgePos1[String, Ident] {
+    override def from(op: Parsley[_]): Parsley[String => Ident] = super.from(op).label("identifier")
+  }
   object IntLit extends ParserBridgePos1[Int, IntLit]
   object BoolLit extends ParserBridgePos1[Boolean, BoolLit]
   object CharLit extends ParserBridgePos1[Char, CharLit]
@@ -227,27 +248,65 @@ object ast {
   object PairLiter extends ParserBridgePos0[PairLiter]
 
   /* Unary Operators */
-  object Not extends ParserBridgePos1[Expr, Not]
-  object Neg extends ParserBridgePos1[Expr, Neg]
-  object Len extends ParserBridgePos1[Expr, Len]
-  object Ord extends ParserBridgePos1[Expr, Ord]
-  object Chr extends ParserBridgePos1[Expr, Chr]
-  object Plus extends ParserBridgePos1[Expr, Plus]
+  object Not extends ParserBridgePos1[Expr, Not] {
+    override def from(op: Parsley[_]): Parsley[Expr => Not] = super.from(op).label("unary operator")
+  }
+  object Neg extends ParserBridgePos1[Expr, Neg] {
+    override def from(op: Parsley[_]): Parsley[Expr => Neg] = super.from(op).label("unary operator")
+  }
+  object Len extends ParserBridgePos1[Expr, Len] {
+    override def from(op: Parsley[_]): Parsley[Expr => Len] = super.from(op).label("unary operator")
+  }
+  object Ord extends ParserBridgePos1[Expr, Ord] {
+    override def from(op: Parsley[_]): Parsley[Expr => Ord] = super.from(op).label("unary operator")
+  }
+  object Chr extends ParserBridgePos1[Expr, Chr] {
+    override def from(op: Parsley[_]): Parsley[Expr => Chr] = super.from(op).label("unary operator")
+  }
+  object Plus extends ParserBridgePos1[Expr, Plus] {
+    override def from(op: Parsley[_]): Parsley[Expr => Plus] = super.from(op).label("unary operator")
+  }
 
   /* Binary Operators */
-  object Add extends ParserBridgePos2[Expr, Expr, Add]
-  object Sub extends ParserBridgePos2[Expr, Expr, Sub]
-  object Mul extends ParserBridgePos2[Expr, Expr, Mul]
-  object Div extends ParserBridgePos2[Expr, Expr, Div]
-  object Mod extends ParserBridgePos2[Expr, Expr, Mod]
-  object GT extends ParserBridgePos2[Expr, Expr, GT]
-  object GTE extends ParserBridgePos2[Expr, Expr, GTE]
-  object LT extends ParserBridgePos2[Expr, Expr, LT]
-  object LTE extends ParserBridgePos2[Expr, Expr, LTE]
-  object Eq extends ParserBridgePos2[Expr, Expr, Eq]
-  object NEq extends ParserBridgePos2[Expr, Expr, NEq]
-  object And extends ParserBridgePos2[Expr, Expr, And]
-  object Or extends ParserBridgePos2[Expr, Expr, Or]
+  object Add extends ParserBridgePos2[Expr, Expr, Add] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Add] = super.from(op).label("binary operator")
+  }
+  object Sub extends ParserBridgePos2[Expr, Expr, Sub] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Sub] = super.from(op).label("binary operator")
+  }
+  object Mul extends ParserBridgePos2[Expr, Expr, Mul] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Mul] = super.from(op).label("binary operator")
+  }
+  object Div extends ParserBridgePos2[Expr, Expr, Div] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Div] = super.from(op).label("binary operator")
+  }
+  object Mod extends ParserBridgePos2[Expr, Expr, Mod] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Mod] = super.from(op).label("binary operator")
+  }
+  object GT extends ParserBridgePos2[Expr, Expr, GT] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => GT] = super.from(op).label("binary operator")
+  }
+  object GTE extends ParserBridgePos2[Expr, Expr, GTE] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => GTE] = super.from(op).label("binary operator")
+  }
+  object LT extends ParserBridgePos2[Expr, Expr, LT] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => LT] = super.from(op).label("binary operator")
+  }
+  object LTE extends ParserBridgePos2[Expr, Expr, LTE] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => LTE] = super.from(op).label("binary operator")
+  }
+  object Eq extends ParserBridgePos2[Expr, Expr, Eq] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Eq] = super.from(op).label("binary operator")
+  }
+  object NEq extends ParserBridgePos2[Expr, Expr, NEq] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => NEq] = super.from(op).label("binary operator")
+  }
+  object And extends ParserBridgePos2[Expr, Expr, And] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => And] = super.from(op).label("binary operator")
+  }
+  object Or extends ParserBridgePos2[Expr, Expr, Or] {
+    override def from(op: Parsley[_]): Parsley[(Expr, Expr) => Or] = super.from(op).label("binary operator")
+  }
 }
 
 
