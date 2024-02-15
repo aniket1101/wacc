@@ -30,7 +30,7 @@ object validator {
       case (Pair(), PairType(_, _)) => true
       case (StringType(), ArrayType(CharType())) => true
       // Check if either type is of AnyType, which can match any other type
-      case _ => if (t1 == AnyType || t2 == AnyType) true else false
+      case _ => t1 == AnyType || t2 == AnyType
     }
   }
 

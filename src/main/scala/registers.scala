@@ -1,6 +1,12 @@
 object registers {
-  sealed trait Register
+  final val ALL_REGS: List[Register] = List(R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RSI, RDI, RBP, RSP)
 
+  sealed trait Register extends Ordered[Register] {
+    def compare(that: Register): Int = ALL_REGS.indexOf(this) - ALL_REGS.indexOf(that)
+    override def toString: String = this.getClass.getSimpleName.toLowerCase.init
+  }
+
+  // 64 bit registers
   object RAX extends Register
   object RBX extends Register
   object RCX extends Register
@@ -17,4 +23,10 @@ object registers {
   object R13 extends Register
   object R14 extends Register
   object R15 extends Register
+
+  // 32 bit registers
+  object EAX extends Register
+  object EBX extends Register
+  object ECX extends Register
+  object EDX extends Register
 }
