@@ -34,7 +34,7 @@ object parser {
             "(" ~> sepBy(param, ",") <~ ")", // Function parameters
             "is" ~> sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"
         )
-    ).label("function declaration") // Labeling the parser for function declaration
+    )
 
     private lazy val stats = sepBy1(singleStat, ";") // Parser for multiple statements
 
@@ -55,13 +55,13 @@ object parser {
           Scope("begin" ~> stats <~ "end") // Parsing a block of statements
 
     // Parser for variable declaration
-    private lazy val declaration: Parsley[Declaration] = Declaration(typ, ident, "=" ~> rvalue).label("declaration")
+    private lazy val declaration: Parsley[Declaration] = Declaration(typ, ident, "=" ~> rvalue)
 
     // Parser for assignment
-    private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue).label("assignment")
+    private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue)
 
     // Parser for identifier
-    private lazy val ident: Parsley[Ident] = Ident(identifier).label("identifier")
+    private lazy val ident: Parsley[Ident] = Ident(identifier)
 
     // Parser for type
     private lazy val typ: Parsley[Type] =
@@ -69,7 +69,7 @@ object parser {
         chain.postfix(baseType <|> pairType)(ArrayType <# ("[" <* "]"))
 
     // Parser for function parameter
-    private lazy val param: Parsley[Param] = Param(typ, ident).label("parameter")
+    private lazy val param: Parsley[Param] = Param(typ, ident)
 
     // Parser for base types
     private lazy val baseType: Parsley[BaseType] =
@@ -89,27 +89,25 @@ object parser {
 
     // Parser for unary operators
     private lazy val unOpp: Parsley[Expr] =
-        (Not("!" ~> unOppExpr) <|>
-          (Neg("-" ~> unOppExpr).map({
+        Not("!" ~> unOppExpr) <|>
+        (Neg("-" ~> unOppExpr).map({
               case p@Neg(IntLit(x)) => IntLit(-x)(p.pos)
               case otherExpr => Neg(otherExpr)(otherExpr.pos)
           }) <|>
             Len("len" ~> unOppExpr) <|>
             Ord("ord" ~> unOppExpr) <|>
             Chr("chr" ~> unOppExpr)) <|>
-          Plus("+" ~> numericUnOppExpr).map({case Plus(expr) => expr})).label("unary operator")
+          Plus("+" ~> numericUnOppExpr).map({case Plus(expr) => expr})
 
     // Parser for expressions
     private lazy val expr: Parsley[Expr] =
         precedence(atom, "(" ~> expr <~ ")")(
-            Ops(InfixL)(Mul <# "*".label("binary operator"), Div <# "/".label("binary operator"),
-                Mod <# "%".label("binary operator")),
-            Ops(InfixL)(Add <# "+".label("binary operator"), Sub <# "-".label("binary operator")),
-            Ops(InfixN)(GTE <# ">=".label("binary operator"), GT <# ">".label("binary operator")
-                , LTE <# "<=".label("binary operator"), LT <# "<".label("binary operator")),
-            Ops(InfixN)(Eq <# "==".label("binary operator"), NEq <# "!=".label("binary operator")),
-            Ops(InfixR)(And <# "&&".label("binary operator")),
-            Ops(InfixR)(Or <# "||".label("binary operator"))
+            Ops(InfixL)(Mul <# "*", Div <# "/", Mod <# "%"),
+            Ops(InfixL)(Add <# "+", Sub <# "-"),
+            Ops(InfixN)(GTE <# ">=", GT <# ">", LTE <# "<=", LT <# "<"),
+            Ops(InfixN)(Eq <# "==", NEq <# "!="),
+            Ops(InfixR)(And <# "&&"),
+            Ops(InfixR)(Or <# "||")
         )
 
     // Parser for unary expression
@@ -135,15 +133,15 @@ object parser {
 
     // Parser for array literals
     private lazy val arrayLit: Parsley[ArrayLit] =
-        ArrayLit("[" ~> sepBy(expr, ",") <~ "]").label("array literal")
+        ArrayLit("[" ~> sepBy(expr, ",") <~ "]")
 
     // Parser for array elements
     private lazy val arrayElem: Parsley[ArrayElem] =
-        ArrayElem(Ident(identifier), some("[" ~> expr <~ "]")).label("array element")
+        ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
 
     // Parser for pair elements
     private lazy val pairElem: Parsley[PairElem] =
-        PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue).label("pair element")
+        PairFst("fst" ~> lvalue) | PairSnd("snd" ~> lvalue)
 
     // Function to check if a function exits
     private def functionExits(stmt: Stat): Boolean = {

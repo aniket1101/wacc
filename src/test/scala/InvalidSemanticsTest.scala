@@ -11,7 +11,7 @@ class InvalidSemanticsTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parseProgram(testCode) shouldBe SEMANTIC_ERROR_EXIT_STATUS
+      parseProgram(testCode) shouldBe Left(SEMANTIC_ERROR_EXIT_STATUS)
     }
   }
 }

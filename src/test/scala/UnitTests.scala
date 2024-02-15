@@ -15,19 +15,19 @@ class UnitTests extends AnyFlatSpec {
 
   fL_valid.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parseProgram(testCode) shouldBe VALID_EXIT_STATUS
+      parseProgram(testCode) shouldBe Left(VALID_EXIT_STATUS)
     }
   }
 
   fL_syntax_invalid.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parseProgram(testCode) shouldBe SYNTAX_ERROR_EXIT_STATUS
+      parseProgram(testCode) shouldBe Left(SYNTAX_ERROR_EXIT_STATUS)
     }
   }
 
   fL_semantic_invalid.foreach { case (testName, testCode) =>
     s"Parser should parse $testName" should "parse correctly" in {
-      parseProgram(testCode) shouldBe SEMANTIC_ERROR_EXIT_STATUS
+      parseProgram(testCode) shouldBe Left(SEMANTIC_ERROR_EXIT_STATUS)
     }
   }
 }

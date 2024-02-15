@@ -11,7 +11,7 @@ class InvalidSyntaxTest extends AnyFlatSpec {
 
   fileList.foreach { case (testName, testCode) =>
     s"Parser should parse: $testName" should "parse correctly" in {
-      parseProgram(testCode) shouldBe SYNTAX_ERROR_EXIT_STATUS
+      parseProgram(testCode) shouldBe Left(SYNTAX_ERROR_EXIT_STATUS)
     }
   }
 }
