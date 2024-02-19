@@ -56,6 +56,10 @@ object IR {
   case class Ret() extends Instruction
 
   sealed trait Block
-  case class AsmBlock(directive: Directive, label: Label, instructions: List[Instruction]) extends Block
+  case class AsmBlock(directive: Directive, label: Label, instructions: List[Instruction]) extends Block {
+    override def toString: String = {
+      s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n")
+    }
+  }
 
 }

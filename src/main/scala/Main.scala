@@ -1,5 +1,6 @@
 // Import necessary packages and modules
 import backend.{IRTranslator, translator}
+import backend.IR._
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
