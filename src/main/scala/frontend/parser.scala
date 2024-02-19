@@ -1,12 +1,15 @@
-import ast._
-import lexer.implicits.implicitSymbol
-import lexer._
-import parsley.{Parsley, Result}
+package frontend
+
+import frontend.ast._
+import frontend.lexer._
+import frontend.lexer.implicits.implicitSymbol
+import frontend.lexer.lexer.fully
+import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{sepBy, sepBy1}
-import parsley.expr._
-import waccErrors._
 import parsley.errors.combinator._
+import parsley.expr._
+import parsley.{Parsley, Result}
 
 import java.io.File
 import scala.util.Try

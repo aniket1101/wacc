@@ -1,6 +1,7 @@
-import parsley.errors.ErrorBuilder
-import parsley.errors.tokenextractors
-import validator.waccPrefix
+package frontend
+
+import frontend.validator.waccPrefix
+import parsley.errors.{ErrorBuilder, tokenextractors}
 
 import java.io.File
 

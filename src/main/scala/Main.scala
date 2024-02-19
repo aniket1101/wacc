@@ -1,12 +1,14 @@
 // Import necessary packages and modules
-import ast.Prog
-import parser._
-import validator.checkSemantics
+import backend.{IRTranslator, translator}
+import frontend.ast._
+import frontend.parser._
+import frontend.validator.checkSemantics
 
 import java.io.{File, PrintWriter}
 import scala.sys.exit
 import scala.util.Success
 import scala.util.Failure
+import scala.collection.mutable
 
 // Object representing the main entry point of the program
 object Main {
@@ -24,8 +26,8 @@ object Main {
         val file = new File(filePath)
         parseProgram(file) match {
           case Left(exitCode) => exit(exitCode)
-          case Right(prog) =>
-            val asmInstr = translator.translateProgram(prog)
+          case Right((prog, symbolTable)) =>
+            val asmInstr = IRTranslator.translateAST(prog, symbolTable)
             writeToFile(asmInstr.mkString("\n"), removeFileExt(file.getName) + ".s") match {
               case VALID_EXIT_STATUS => exit(VALID_EXIT_STATUS)
               case err =>
@@ -40,7 +42,7 @@ object Main {
   }
 
   // Function to parse the program file
-  def parseProgram(source: File): Either[Int, Prog] = {
+  def parseProgram(source: File): Either[Int, (Prog, mutable.Map[String, Type])] = {
     val result = parse(source)
     result match {
       // If parsing is successful
@@ -51,9 +53,9 @@ object Main {
             // Check semantics of the parsed program
             checkSemantics(newValue, source.toString) match {
               // If there are no semantic errors
-              case (errors, prog, _) =>
+              case (errors, prog, symbolTable) =>
                 if (errors.isEmpty) {
-                  Right(prog)
+                  Right((prog, symbolTable))
                 } else {
                   // Print semantic errors and exit with semantic error status
                   println(errors.map(err => err.display).mkString("\n"))

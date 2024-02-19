@@ -1,5 +1,7 @@
-import ast._
-import waccErrors._
+package frontend
+
+import frontend.ast._
+import frontend.waccErrors.{SemanticError, WaccError}
 
 import java.io.File
 import scala.collection.mutable

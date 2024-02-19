@@ -1,8 +1,9 @@
-import parsley.Parsley
-import parsley.position.pos
-import parsley.generic
+package frontend
+
 import parsley.ap._
 import parsley.errors.combinator._
+import parsley.{Parsley, generic}
+import parsley.position.pos
 
 object ast {
 

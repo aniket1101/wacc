@@ -1,5 +1,8 @@
-import ast._
-import registers._
+package backend
+
+import backend.registers.{ALL_REGS, EAX, EDX, Register}
+import frontend.ast._
+
 import scala.collection.mutable.ListBuffer
 
 // Translates ast to Intel x86 assembly code

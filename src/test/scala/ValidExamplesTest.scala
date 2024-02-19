@@ -1,6 +1,6 @@
 import Main._
-import ast._
-import parser.parse
+import frontend.ast._
+import frontend.parser.parse
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
