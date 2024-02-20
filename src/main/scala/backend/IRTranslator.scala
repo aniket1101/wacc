@@ -42,11 +42,13 @@ object IRTranslator {
 
     stmts.flatMap {
       case Skip() => List.empty
-      case ast.Exit(expr) => {
-        blocks.addOne(IR.Exit())
-        List(MovImm(Immediate(evaluateExpr(expr)), ReturnRegister()), MovRegister(ReturnRegister(), paramReg1()), Call(Label("exit")))
-      }
       case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
+      case fun => fun match {
+        case ast.Exit(expr) => {
+          blocks.addOne(IR.Exit())
+          evaluateExpr(expr).concat(List(Push(paramReg1()), MovRegister(ReturnRegister(), paramReg1()), Call(Label("exit")), Pop(paramReg1())))
+        }
+      }
     }.map(instr => instructions.addOne(instr))
 
     instructions += MovImm(Immediate(0), ReturnRegister())
@@ -54,7 +56,7 @@ object IRTranslator {
     if (regsToSave == 0) {
       instructions.addOne(Pop(scrap_regs.head))
     } else {
-      for (regNo <-regsToSave to 0) {
+      for (regNo <- regsToSave to 0) {
         instructions.addOne(MovRegister(scrap_regs(regNo), new Memory(Some(StackPointer()), None, None, Some(-8 * regNo))))
       }
     }
@@ -73,9 +75,18 @@ object IRTranslator {
     }
   }
 
-  private def evaluateExpr(expr: Expr): Int = {
+  // Outputs code to evaluate an expression and put the result in the output register
+  def evaluateExpr(expr: Expr): List[Instruction] = {
     expr match {
-      case IntLit(x) => x
+      case IntLit(x) => List(MovImm(Immediate(x), ReturnRegister()))
+    }
+  }
+
+  private def getParams(stmt:Stat): Int = 1
+
+  private def getParams(rVal:RValue): Int = {
+    rVal match {
+      case ast.Call(_, params) => params.length
       case _ => -1
     }
   }
