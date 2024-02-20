@@ -1,5 +1,7 @@
 package backend
 
+import backend.IR.MovRegister
+
 object IR {
 
   sealed trait Instruction
@@ -43,6 +45,7 @@ object IR {
   case class MovMemory(val src: Memory, val dst: RegOrImm) extends Instruction
   case class MovImm(val src: Immediate, val dst: RegOrImm) extends Instruction
 
+  case class Call(label:Label) extends Instruction
   case class Cmp(src: Operand, value: Operand) extends Instruction
   case class Je(label: Label) extends Instruction
   case class Jge(label: Label) extends Instruction
@@ -53,13 +56,24 @@ object IR {
   case class Push(reg: Register) extends Instruction
   case class Pop(reg: Register) extends Instruction
 
+  case class Align(reg: Register) extends Instruction
   case class Ret() extends Instruction
 
   sealed trait Block
-  case class AsmBlock(directive: Directive, label: Label, instructions: List[Instruction]) extends Block {
+  class AsmBlock(directive: Directive, label: Label, instructions: List[Instruction]) extends Block {
     override def toString: String = {
-      s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n")
+      s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n") + "\n"
     }
   }
+
+  case class Exit() extends AsmBlock(Directive("text"), Label("exit"), List(
+    Push(Register("rbp")),
+    MovRegister(Register("rsp"), Register("rbp")),
+    Align(Register("rsp")),
+    Call(Label("exit@plt")),
+    MovRegister(Register("rbp"), Register("rsp")),
+    Pop(Register("rbp")),
+    Ret()
+  ))
 
 }

@@ -1,6 +1,7 @@
 package backend
 
-import backend.IR._
+import backend.IR.{Call, _}
+import frontend.ast
 import frontend.ast._
 
 import scala.collection.mutable
@@ -20,6 +21,7 @@ object IRTranslator {
     // Code set-up
     val blockName = "main"
     val instructions: ListBuffer[Instruction] = ListBuffer(Push(Register("rbp")))
+    val blocks = ListBuffer(currBlocks: _*)
 
     val regsToSave = symbolTable.keys.count(_.startsWith(s"$blockName-"))
 
@@ -34,12 +36,14 @@ object IRTranslator {
 
     instructions += MovRegister(Register("rsp"), Register("rbp"))
 
-    instructions.concat(
-      stmts.map {
-        case Skip() =>
-        case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
+    stmts.flatMap {
+      case Skip() => List.empty
+      case ast.Exit(expr) => {
+        blocks.addOne(IR.Exit())
+        List(MovImm(Immediate(evaluateExpr(expr)), Register("rax")), MovRegister(Register("rax"), Register("rdi")), Call(Label("exit")))
       }
-    )
+      case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
+    }.map(instr => instructions.addOne(instr))
 
     instructions += MovImm(Immediate(0), Register("rax"))
 
@@ -55,8 +59,15 @@ object IRTranslator {
     instructions += Pop(Register("rbp"))
     instructions += Ret()
 
-    currBlocks.concat(List(AsmBlock(Directive("text"), Label(blockName), instructions.toList)))
+    blocks.addOne(new AsmBlock(Directive("text"), Label(blockName), instructions.toList)).reverse.toList
   }
 
   private def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): List[Instruction] = ???
+
+  private def evaluateExpr(expr: Expr): Int = {
+    expr match {
+      case IntLit(x) => x
+      case _ => -1
+    }
+  }
 }
