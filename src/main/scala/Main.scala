@@ -1,15 +1,13 @@
 // Import necessary packages and modules
-import backend.{IRTranslator, translator}
-import backend.IR._
+import backend.IRTranslator
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
 
 import java.io.{File, PrintWriter}
-import scala.sys.exit
-import scala.util.Success
-import scala.util.Failure
 import scala.collection.mutable
+import scala.sys.exit
+import scala.util.{Failure, Success}
 
 // Object representing the main entry point of the program
 object Main {
@@ -19,23 +17,27 @@ object Main {
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
   private val FAIL: Int = -1
 
+  // TODO: For testing purposes
+  private val basicProgram: String =
+    """.intel_syntax noprefix
+      |.globl main
+      |.section .rodata
+      |.text
+      |main:
+      |	push rbp
+      |	push rbx
+      |	mov rbp, rsp
+      |	mov rax, 0
+      |	pop rbx
+      |	pop rbp
+      |	ret
+      |""".stripMargin
+
   // Main function of the program
   def main(args: Array[String]): Unit = {
-
     args.headOption match {
       case Some(filePath) =>
-        val file = new File(filePath)
-        parseProgram(file) match {
-          case Left(exitCode) => exit(exitCode)
-          case Right((prog, symbolTable)) =>
-            val asmInstr = IRTranslator.translateAST(prog, symbolTable)
-            writeToFile(asmInstr.mkString("\n"), removeFileExt(file.getName) + ".s") match {
-              case VALID_EXIT_STATUS => exit(VALID_EXIT_STATUS)
-              case err =>
-                println("Failed to write to output file")
-                exit(err)
-            }
-        }
+        exit(compileProgram(filePath))
       case None =>
         System.out.println("Source file unspecified")
         exit(FAIL)
@@ -74,6 +76,23 @@ object Main {
         // Print parsing failure error and exit with general failure status
         println(err)
         Left(FAIL)
+    }
+  }
+
+  def compileProgram(source: String): Int = {
+    val file = new File(source)
+    parseProgram(file) match {
+      case Left(exitCode) => exitCode
+      case Right((prog, symbolTable)) =>
+        val asmInstr = IRTranslator.translateAST(prog, symbolTable)
+        val asmCode = asmInstr.mkString("\n")
+        // TODO: Remember to change this to asmCode instead of basicProgram
+        writeToFile(basicProgram, removeFileExt(file.getName) + ".s") match {
+          case VALID_EXIT_STATUS => VALID_EXIT_STATUS
+          case err =>
+            println("Failed to write to output file")
+            err
+        }
     }
   }
 

@@ -4,6 +4,7 @@ image: gumjoe/wacc-ci-scala:slim
 stages:          # List of stages for jobs and their order of execution
   - build
   - testFrontEnd
+  - testIntelX86
 
 build:
   stage: build
@@ -18,4 +19,12 @@ testFrontEnd:
     - echo "Testing front-end..."
     - sbt "testOnly *FrontEndTests"
     - echo "Running front-end tests finished"
+  environment: production
+
+testIntelX86:
+  stage: testIntelX86
+  script:
+    - echo "Testing compiler with x86_64 (Intel Syntax) examples..."
+    - sbt "testOnly *IntelX86Test"
+    - echo "Running compiler with x86_64 (Intel Syntax) examples finished..."
   environment: production

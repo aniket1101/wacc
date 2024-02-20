@@ -1,24 +1,12 @@
-Directive(text)
-Label(main):
-	Push(StackPointer())
-	Push(scratchReg1())
-	MovRegister(StackPointer(),BasePointer())
-	MovImm(Immediate(-8),ReturnRegister())
-	Push(paramReg1())
-	MovRegister(ReturnRegister(),paramReg1())
-	Call(Label(exit))
-	Pop(paramReg1())
-	MovImm(Immediate(0),ReturnRegister())
-	Pop(scratchReg1())
-	Pop(BasePointer())
-	Ret()
-
-Directive(text)
-Label(exit):
-	Push(BasePointer())
-	MovRegister(StackPointer(),BasePointer())
-	Align(StackPointer())
-	Call(Label(exit@plt))
-	MovRegister(BasePointer(),StackPointer())
-	Pop(BasePointer())
-	Ret()
+.intel_syntax noprefix
+.globl main
+.section .rodata
+.text
+main:
+	push rbp
+	push rbx
+	mov rbp, rsp
+	mov rax, 0
+	pop rbx
+	pop rbp
+	ret
