@@ -1,6 +1,7 @@
 package backend
 
 import backend.IR.MovRegister
+import backend.IRRegisters.{BasePointer, StackPointer}
 
 object IR {
 
@@ -15,7 +16,7 @@ object IR {
   sealed trait RegOrImm extends Operand
 
   case class Immediate(value: Int) extends RegOrImm
-  case class Register(reg: String) extends MemOrReg with RegOrImm {
+  class Register(reg: String) extends MemOrReg with RegOrImm {
     def address():Int = 0
   }
   case class Memory(address: Int) extends MemOrReg
@@ -67,12 +68,12 @@ object IR {
   }
 
   case class Exit() extends AsmBlock(Directive("text"), Label("exit"), List(
-    Push(Register("rbp")),
-    MovRegister(Register("rsp"), Register("rbp")),
-    Align(Register("rsp")),
+    Push(BasePointer()),
+    MovRegister(StackPointer(), BasePointer()),
+    Align(StackPointer()),
     Call(Label("exit@plt")),
-    MovRegister(Register("rbp"), Register("rsp")),
-    Pop(Register("rbp")),
+    MovRegister(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
     Ret()
   ))
 
