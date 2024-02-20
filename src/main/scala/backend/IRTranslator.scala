@@ -13,7 +13,7 @@ object IRTranslator {
   var calc_regs = List(ReturnRegister())
   var param_regs = List(paramReg1(), paramReg2(), paramReg3(), paramReg4(), paramReg5(), paramReg6())
   val stack_regs = List(BasePointer(), StackPointer())
-  var scrap_regs = List(scrapReg1(), scrapReg2(), scrapReg3(), scrapReg4(), scrapReg5())
+  var scrap_regs = List(scratchReg1(), scratchReg2(), scratchReg3(), scratchReg4(), scratchReg5())
 
   def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
     translateFunc(prog.funcs, translateStatements(prog.stats, List(), symbolTable))
@@ -34,7 +34,7 @@ object IRTranslator {
     } else {
       instructions.addOne(SubImm(Immediate(8 * regsToSave), StackPointer()))
       for (regNo <- 0 to regsToSave) {
-        instructions.addOne(MovRegister(scrap_regs(regNo), Memory(StackPointer().address + (8 * regNo))))
+        instructions.addOne(MovRegister(scrap_regs(regNo), new Memory(Some(StackPointer()), None, None, Some(8 * regNo))))
       }
     }
 
@@ -55,7 +55,7 @@ object IRTranslator {
       instructions.addOne(Pop(scrap_regs.head))
     } else {
       for (regNo <-regsToSave to 0) {
-        instructions.addOne(MovRegister(scrap_regs(regNo), Memory(StackPointer().address() - (8 * regNo))))
+        instructions.addOne(MovRegister(scrap_regs(regNo), new Memory(Some(StackPointer()), None, None, Some(-8 * regNo))))
       }
     }
 

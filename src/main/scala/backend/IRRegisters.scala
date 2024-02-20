@@ -20,10 +20,10 @@ object IRRegisters {
   case class StackPointer() extends Register("rsp")
 
 
-  // Scrap Registers
-  case class scrapReg1() extends Register("rbx")
-  case class scrapReg2() extends Register("r12")
-  case class scrapReg3() extends Register("r13")
-  case class scrapReg4() extends Register("r14")
-  case class scrapReg5() extends Register("r15")
+  // Scratch Registers
+  case class scratchReg1() extends Register("rbx")
+  case class scratchReg2() extends Register("r12")
+  case class scratchReg3() extends Register("r13")
+  case class scratchReg4() extends Register("r14")
+  case class scratchReg5() extends Register("r15")
 }

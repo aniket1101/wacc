@@ -19,8 +19,34 @@ object IR {
   class Register(reg: String) extends MemOrReg with RegOrImm {
     def address():Int = 0
   }
-  case class Memory(address: Int) extends MemOrReg
 
+  class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Int]) extends MemOrReg {
+    require(
+    primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
+      primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && offset.isDefined ||
+      primReg.isDefined && secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
+      primReg.isDefined && secReg.isDefined && multiplier.isDefined && !offset.isDefined ||
+      !primReg.isDefined && secReg.isDefined && multiplier.isDefined && offset.isDefined ||
+      primReg.isDefined && secReg.isDefined && multiplier.isDefined && offset.isDefined,
+      "Invalid combination of parameters"
+    )
+    // Define constructors with different combinations of parameters
+    def this(primReg: Register) = this(Some(primReg), None, None, None)
+    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, Some(offset))
+    def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
+    def this(primReg: Register, secReg: Register, multiplier: Int) = this(Some(primReg), Some(secReg), Some(multiplier), None)
+    def this(secReg: Register, multiplier: Int, offset: Int) = this(None, Some(secReg), Some(multiplier), Some(offset))
+    def this(primReg: Register, secReg: Register, multiplier: Int, offset: Int) = this(Some(primReg), Some(secReg), Some(multiplier), Some(offset))
+
+    override def toString: String = {
+      val primRegStr = primReg.map(_.toString).getOrElse("")
+      val first_op = if (primReg != None && secReg != None) " + " else ""
+      val secRegStr = secReg.map(_.toString).getOrElse("")
+      val multiplierStr = multiplier.map("*" + _).getOrElse("")
+      val offsetStr = if (offset != None) if (offset.get >= 0) s" + ${offset.get}" else s"${offset.get}" else ""
+      s"[$primRegStr$first_op$secRegStr$multiplierStr$offsetStr]"
+    }
+  }
   // ADD instruction
   case class AddRegister(val src: Register, val dst: Operand) extends Instruction
   case class AddMemory(val src: Memory, val dst: RegOrImm) extends Instruction
