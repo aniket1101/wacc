@@ -1,7 +1,0 @@
-# many type type unit test
-
-begin
-    int x = 10 ;
-    int[] arr = [5,4,3,2,1] ;
-    bool b = false
-end

@@ -1,5 +1,0 @@
-# mismatch of types during assignment
-
-begin
-    int x = true
-end

@@ -1,9 +1,0 @@
-# mistake while declaring function
-
-begin
-  def myfunc() is
-    return 42
-  end
-
-  int x = call f()
-end

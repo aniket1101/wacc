@@ -1,6 +1,0 @@
-# var reassign type unit test
-
-begin
-    int x = 21 ;
-    x = 10
-end
