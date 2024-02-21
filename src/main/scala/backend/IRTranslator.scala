@@ -38,7 +38,7 @@ object IRTranslator {
       }
     }
 
-    instructions += MovRegister(StackPointer(), BasePointer())
+    instructions += MovRegister(BasePointer(), StackPointer())
 
     stmts.flatMap {
       case Skip() => List.empty
@@ -62,7 +62,7 @@ object IRTranslator {
     }
 
     // Finalise code
-    instructions += Pop(BasePointer())
+    instructions += Pop(StackPointer())
     instructions += Ret()
 
     blocks.addOne(new AsmBlock(Directive("text"), Label(blockName), instructions.toList)).reverse.toList

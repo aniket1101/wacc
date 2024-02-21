@@ -1,5 +1,5 @@
 // Import necessary packages and modules
-import backend.IRTranslator
+import backend.{IRTranslator, intelX86Translator}
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
@@ -16,22 +16,6 @@ object Main {
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
   private val FAIL: Int = -1
-
-  // TODO: For testing purposes
-  private val basicProgram: String =
-    """.intel_syntax noprefix
-      |.globl main
-      |.section .rodata
-      |.text
-      |main:
-      |	push rbp
-      |	push rbx
-      |	mov rbp, rsp
-      |	mov rax, 0
-      |	pop rbx
-      |	pop rbp
-      |	ret
-      |""".stripMargin
 
   // Main function of the program
   def main(args: Array[String]): Unit = {
@@ -85,9 +69,8 @@ object Main {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
         val asmInstr = IRTranslator.translateAST(prog, symbolTable)
-        val asmCode = asmInstr.mkString("\n")
-        // TODO: Remember to change this to asmCode instead of basicProgram
-        writeToFile(basicProgram, removeFileExt(file.getName) + ".s") match {
+        val asmCode = intelX86Translator.toAsmCode(asmInstr)
+        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>
             println("Failed to write to output file")

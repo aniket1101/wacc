@@ -10,13 +10,13 @@ object IR {
   case class Label(name: String)
   case class Directive(name: String)
 
-  sealed trait Operand extends Instruction
+  sealed trait Operand
 
   sealed trait MemOrReg extends Operand
   sealed trait RegOrImm extends Operand
 
   case class Immediate(value: Int) extends RegOrImm
-  class Register(reg: String) extends MemOrReg with RegOrImm {
+  class Register(val reg: String) extends MemOrReg with RegOrImm {
     def address():Int = 0
   }
 
@@ -69,8 +69,8 @@ object IR {
 
   // MOV instruction
   case class MovRegister(val src: Register, val dst: Operand) extends Instruction
-  case class MovMemory(val src: Memory, val dst: RegOrImm) extends Instruction
-  case class MovImm(val src: Immediate, val dst: RegOrImm) extends Instruction
+  case class MovMemory(val src: Memory, val dst: Register) extends Instruction
+  case class MovImm(val src: Immediate, val dst: MemOrReg) extends Instruction
 
   case class Call(label:Label) extends Instruction
   case class Cmp(src: Operand, value: Operand) extends Instruction
@@ -87,7 +87,7 @@ object IR {
   case class Ret() extends Instruction
 
   sealed trait Block
-  class AsmBlock(directive: Directive, label: Label, instructions: List[Instruction]) extends Block {
+  class AsmBlock(val directive: Directive, val label: Label, val instructions: List[Instruction]) extends Block {
     override def toString: String = {
       s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n") + "\n"
     }
