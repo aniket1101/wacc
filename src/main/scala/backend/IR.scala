@@ -93,7 +93,7 @@ object IR {
     }
   }
 
-  case class Exit() extends AsmBlock(Directive("text"), Label("exit"), List(
+  case class Exit() extends AsmBlock(Directive(""), Label("_exit"), List(
     Push(BasePointer()),
     MovRegister(StackPointer(), BasePointer()),
     Align(StackPointer()),

@@ -46,7 +46,7 @@ object IRTranslator {
       case fun => fun match {
         case ast.Exit(expr) => {
           blocks.addOne(IR.Exit())
-          evaluateExpr(expr).concat(List(Push(paramReg1()), MovRegister(ReturnRegister(), paramReg1()), Call(Label("exit")), Pop(paramReg1())))
+          evaluateExpr(expr).concat(List(Push(paramReg1()), MovRegister(ReturnRegister(), paramReg1()), Call(Label("_exit")), Pop(paramReg1())))
         }
       }
     }.map(instr => instructions.addOne(instr))
