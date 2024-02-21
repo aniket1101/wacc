@@ -1,0 +1,5 @@
+# pair type unit test
+
+begin
+    pair(bool, int) p = newpair(true, 3)
+end

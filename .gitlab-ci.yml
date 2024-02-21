@@ -24,6 +24,9 @@ testFrontEnd:
 testIntelX86:
   stage: testIntelX86
   script:
+    - echo "Installing gcc"
+    - apt-get update -y
+    - apt-get install -y gcc
     - echo "Testing compiler with x86_64 (Intel Syntax) examples..."
     - sbt "testOnly *IntelX86Test"
     - echo "Running compiler with x86_64 (Intel Syntax) examples finished..."

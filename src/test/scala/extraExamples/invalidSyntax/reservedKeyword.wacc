@@ -1,0 +1,5 @@
+# invalid use of a reserved keyword
+
+begin
+    int begin = 10
+end

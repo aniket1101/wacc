@@ -1,0 +1,5 @@
+# mixing types in an array
+
+begin
+    int[] arr = [1, 2, 3, 4, false]
+end

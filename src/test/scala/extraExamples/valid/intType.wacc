@@ -1,0 +1,5 @@
+# int type unit test
+
+begin
+    int x = 21
+end

@@ -1,0 +1,6 @@
+# test for complex boolean expressions
+
+begin
+    bool p = true && false;
+    bool q = !p || true
+end

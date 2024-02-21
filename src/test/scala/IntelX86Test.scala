@@ -34,8 +34,8 @@ class IntelX86Test extends AnyFlatSpec {
     }
   }
 
-  val src = "src/test/scala/intel_x86_examples"
-  new ProcessExamples("src/test/scala/intel_x86_examples", ".s").processFolder()
+  val src = "src/test/scala/intelX86Examples"
+  new ProcessExamples(src, ".s").processFolder()
     .foreach { case (testName, testCode) =>
       val correctExitCode = compileAndRunAsm(testCode.getPath)
 
@@ -57,7 +57,7 @@ class IntelX86Test extends AnyFlatSpec {
   def deleteFile(filePath: String): Int = {
     val file = new File(filePath)
     if (file.exists()) {
-      if (file.delete()) 1 else -1
+      if (file.delete()) 0 else -1
     } else {
       -1
     }
