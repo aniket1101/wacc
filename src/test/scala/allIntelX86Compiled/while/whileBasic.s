@@ -3,16 +3,16 @@
 .section .rodata
 .text
 main:
- push rbp
- push rbx
- mov rbp, rsp
- jmp .L0
+	push rbp
+	push rbx
+	mov rbp, rsp
+	jmp .L0
 .L1:
 .L0:
- mov rax, 0
- cmp rax, 1
- je .L1
- mov rax, 0
- pop rbx
- pop rbp
- ret
+	mov rax, 0
+	cmp rax, 1
+	je .L1
+	mov rax, 0
+	pop rbx
+	pop rbp
+	ret
