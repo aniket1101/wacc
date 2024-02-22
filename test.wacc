@@ -1,5 +1,5 @@
 begin
-  int x = 3;
-  int y = 6;
+  int x = 5;
+  int y = 7;
   int z = 10
 end

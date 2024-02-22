@@ -10,9 +10,9 @@ main:
 	mov qword ptr [rsp + 16], scratchReg3
 	mov qword ptr [rsp + 24], scratchReg4
 	mov rbp, rsp
-	mov rax, 3
+	mov rax, 5
 	mov scratchReg2, rax
-	mov rax, 6
+	mov rax, 7
 	mov scratchReg3, rax
 	mov rax, 10
 	mov scratchReg4, rax
