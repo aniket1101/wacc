@@ -123,7 +123,7 @@ object IR {
   case class Ret() extends Instruction
 
   sealed trait Block
-  class AsmBlock(val directive: Directive, val label: Label, val instructions: List[Instruction]) extends Block {
+  class AsmBlock(val directive: Directive, val label: Label, var instructions: List[Instruction]) extends Block {
     override def toString: String = {
       s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n") + "\n"
     }
