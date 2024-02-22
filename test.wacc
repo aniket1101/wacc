@@ -1,8 +1,10 @@
 begin
-  bool x = true;
-  if (x) then
-    skip
-  else
-    skip
-  fi
+  bool x = false;
+  while (x) do
+    bool y = true;
+    int h = 5
+  done;
+
+  int j = 10
+
 end

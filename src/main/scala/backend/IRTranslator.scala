@@ -105,7 +105,17 @@ object IRTranslator {
           curBlock = elseBlock
           evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel)))
             .concat(translateStatements(elseStat, symbolTable).addOne(JumpInstr(elseLabel)))
-
+        }
+        case While(cond, doStat) => {
+          val conditionLabel = getNewLabel()
+          val bodyLabel = getNewLabel()
+          val restLabel = getNewLabel()
+          blocks.addOne(new AsmBlock(Directive(""), bodyLabel, translateStatements(doStat, symbolTable).toList))
+          blocks.addOne(new AsmBlock(Directive(""), conditionLabel, evaluateExpr(cond, ReturnRegister()).addOne(CmpInstr(ReturnRegister(), Immediate(1))).toList))
+          val restBlock = new AsmBlock(Directive(""), restLabel, List(JeInstr(bodyLabel)))
+          blocks.addOne(restBlock)
+          curBlock = restBlock
+          List(JumpInstr(conditionLabel))
         }
         case fun => fun match {
           case Exit(expr) => {
