@@ -10,12 +10,20 @@ main:
 	mov qword ptr [rsp + 16], scratchReg3
 	mov qword ptr [rsp + 24], scratchReg4
 	mov rbp, rsp
+	mov rax, 1
+	cmp rax, 1
+	je .L0
 	mov rax, 5
-	mov scratchReg2, rax
-	mov rax, 7
 	mov scratchReg3, rax
 	mov rax, 10
 	mov scratchReg4, rax
+	jmp .L1
+
+.L0:
+	mov rax, 3
+	mov scratchReg2, rax
+
+.L1:
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov scratchReg2, qword ptr [rsp + 8]
