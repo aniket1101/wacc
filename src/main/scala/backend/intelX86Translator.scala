@@ -42,6 +42,9 @@ object intelX86Translator {
       } + s", ${src.value}"
       case Call(label) => s"call ${label.name}"
       case Align(reg) => s"and ${reg.reg}, $stackAlignmentMask"
+      case AddRegister(reg1, reg2) => s"add ${reg1.toString} ${reg2.toString}"
+      case AddImm(value, reg) => s"add ${value.toString} ${reg.toString}"
+      case x => x.toString
     }
   }
 }

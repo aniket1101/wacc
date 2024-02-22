@@ -18,11 +18,13 @@ object IR {
   case class Immediate(value: Int) extends RegOrImm
   class Register(val reg: String) extends MemOrReg with RegOrImm {
     def address():Int = 0
+
+    override def toString: String = reg
   }
 
   class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Int]) extends MemOrReg {
     require(
-    primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
+      primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
       primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && offset.isDefined ||
       primReg.isDefined && secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
       primReg.isDefined && secReg.isDefined && multiplier.isDefined && !offset.isDefined ||

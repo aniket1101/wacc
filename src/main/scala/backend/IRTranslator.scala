@@ -15,6 +15,8 @@ object IRTranslator {
   val stack_regs = List(BasePointer(), StackPointer())
   var scrap_regs = List(scratchReg1(), scratchReg2(), scratchReg3(), scratchReg4(), scratchReg5())
 
+  var variableMap: mutable.Map[String, Register] = mutable.Map.empty
+
   def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
     translateFunc(prog.funcs, translateStatements(prog.stats, List(), symbolTable))
   }
@@ -43,10 +45,13 @@ object IRTranslator {
     stmts.flatMap {
       case Skip() => List.empty
       case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
+      case Assign(Ident(x), rValue) => rValue match {
+        case expr:Expr => evaluateExpr(expr, ReturnRegister()).concat(List(MovRegister(ReturnRegister(), variableMap.get(x).orNull)))
+      }
       case fun => fun match {
         case ast.Exit(expr) => {
           blocks.addOne(IR.Exit())
-          evaluateExpr(expr).concat(List(Push(paramReg1()), MovRegister(ReturnRegister(), paramReg1()), Call(Label("_exit")), Pop(paramReg1())))
+          evaluateExpr(expr, ReturnRegister()).concat(List(Push(paramReg1()), MovRegister(ReturnRegister(), paramReg1()), Call(Label("_exit")), Pop(paramReg1())))
         }
       }
     }.map(instr => instructions.addOne(instr))
@@ -59,6 +64,7 @@ object IRTranslator {
       for (regNo <- regsToSave to 0) {
         instructions.addOne(MovRegister(scrap_regs(regNo), new Memory(Some(StackPointer()), None, None, Some(-8 * regNo))))
       }
+      instructions.addOne(AddImm(Immediate(8 * regsToSave), StackPointer()))
     }
 
     // Finalise code
@@ -68,17 +74,36 @@ object IRTranslator {
     blocks.addOne(new AsmBlock(Directive("text"), Label(blockName), instructions.toList)).reverse.toList
   }
 
-  private def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): List[Instruction] = {
+  def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): List[Instruction] = {
+    val newReg = new Register("reg1")
+    var instr:List[Instruction] = List.empty
     typ match {
-      case IntType() => List(Ret())
+      case IntType() => RValue match {
+        case expr:Expr => instr = evaluateExpr(expr, ReturnRegister()).concat(List(MovRegister(ReturnRegister(), newReg)))
+      }
       case _ => List(Ret())
     }
+    variableMap.addOne((ident.name, newReg))
+    instr
   }
 
-  // Outputs code to evaluate an expression and put the result in the output register
-  def evaluateExpr(expr: Expr): List[Instruction] = {
+  // Outputs code to evaluate an expression and put the result in the given register
+  def evaluateExpr(expr: Expr, reg:Register): List[Instruction] = {
     expr match {
-      case IntLit(x) => List(MovImm(Immediate(x), ReturnRegister()))
+      case IntLit(x) => List(MovImm(Immediate(x), reg))
+      case Add(x, y) => {
+        val yReg = new Register("reg2")
+        evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(AddRegister(reg, yReg)))
+      }
+      case Sub(x, y) => {
+        val yReg = new Register("reg2")
+        evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(SubRegister(reg, yReg)))
+      }
+      case Mul(x, y) => {
+        val yReg = new Register("reg2")
+        evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(MulRegister(reg, yReg)))
+      }
+      case Ident(x) => List(MovRegister(variableMap.get(x).orNull, reg))
     }
   }
 
