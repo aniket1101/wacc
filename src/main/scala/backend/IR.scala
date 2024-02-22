@@ -20,14 +20,6 @@ object IR {
     override def toString: String = reg
   }
 
-  class paramReg() extends RegOrImm {
-    override def toString: String = "paramReg"
-  }
-
-  class scratchReg() extends MemOrReg with RegOrImm {
-    override def toString: String = "scratchReg"
-  }
-
   sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Int]) extends MemOrReg {
     def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(offset) else None)
 

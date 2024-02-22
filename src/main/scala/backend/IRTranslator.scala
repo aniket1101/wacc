@@ -11,7 +11,11 @@ import scala.collection.mutable.ListBuffer
 object IRTranslator {
 
   var labels = 0
-  var scrap_regs = List(scratchReg1(), scratchReg2(), scratchReg3(), scratchReg4(), scratchReg5())
+
+  var scratchRegs: ListBuffer[scratchReg] = ListBuffer.empty
+  var scratchCounter = 0
+  var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
+  var paramCounter = 0
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
 
@@ -30,12 +34,18 @@ object IRTranslator {
     val regsToSave = symbolTable.keys.count(_.startsWith(s"$blockName-"))
 
     if (regsToSave == 0) {
-      instructions.addOne(Push(scrap_regs.head))
+      val rbx = new scratchReg("rbx")
+      instructions.addOne(Push(rbx))
+      scratchRegs += rbx
     } else {
       instructions.addOne(SubInstr(Immediate(8 * (regsToSave + 1)), StackPointer()))
-      instructions.addOne(MovInstr(scrap_regs.head, Memory(StackPointer())))
+      val rbx = new scratchReg("rbx")
+      scratchRegs += rbx
+      instructions.addOne(MovInstr(rbx, Memory(StackPointer())))
       for (regNo <- 1 to regsToSave) {
-        instructions.addOne(MovInstr(scrap_regs(regNo), Memory(StackPointer(), 8 * regNo)))
+        val newScratchReg = new scratchReg(s"scratchReg${scratchRegs.length + 1}")
+        instructions.addOne(MovInstr(newScratchReg, Memory(StackPointer(), 8 * regNo)))
+        scratchRegs += newScratchReg
       }
     }
 
@@ -58,7 +68,9 @@ object IRTranslator {
       case fun => fun match {
         case Exit(expr) => {
           blocks.addOne(ExitBlock())
-          evaluateExpr(expr, ReturnRegister()).concat(List(Push(paramReg1()), MovInstr(ReturnRegister(), paramReg1()), CallInstr(Label("_exit")), Pop(paramReg1())))
+          val newParamReg = new paramReg(s"${paramRegs.length + 1}")
+          paramRegs += newParamReg
+          evaluateExpr(expr, ReturnRegister()).concat(List(Push(newParamReg), MovInstr(ReturnRegister(), newParamReg), CallInstr(Label("_exit")), Pop(newParamReg)))
         }
       }
     }.map(instr => instructions.addOne(instr))
@@ -66,11 +78,11 @@ object IRTranslator {
     instructions += MovInstr(Immediate(0), ReturnRegister())
 
     if (regsToSave == 0) {
-      instructions.addOne(Pop(scrap_regs.head))
+      instructions.addOne(Pop(scratchRegs.head:scratchReg))
     } else {
-      instructions.addOne(MovInstr(Memory(StackPointer()), scrap_regs.head))
+      instructions.addOne(MovInstr(Memory(StackPointer()), scratchRegs.head:scratchReg))
       for (regNo <- 1 to regsToSave) {
-        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), scrap_regs(regNo)))
+        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), scratchRegs(regNo):scratchReg))
       }
       instructions.addOne(AddInstr(Immediate(8 * (regsToSave + 1)), StackPointer()))
     }
@@ -83,7 +95,8 @@ object IRTranslator {
   }
 
   def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): List[Instruction] = {
-    val newReg = new Register("reg1")
+    val newReg = scratchRegs(scratchCounter + 1)
+    scratchCounter += 1
     var instr:List[Instruction] = List.empty
     typ match {
       case IntType() => RValue match {
@@ -104,15 +117,15 @@ object IRTranslator {
         case _ => List(MovInstr(Immediate(0), reg))
       }
       case Add(x, y) => {
-        val yReg = new Register("reg")
+        val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
         evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(AddInstr(reg, yReg)))
       }
       case Sub(x, y) => {
-        val yReg = new Register("reg")
+        val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
         evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(SubInstr(reg, yReg)))
       }
       case Mul(x, y) => {
-        val yReg = new Register("reg2")
+        val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
         evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(MulInstr(reg, yReg)))
       }
       case Ident(x) => List(MovInstr(variableMap.get(x).orNull, reg))
