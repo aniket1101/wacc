@@ -1,0 +1,80 @@
+package backend
+
+import backend.IR._
+
+class IntelX86Translator extends Translator {
+  private val stackAlignmentMask: Int = -16
+  def toAsmCode(asmInstr: List[Block]): String = {
+    ".intel_syntax noprefix\n.globl main\n.section .rodata\n" +
+    asmInstr.map({
+      case block: AsmBlock => convertDir(block.directive) +
+      convertLabel(block.label) + convertInstrs(block.instructions)
+      case ExitBlock() => exitBlock()
+    }).mkString("").strip() + "\n"
+  }
+
+  private def convertDir(dir: Directive): String = if (dir.name.isEmpty) "" else s".${dir.name}\n"
+  private def convertLabel(label: Label): String = if (label.name.isEmpty) "" else s"${label.name}:\n"
+  private def convertInstrs(instrs: List[Instruction]): String = {
+    instrs match {
+      case Nil => ""
+      case instr :: Nil => s"\t${convertInstr(instr)}\n\n"
+      case head :: tail => s"\t${convertInstr(head)}\n" + convertInstrs(tail)
+    }
+  }
+
+  private def convertInstr(instr: Instruction): String = {
+    instr match {
+      case Push(reg) =>               formatInstr("push", reg)
+      case Pop(reg) =>                formatInstr("pop", reg)
+      case Ret() =>                   formatInstr("ret")
+      case MovInstr(src, dst) =>      formatInstr("mov", dst, src)
+      case CallInstr(label) =>        formatInstr("call", label)
+      case Align(reg) =>              formatInstr("and", reg, stackAlignmentMask)
+      case AddInstr(reg1, reg2) =>    formatInstr("add", reg1, reg2)
+      case SubInstr(value, reg) =>    formatInstr("sub", reg, value)
+    }
+  }
+
+  private def formatInstr(opcode: String, operand1: Operand, operand2: Operand): String = {
+    s"$opcode ${formatOperand(operand1)}, ${formatOperand(operand2)}"
+  }
+
+  private def formatInstr(opcode: String, operand: Operand): String = {
+    s"$opcode ${formatOperand(operand)}"
+  }
+
+  private def formatInstr(opcode: String, operand: Label): String = {
+    s"$opcode ${operand.name}"
+  }
+
+  private def formatInstr(opcode: String, operand1: Operand, operand2: Int): String = {
+    s"$opcode ${formatOperand(operand1)}, ${operand2.toString}"
+  }
+
+  private def formatInstr(opcode: String): String = opcode
+
+  private def formatOperand(operand: Operand): String = {
+    operand match {
+      case imm: Immediate => imm.value.toString
+      case register: Register => register.reg
+      case memory: Memory =>
+        val expr = memory.offset match {
+        case None => ""
+        case Some(x) => s" ${if (x > 0) "+" else "-"} ${Math.abs(x)}"
+      }
+        s"qword ptr [${memory.primReg.get}$expr]"
+    }
+  }
+
+  override def exitBlock(): String =
+    """_exit:
+      |	push rbp
+      |	mov rbp, rsp
+      |	and rsp, -16
+      |	call exit@plt
+      |	mov rsp, rbp
+      |	pop rbp
+      |	ret""".stripMargin
+
+}

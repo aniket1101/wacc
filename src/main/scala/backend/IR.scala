@@ -1,8 +1,5 @@
 package backend
 
-import backend.IR.MovRegister
-import backend.IRRegisters.{BasePointer, StackPointer}
-
 object IR {
 
   sealed trait Instruction
@@ -22,65 +19,109 @@ object IR {
     override def toString: String = reg
   }
 
-  class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Int]) extends MemOrReg {
-    require(
-      primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
-      primReg.isDefined && !secReg.isDefined && !multiplier.isDefined && offset.isDefined ||
-      primReg.isDefined && secReg.isDefined && !multiplier.isDefined && !offset.isDefined ||
-      primReg.isDefined && secReg.isDefined && multiplier.isDefined && !offset.isDefined ||
-      !primReg.isDefined && secReg.isDefined && multiplier.isDefined && offset.isDefined ||
-      primReg.isDefined && secReg.isDefined && multiplier.isDefined && offset.isDefined,
-      "Invalid combination of parameters"
-    )
-    // Define constructors with different combinations of parameters
-    def this(primReg: Register) = this(Some(primReg), None, None, None)
-    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, Some(offset))
-    def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
-    def this(primReg: Register, secReg: Register, multiplier: Int) = this(Some(primReg), Some(secReg), Some(multiplier), None)
-    def this(secReg: Register, multiplier: Int, offset: Int) = this(None, Some(secReg), Some(multiplier), Some(offset))
-    def this(primReg: Register, secReg: Register, multiplier: Int, offset: Int) = this(Some(primReg), Some(secReg), Some(multiplier), Some(offset))
+  class paramReg() extends RegOrImm {
+    override def toString: String = "paramReg"
+  }
 
-    override def toString: String = {
-      val primRegStr = primReg.map(_.toString).getOrElse("")
-      val first_op = if (primReg != None && secReg != None) " + " else ""
-      val secRegStr = secReg.map(_.toString).getOrElse("")
-      val multiplierStr = multiplier.map("*" + _).getOrElse("")
-      val offsetStr = if (offset != None) if (offset.get >= 0) s" + ${offset.get}" else s"${offset.get}" else ""
-      s"[$primRegStr$first_op$secRegStr$multiplierStr$offsetStr]"
+  class scratchReg() extends MemOrReg with RegOrImm {
+    override def toString: String = "scratchReg"
+  }
+
+  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Int]) extends MemOrReg {
+    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(offset) else None)
+
+    def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
+
+    def this(primReg: Register, secReg: Register, multiplier: Int) = {
+      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None)
+    }
+
+    def this(secReg: Register, multiplier: Int, offset: Int) = {
+      this (None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(offset) else None)
+    }
+
+    def this(primReg: Register, secReg: Register, multiplier: Int, offset: Int) = {
+      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(offset) else None)
     }
   }
+  object Memory {
+    def apply(primReg: Register): Memory = new Memory(Some(primReg), None, None, None) {}
+    def apply(primReg: Register, offset: Int):Memory = new Memory(Some(primReg), None, None, Some(offset)) {}
+  }
+
   // ADD instruction
-  case class AddRegister(val src: Register, val dst: Operand) extends Instruction
-  case class AddMemory(val src: Memory, val dst: RegOrImm) extends Instruction
-  case class AddImm(val src: Immediate, val dst: RegOrImm) extends Instruction
+  sealed abstract case class AddInstr(src: Operand, dst: Operand) extends Instruction
+  object AddInstr {
+    def apply(src:Register, dst:Register):AddInstr = new AddInstr(src, dst) {}
+    def apply(src:Register, dst:Memory):AddInstr = new AddInstr(src, dst) {}
+    def apply(src:Register, dst:Immediate):AddInstr = new AddInstr(src, dst) {}
+    def apply(src:Memory, dst:Register):AddInstr = new AddInstr(src, dst) {}
+    def apply(src:Memory, dst:Immediate):AddInstr = new AddInstr(src, dst) {}
+    def apply(src:Immediate, dst:Register):AddInstr = new AddInstr(src, dst) {}
+    def apply(src:Immediate, dst:Memory):AddInstr = new AddInstr(src, dst) {}
+  }
 
-  // SUB instruction
-  case class SubRegister(val src: Register, val dst: Operand) extends Instruction
-  case class SubMemory(val src: Memory, val dst: RegOrImm) extends Instruction
-  case class SubImm(val src: Immediate, val dst: RegOrImm) extends Instruction
+  sealed abstract case class SubInstr(src: Operand, dst: Operand) extends Instruction
+  object SubInstr {
+    def apply(src: Register, dst: Register): SubInstr = new SubInstr(src, dst) {}
+    def apply(src: Register, dst: Memory): SubInstr = new SubInstr(src, dst) {}
+    def apply(src: Register, dst: Immediate): SubInstr = new SubInstr(src, dst) {}
+    def apply(src: Memory, dst: Register): SubInstr = new SubInstr(src, dst) {}
+    def apply(src: Memory, dst: Immediate): SubInstr = new SubInstr(src, dst) {}
+    def apply(src: Immediate, dst: Register): SubInstr = new SubInstr(src, dst) {}
+    def apply(src: Immediate, dst: Memory): SubInstr = new SubInstr(src, dst) {}
+  }
 
-  // MUL instruction
-  case class MulRegister(val src: Register, val dst: Operand) extends Instruction
-  case class MulMemory(val src: Memory, val dst: RegOrImm) extends Instruction
-  case class MulImm(val src: Immediate, val dst: RegOrImm) extends Instruction
+  sealed abstract case class MulInstr(src: Operand, dst: Operand) extends Instruction
+  object MulInstr {
+    def apply(src: Register, dst: Register): MulInstr = new MulInstr(src, dst) {}
+    def apply(src: Register, dst: Memory): MulInstr = new MulInstr(src, dst) {}
+    def apply(src: Register, dst: Immediate): MulInstr = new MulInstr(src, dst) {}
+    def apply(src: Memory, dst: Register): MulInstr = new MulInstr(src, dst) {}
+    def apply(src: Memory, dst: Immediate): MulInstr = new MulInstr(src, dst) {}
+    def apply(src: Immediate, dst: Register): MulInstr = new MulInstr(src, dst) {}
+    def apply(src: Immediate, dst: Memory): MulInstr = new MulInstr(src, dst) {}
+  }
 
   // XOR instruction
-  case class XorRegister(val src: Register, val dst: Operand) extends Instruction
-  case class XorMemory(val src: Memory, val dst: RegOrImm) extends Instruction
-  case class XorImm(val src: Immediate, val dst: RegOrImm) extends Instruction
+  sealed abstract case class XORInstr(src: Operand, dst: Operand) extends Instruction
+  object XORInstr {
+    def apply(src: Register, dst: Register): XORInstr = new XORInstr(src, dst) {}
+    def apply(src: Register, dst: Memory): XORInstr = new XORInstr(src, dst) {}
+    def apply(src: Register, dst: Immediate): XORInstr = new XORInstr(src, dst) {}
+    def apply(src: Memory, dst: Register): XORInstr = new XORInstr(src, dst) {}
+    def apply(src: Memory, dst: Immediate): XORInstr = new XORInstr(src, dst) {}
+    def apply(src: Immediate, dst: Register): XORInstr = new XORInstr(src, dst) {}
+    def apply(src: Immediate, dst: Memory): XORInstr = new XORInstr(src, dst) {}
+  }
 
   // MOV instruction
-  case class MovRegister(val src: Register, val dst: Operand) extends Instruction
-  case class MovMemory(val src: Memory, val dst: Register) extends Instruction
-  case class MovImm(val src: Immediate, val dst: MemOrReg) extends Instruction
+  sealed abstract case class MovInstr(src: Operand, dst: Operand) extends Instruction
+  object MovInstr {
+    def apply(src: Register, dst: Register): MovInstr = new MovInstr(src, dst) {}
+    def apply(src: Register, dst: Memory): MovInstr = new MovInstr(src, dst) {}
+    def apply(src: Register, dst: Immediate): MovInstr = new MovInstr(src, dst) {}
+    def apply(src: Memory, dst: Register): MovInstr = new MovInstr(src, dst) {}
+    def apply(src: Immediate, dst: Register): MovInstr = new MovInstr(src, dst) {}
+    def apply(src: Immediate, dst: Memory): MovInstr = new MovInstr(src, dst) {}
+  }
 
-  case class Call(label:Label) extends Instruction
-  case class Cmp(src: Operand, value: Operand) extends Instruction
-  case class Je(label: Label) extends Instruction
-  case class Jge(label: Label) extends Instruction
-  case class Jl(label: Label) extends Instruction
-  case class Jle(label: Label) extends Instruction
-  case class Jump(label: Label) extends Instruction
+  case class CallInstr(label:Label) extends Instruction
+
+  sealed abstract case class CmpInstr(src: Operand, value: Operand) extends Instruction
+  object CmpInstr {
+    def apply(src: Immediate, dst: Immediate): CmpInstr = new CmpInstr(src, dst) {}
+    def apply(src: Memory, dst: Memory): CmpInstr = new CmpInstr(src, dst) {}
+    def apply(src: Register, dst: Register): CmpInstr = new CmpInstr(src, dst) {}
+    def apply(src: Immediate, dst: Register): CmpInstr = new CmpInstr(src, dst) {}
+    def apply(src: Register, dst: Immediate): CmpInstr = new CmpInstr(src, dst) {}
+    def apply(src: Immediate, dst: Memory): CmpInstr = new CmpInstr(src, dst) {}
+  }
+  case class JeInstr(label: Label) extends Instruction
+  case class JgeInstr(label: Label) extends Instruction
+  case class JlInstr(label: Label) extends Instruction
+  case class JleInstr(label: Label) extends Instruction
+  sealed abstract case class JumpInstr(label: Label) extends Instruction
 
   case class Push(reg: Register) extends Instruction
   case class Pop(reg: Register) extends Instruction
@@ -95,14 +136,10 @@ object IR {
     }
   }
 
-  case class Exit() extends AsmBlock(Directive(""), Label("_exit"), List(
-    Push(BasePointer()),
-    MovRegister(StackPointer(), BasePointer()),
-    Align(StackPointer()),
-    Call(Label("exit@plt")),
-    MovRegister(BasePointer(), StackPointer()),
-    Pop(BasePointer()),
-    Ret()
-  ))
+  case class ExitBlock() extends Block
+
+  trait Translator {
+    def exitBlock(): String
+  }
 
 }

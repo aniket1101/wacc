@@ -142,7 +142,7 @@ object validator {
 
 
   // Function to check the type of expressions involved in binary or unary operations
-  private def checkType(expr: Expr)(implicit symTable: mutable.Map[String, Type]): Type = {
+  def checkType(expr: Expr)(implicit symTable: mutable.Map[String, Type]): Type = {
     expr match {
       // Arithmetic binary operations return IntType
       case Sub(_, _) | Add(_, _) | Mul(_, _) | Div(_, _) | Mod(_, _) => IntType()(nullPos)

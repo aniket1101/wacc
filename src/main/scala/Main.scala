@@ -1,5 +1,5 @@
 // Import necessary packages and modules
-import backend.{IRTranslator, intelX86Translator}
+import backend.{IRTranslator, IntelX86Translator}
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
@@ -69,7 +69,7 @@ object Main {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
         val asmInstr = IRTranslator.translateAST(prog, symbolTable)
-        val asmCode = intelX86Translator.toAsmCode(asmInstr)
+        val asmCode = new IntelX86Translator().toAsmCode(asmInstr)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>

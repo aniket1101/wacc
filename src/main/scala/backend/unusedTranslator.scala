@@ -7,7 +7,7 @@ import scala.collection.mutable.ListBuffer
 
 // Translates ast to Intel x86 assembly code
 
-object translator {
+object unusedTranslator {
 
   private val INITIAL_CODE =
     """.intel_syntax noprefix
