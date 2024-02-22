@@ -1,5 +1,8 @@
 begin
-  int x = 3;
-  int y = 6;
-  int z = 10
+  if (true) then
+    int x = 3
+  else
+    int y = 5;
+    int l = 10
+  fi
 end
