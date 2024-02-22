@@ -1,8 +1,8 @@
 begin
-  if (true) then
-    int x = 3
+  bool x = true;
+  if (x) then
+    skip
   else
-    int y = 5;
-    int l = 10
+    skip
   fi
 end

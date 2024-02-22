@@ -86,6 +86,7 @@ object IRTranslator {
   }
 
   private def translateStatements(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]):ListBuffer[Instruction] = {
+    var statementsLeft = ListBuffer(stmts: _*)
     var instructions:ListBuffer[Instruction] = ListBuffer.empty
     for (stmt <- stmts) {
       instructions = instructions.concat(stmt match {
@@ -99,7 +100,7 @@ object IRTranslator {
           val thenLabel = getNewLabel()
           val elseLabel = getNewLabel()
           blocks.addOne(new AsmBlock(Directive(""), thenLabel, translateStatements(thenStat, symbolTable).toList))
-          val elseBlock = new AsmBlock(Directive(""), elseLabel, translateStatements(stmts.tail, symbolTable).toList)
+          val elseBlock = new AsmBlock(Directive(""), elseLabel, translateStatements(statementsLeft.tail.toList, symbolTable).toList)
           blocks.addOne(elseBlock)
           curBlock = elseBlock
           evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel)))
@@ -115,6 +116,7 @@ object IRTranslator {
           }
         }
       })
+      statementsLeft = statementsLeft.tail
     }
 
     instructions
@@ -125,7 +127,7 @@ object IRTranslator {
     scratchCounter += 1
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
-      case IntType() => RValue match {
+      case IntType() | BoolType() => RValue match {
         case expr:Expr => instr = evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
       }
       case _ => ListBuffer(Ret())
