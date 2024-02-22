@@ -2,14 +2,13 @@ package backend
 
 import backend.IR._
 
-class IntelX86Translator extends Translator {
+class IntelX86Translator {
   private val stackAlignmentMask: Int = -16
   def toAsmCode(asmInstr: List[Block]): String = {
     ".intel_syntax noprefix\n.globl main\n.section .rodata\n" +
     asmInstr.map({
       case block: AsmBlock => convertDir(block.directive) +
       convertLabel(block.label) + convertInstrs(block.instructions)
-      case ExitBlock() => exitBlock()
     }).mkString("").strip() + "\n"
   }
 
@@ -28,16 +27,19 @@ class IntelX86Translator extends Translator {
       case Push(reg) =>               formatInstr("push", reg)
       case Pop(reg) =>                formatInstr("pop", reg)
       case Ret() =>                   formatInstr("ret")
-      case MovInstr(src, dst) =>      formatInstr("mov", dst, src)
+      case MovInstr(src, dst) =>      formatInstr("mov", src, dst)
       case CallInstr(label) =>        formatInstr("call", label)
       case Align(reg) =>              formatInstr("and", reg, stackAlignmentMask)
       case AddInstr(reg1, reg2) =>    formatInstr("add", reg1, reg2)
-      case SubInstr(value, reg) =>    formatInstr("sub", reg, value)
+      case SubInstr(value, reg) =>    formatInstr("sub", value, reg)
+      case JeInstr(label) =>          formatInstr("je", label)
+      case JumpInstr(label) =>        formatInstr("jmp", label)
+      case CmpInstr(op1, op2) =>      formatInstr("cmp", op1, op2)
     }
   }
 
   private def formatInstr(opcode: String, operand1: Operand, operand2: Operand): String = {
-    s"$opcode ${formatOperand(operand1)}, ${formatOperand(operand2)}"
+    s"$opcode ${formatOperand(operand2)}, ${formatOperand(operand1)}"
   }
 
   private def formatInstr(opcode: String, operand: Operand): String = {
@@ -66,15 +68,5 @@ class IntelX86Translator extends Translator {
         s"qword ptr [${memory.primReg.get}$expr]"
     }
   }
-
-  override def exitBlock(): String =
-    """_exit:
-      |	push rbp
-      |	mov rbp, rsp
-      |	and rsp, -16
-      |	call exit@plt
-      |	mov rsp, rbp
-      |	pop rbp
-      |	ret""".stripMargin
 
 }

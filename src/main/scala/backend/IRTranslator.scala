@@ -10,9 +10,7 @@ import scala.collection.mutable.ListBuffer
 
 object IRTranslator {
 
-  var calc_regs = List(ReturnRegister())
-  var param_regs = List(paramReg1(), paramReg2(), paramReg3(), paramReg4(), paramReg5(), paramReg6())
-  val stack_regs = List(BasePointer(), StackPointer())
+  var labels = 0
   var scrap_regs = List(scratchReg1(), scratchReg2(), scratchReg3(), scratchReg4(), scratchReg5())
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
@@ -26,7 +24,7 @@ object IRTranslator {
   private def translateStatements(stmts:List[Stat], currBlocks:List[Block], symbolTable: mutable.Map[String, frontend.ast.Type]):List[Block] = {
     // Code set-up
     val blockName = "main"
-    val instructions: ListBuffer[Instruction] = ListBuffer(Push(StackPointer()))
+    val instructions: ListBuffer[Instruction] = ListBuffer(Push(BasePointer()))
     val blocks = ListBuffer(currBlocks: _*)
 
     val regsToSave = symbolTable.keys.count(_.startsWith(s"$blockName-"))
@@ -34,14 +32,14 @@ object IRTranslator {
     if (regsToSave == 0) {
       instructions.addOne(Push(scrap_regs.head))
     } else {
-      instructions.addOne(SubInstr(Immediate(8 * regsToSave), StackPointer()))
+      instructions.addOne(SubInstr(Immediate(8 * (regsToSave + 1)), StackPointer()))
       instructions.addOne(MovInstr(scrap_regs.head, Memory(StackPointer())))
       for (regNo <- 1 to regsToSave) {
         instructions.addOne(MovInstr(scrap_regs(regNo), Memory(StackPointer(), 8 * regNo)))
       }
     }
 
-    instructions += MovInstr(BasePointer(), StackPointer())
+    instructions += MovInstr(StackPointer(), BasePointer())
 
     stmts.flatMap {
       case Skip() => List.empty
@@ -50,6 +48,13 @@ object IRTranslator {
         case expr:Expr => evaluateExpr(expr, ReturnRegister()).concat(List(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
       }
       case Print(expr) => translatePrint(checkType(expr)(symbolTable))
+      case If(cond, thenStat, elseStat) => {
+        val thenLabel = getNewLabel()
+        val elseLabel = getNewLabel()
+        blocks.addOne(new AsmBlock(Directive(""), elseLabel, List.empty))
+        blocks.addOne(new AsmBlock(Directive(""), thenLabel, List.empty))
+        evaluateExpr(cond, ReturnRegister()).concat(List(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel), JumpInstr(elseLabel)))
+      }
       case fun => fun match {
         case Exit(expr) => {
           blocks.addOne(ExitBlock())
@@ -63,15 +68,15 @@ object IRTranslator {
     if (regsToSave == 0) {
       instructions.addOne(Pop(scrap_regs.head))
     } else {
-      for (regNo <- regsToSave to 1 by -1) {
-        instructions.addOne(MovInstr(scrap_regs(regNo), Memory(StackPointer(), -8 * regNo)))
+      instructions.addOne(MovInstr(Memory(StackPointer()), scrap_regs.head))
+      for (regNo <- 1 to regsToSave) {
+        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), scrap_regs(regNo)))
       }
-      instructions.addOne(MovInstr(scrap_regs.head, Memory(StackPointer())))
-      instructions.addOne(AddInstr(Immediate(-8 * regsToSave), StackPointer()))
+      instructions.addOne(AddInstr(Immediate(8 * (regsToSave + 1)), StackPointer()))
     }
 
     // Finalise code
-    instructions += Pop(StackPointer())
+    instructions += Pop(BasePointer())
     instructions += Ret()
 
     blocks.addOne(new AsmBlock(Directive("text"), Label(blockName), instructions.toList)).reverse.toList
@@ -94,6 +99,10 @@ object IRTranslator {
   def evaluateExpr(expr: Expr, reg:Register): List[Instruction] = {
     expr match {
       case IntLit(x) => List(MovInstr(Immediate(x), reg))
+      case BoolLit(bool) => bool match {
+        case true => List(MovInstr(Immediate(1), reg))
+        case _ => List(MovInstr(Immediate(0), reg))
+      }
       case Add(x, y) => {
         val yReg = new Register("reg")
         evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(AddInstr(reg, yReg)))
@@ -111,6 +120,11 @@ object IRTranslator {
   }
 
   private def translatePrint(typ:Type):List[Instruction] = ???
+
+  private def getNewLabel(): Label = {
+    labels += 1
+    Label(s".L${labels-1}")
+  }
 
   private def getParams(stmt:Stat): Int = 1
 

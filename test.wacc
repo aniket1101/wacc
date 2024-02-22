@@ -1,5 +1,6 @@
 begin
-  int x = 4 + 5;
-  int y = x + 3;
-  x = 5
+  int x = 3;
+  int y = 5;
+  int z = 7;
+  int l = 10
 end

@@ -4,25 +4,27 @@
 .text
 main:
 	push rbp
-	sub rbp, 16
-	mov qword ptr [rbp], rbx
-	mov qword ptr [rbp + 8], r12
-	mov qword ptr [rbp + 16], r13
+	sub rsp, 40
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
+	mov qword ptr [rsp + 24], r14
+	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 4
-	mov reg, 5
-	add rax, reg
-	mov reg1, rax
-	mov rax, reg1
-	mov reg, 3
-	add rax, reg
+	mov rax, 3
 	mov reg1, rax
 	mov rax, 5
 	mov reg1, rax
+	mov rax, 7
+	mov reg1, rax
+	mov rax, 10
+	mov reg1, rax
 	mov rax, 0
-	mov qword ptr [rbp - 16], r13
-	mov qword ptr [rbp - 8], r12
-	mov qword ptr [rbp], rbx
-	add -16, rbp
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	mov r13, qword ptr [rsp + 16]
+	mov r14, qword ptr [rsp + 24]
+	mov r15, qword ptr [rsp + 32]
+	add rsp, 40
 	pop rbp
 	ret

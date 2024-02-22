@@ -16,8 +16,8 @@ object IRRegisters {
 
 
   // Pointer Registers
-  case class BasePointer() extends Register("rsp")
-  case class StackPointer() extends Register("rbp")
+  case class BasePointer() extends Register("rbp")
+  case class StackPointer() extends Register("rsp")
 
 
   // Scratch Registers

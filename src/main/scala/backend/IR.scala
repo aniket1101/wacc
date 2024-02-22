@@ -1,4 +1,5 @@
 package backend
+import IRRegisters._
 
 object IR {
 
@@ -121,7 +122,7 @@ object IR {
   case class JgeInstr(label: Label) extends Instruction
   case class JlInstr(label: Label) extends Instruction
   case class JleInstr(label: Label) extends Instruction
-  sealed abstract case class JumpInstr(label: Label) extends Instruction
+  case class JumpInstr(label: Label) extends Instruction
 
   case class Push(reg: Register) extends Instruction
   case class Pop(reg: Register) extends Instruction
@@ -136,10 +137,14 @@ object IR {
     }
   }
 
-  case class ExitBlock() extends Block
-
-  trait Translator {
-    def exitBlock(): String
-  }
+  case class ExitBlock() extends AsmBlock(Directive(""), Label("_exit"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    CallInstr(Label("exit@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
 
 }
