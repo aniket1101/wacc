@@ -1,12 +1,13 @@
 // Import necessary packages and modules
-import ast.Prog
-import parser._
-import validator.checkSemantics
+import backend.{IRTranslator, intelX86Translator}
+import frontend.ast._
+import frontend.parser._
+import frontend.validator.checkSemantics
 
 import java.io.{File, PrintWriter}
+import scala.collection.mutable
 import scala.sys.exit
-import scala.util.Success
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 // Object representing the main entry point of the program
 object Main {
@@ -18,21 +19,9 @@ object Main {
 
   // Main function of the program
   def main(args: Array[String]): Unit = {
-
     args.headOption match {
       case Some(filePath) =>
-        val file = new File(filePath)
-        parseProgram(file) match {
-          case Left(exitCode) => exit(exitCode)
-          case Right(prog) =>
-            val asmInstr = translator.translateProgram(prog)
-            writeToFile(asmInstr.mkString("\n"), removeFileExt(file.getName) + ".s") match {
-              case VALID_EXIT_STATUS => exit(VALID_EXIT_STATUS)
-              case err =>
-                println("Failed to write to output file")
-                exit(err)
-            }
-        }
+        exit(compileProgram(filePath))
       case None =>
         System.out.println("Source file unspecified")
         exit(FAIL)
@@ -40,7 +29,7 @@ object Main {
   }
 
   // Function to parse the program file
-  def parseProgram(source: File): Either[Int, Prog] = {
+  def parseProgram(source: File): Either[Int, (Prog, mutable.Map[String, Type])] = {
     val result = parse(source)
     result match {
       // If parsing is successful
@@ -51,9 +40,9 @@ object Main {
             // Check semantics of the parsed program
             checkSemantics(newValue, source.toString) match {
               // If there are no semantic errors
-              case (errors, prog, _) =>
+              case (errors, prog, symbolTable) =>
                 if (errors.isEmpty) {
-                  Right(prog)
+                  Right((prog, symbolTable))
                 } else {
                   // Print semantic errors and exit with semantic error status
                   println(errors.map(err => err.display).mkString("\n"))
@@ -71,6 +60,22 @@ object Main {
         // Print parsing failure error and exit with general failure status
         println(err)
         Left(FAIL)
+    }
+  }
+
+  def compileProgram(source: String): Int = {
+    val file = new File(source)
+    parseProgram(file) match {
+      case Left(exitCode) => exitCode
+      case Right((prog, symbolTable)) =>
+        val asmInstr = IRTranslator.translateAST(prog, symbolTable)
+        val asmCode = intelX86Translator.toAsmCode(asmInstr)
+        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
+          case VALID_EXIT_STATUS => VALID_EXIT_STATUS
+          case err =>
+            println("Failed to write to output file")
+            err
+        }
     }
   }
 

@@ -3,20 +3,23 @@
 .section .rodata
 .text
 main:
-    push rbp
-	# push {rbx, r12}
-	sub rsp, 16
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
+	push rbp
+	SubImm(Immediate(16),rbp)
+	mov [rbp + 0], rbx
+	mov [rbp + 8], r12
+	mov [rbp + 16], r13
 	mov rbp, rsp
-	# Stack pointer unchanged, no stack allocated variables
-	mov %rax, 1234
-	mov r12, rax
-    # Stack pointer unchanged, no stack allocated variables
+	mov rax, 4
+	mov reg2, 5
+	add rax reg2
+	mov reg1, rax
+	mov rax, reg1
+	mov reg2, 3
+	add rax reg2
+	mov reg1, rax
+	mov rax, 5
+	mov reg1, rax
 	mov rax, 0
-	# pop {rbx, r12}
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	add Immediate(16) rbp
 	pop rbp
 	ret

@@ -9,4 +9,5 @@ project/
 .idea/
 wacc-compiler
 .bloop/
-example.wacc
+test.wacc
+test.s

@@ -1,7 +1,6 @@
 import java.io.File
 
-class ProcessExamples(val folderPath: String) {
-  val fileExt = ".wacc"
+class ProcessExamples(val folderPath: String, val fileExt: String) {
 
   def processFolder(): List[(String, File)] = processFolderHelper(new File(folderPath))
   def processFolderHelper(folder: File): List[(String, File)] = {
