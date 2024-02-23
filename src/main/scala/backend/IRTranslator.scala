@@ -19,18 +19,36 @@ object IRTranslator {
   var scratchRegs: ListBuffer[scratchReg] = ListBuffer.empty
   var scratchCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
-  var paramCounter = 0
+  var paramCount = 0
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
 
   def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
-    translateFunc(prog.funcs, translateProgram(prog.stats, symbolTable))
+    translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
   }
 
-  private def translateFunc(func:List[Func], currBlocks:List[Block]): List[Block] = currBlocks
+  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
+    for (fun <- funcs) {
+      variableMap = mutable.Map.empty
+      scratchCounter = 0
+      scratchRegs = ListBuffer.empty
+      for (arg <- fun.paramList) {
+        val paramReg = getParamReg()
+        paramCount += 1
+        variableMap.addOne(s"func-${fun.ident.name}-param-${arg.ident.name}", paramReg)
+      }
+      val setUp = setUpScope(symbolTable, s"func-${fun.ident.name}")
+      paramCount = 0
+      val funBlock = new AsmBlock(Directive(""), Label(s"wacc_${fun.ident.name}"), setUp.concat(translateStatements(fun.stats, symbolTable)).toList)
+      currBlocks.addOne(funBlock)
+      curBlock = funBlock
+      revertSetUp(funBlock)
+    }
+    currBlocks
+  }
 
-  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): List[Block] = {
-    var instructions = initialSetUp(stmts, symbolTable)
+  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Block] = {
+    var instructions = setUpScope(symbolTable, "main-")
     instructions = instructions.concat(translateStatements(stmts, symbolTable))
     val mainBlock = new AsmBlock(Directive("text"), Label("main"), instructions.toList)
     if (curBlock == null) {
@@ -38,12 +56,12 @@ object IRTranslator {
     } else {
       revertSetUp(curBlock)
     }
-    blocks.reverse.addOne(mainBlock).reverse.toList
+    blocks.reverse.addOne(mainBlock).reverse
   }
 
-  private def initialSetUp(stmts: List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Instruction] = {
+  private def setUpScope(symbolTable: mutable.Map[String, Type], scopePrefix: String) = {
     val instructions: ListBuffer[Instruction] = ListBuffer(Push(BasePointer()))
-    usedRegs = symbolTable.keys.count(_.startsWith(s"main-"))
+    usedRegs = symbolTable.keys.count(_.startsWith(scopePrefix)) - paramCount
 
     if (usedRegs == 0) {
       val rbx = new scratchReg("rbx")
@@ -117,11 +135,11 @@ object IRTranslator {
           curBlock = restBlock
           List(JumpInstr(conditionLabel))
         }
+        case Return(expr) => evaluateExpr(expr, ReturnRegister())
         case fun => fun match {
           case Exit(expr) => {
             blocks.addOne(ExitBlock())
-            val newParamReg = new paramReg(s"${paramRegs.length + 1}")
-            paramRegs += newParamReg
+            val newParamReg = getParamReg()
             evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(Push(newParamReg), MovInstr(ReturnRegister(), newParamReg), CallInstr(Label("_exit")), Pop(newParamReg)))
           }
         }
@@ -139,6 +157,17 @@ object IRTranslator {
     typ match {
       case IntType() | BoolType() => RValue match {
         case expr:Expr => instr = evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
+        case Call(name, args) => {
+          var moveParams: ListBuffer[Instruction] = ListBuffer.empty
+          for (arg <- args) {
+            val paramReg = getParamReg()
+            paramRegs += paramReg
+            paramCount += 1
+            moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister()).addOne(MovInstr(ReturnRegister(), paramReg))))
+          }
+          paramCount = 0
+          instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), newReg))
+        }
       }
       case _ => ListBuffer(Ret())
     }
@@ -171,6 +200,14 @@ object IRTranslator {
   }
 
   private def translatePrint(typ:Type):ListBuffer[Instruction] = ???
+
+  private def getParamReg(): paramReg = {
+    if (paramCount >= paramRegs.length) {
+      new paramReg(s"paramReg${paramRegs.length + 1}")
+    } else {
+      paramRegs(paramCount)
+    }
+  }
 
   private def getNewLabel(): Label = {
     labels += 1

@@ -1,10 +1,12 @@
 begin
-  bool x = false;
-  while (x) do
-    bool y = true;
-    int h = 5
-  done;
+    int foo(int x, int a, int u) is
+        int t = x;
+        int h = a;
+        int y = u;
+        int x = 23;
+        return x
+    end
 
-  int j = 10
-
+    int y = 3;
+    int x = call foo(2, 3, 4)
 end
