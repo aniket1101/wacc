@@ -1,3 +1,3 @@
 begin
-    skip
+  print "Hello World!"
 end
