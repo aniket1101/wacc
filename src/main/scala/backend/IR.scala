@@ -110,6 +110,12 @@ object IR {
     def apply(src: Register, dst: Immediate): CmpInstr = new CmpInstr(src, dst) {}
     def apply(src: Immediate, dst: Memory): CmpInstr = new CmpInstr(src, dst) {}
   }
+
+  sealed abstract case class CmpInstr(src: Operand, value: Operand) extends Instruction
+  object LeaInstr {
+    def apply(src: Register, dst: Memory): LeaInstr = new LeaInstr(src, dst) {}
+  }
+
   case class JeInstr(label: Label) extends Instruction
   case class JgeInstr(label: Label) extends Instruction
   case class JlInstr(label: Label) extends Instruction
@@ -134,6 +140,22 @@ object IR {
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
     CallInstr(Label("exit@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
+  case class PrintBlock() extends AsmBlock(Directive(""), Label("_prints"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    MovInstr(new scratchReg("rdx"), new paramReg("paramReg1"))
+    // MovInstr(new scratchReg("esi"), ??? dword ptr [rdi - 4] ???)
+    // LeaInstr(ReturnRegister(), Memory())
+    // mov al, 0
+    CallInstr(Label("printf@plt")),
+    MovInstr(new scratchReg("rdi"), Immediate(0))
+    CallInstr(Label("fflush@plt")),
     MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
     Ret()

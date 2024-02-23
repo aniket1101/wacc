@@ -199,7 +199,22 @@ object IRTranslator {
     }
   }
 
-  private def translatePrint(typ:Type):ListBuffer[Instruction] = ???
+  private def translatePrint(typ:Type):ListBuffer[Instruction] = {
+    var instr:ListBuffer[Instruction] = ListBuffer.empty
+
+    typ match {
+      case StringType => {
+        // val strBlock = new AsmBlock(Directive(""), , )
+        blocks.addOne(StrBlock())
+      }
+
+      case CharType => 
+
+      case BoolType => 
+
+      case IntType => 
+    }
+  }
 
   private def getParamReg(): paramReg = {
     if (paramCount >= paramRegs.length) {
