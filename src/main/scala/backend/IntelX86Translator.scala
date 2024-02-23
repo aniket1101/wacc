@@ -1,10 +1,15 @@
 package backend
 
 import backend.IR._
+import backend.IRRegisters.paramReg
+
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 class IntelX86Translator {
   private val stackAlignmentMask: Int = -16
-  def toAsmCode(asmInstr: List[Block]): String = {
+  private val paramRegs: List[Register] = List(new paramReg("RDI"), new paramReg("RSI"), new paramReg("RCX"), new paramReg("R8"), new paramReg("R9"))
+  def toAsmCode(asmInstr: ListBuffer[Block]): String = {
     ".intel_syntax noprefix\n.globl main\n.section .rodata\n" +
     asmInstr.map({
       case block: AsmBlock => convertDir(block.directive) +
@@ -56,10 +61,15 @@ class IntelX86Translator {
 
   private def formatInstr(opcode: String): String = opcode
 
+  def getParamReg(i: Int): String = paramRegs(i).reg.toLowerCase()
+
   private def formatOperand(operand: Operand): String = {
     operand match {
       case imm: Immediate => imm.value.toString
-      case register: Register => register.reg
+      case register: Register => register match {
+        case param: paramReg => getParamReg(param.reg.replace("paramReg", "").toInt-1)
+        case _ => register.reg
+      }
       case memory: Memory =>
         val expr = memory.offset match {
         case None => ""

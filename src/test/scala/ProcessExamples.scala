@@ -22,7 +22,7 @@ class ProcessExamples(val folderPath: String, val fileExt: String) {
   def generateTestName(path: String): String = {
     val parts = path.split("[/\\\\]")
     val lastFolder = parts.init.lastOption.getOrElse("").capitalize
-    val fileName = parts.lastOption.getOrElse("").replaceFirst(fileExt, "")
+    val fileName = parts.lastOption.getOrElse("").replace(fileExt, "")
     s"$lastFolder($fileName)"
   }
 

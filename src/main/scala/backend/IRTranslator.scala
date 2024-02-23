@@ -11,8 +11,8 @@ import scala.collection.mutable.ListBuffer
 object IRTranslator {
 
   var labels = 0
-  var blocks:ListBuffer[Block] = ListBuffer.empty
-  var curBlock:AsmBlock = null
+  var blocks: ListBuffer[Block] = ListBuffer()
+  var curBlock: AsmBlock = null
 
   var usedRegs = 0
 
@@ -23,8 +23,8 @@ object IRTranslator {
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
 
-  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
-    translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
+  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):ListBuffer[Block] = {
+    translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
   }
 
   private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
@@ -48,6 +48,7 @@ object IRTranslator {
   }
 
   private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Block] = {
+    blocks = ListBuffer()
     var instructions = setUpScope(symbolTable, "main-")
     instructions = instructions.concat(translateStatements(stmts, symbolTable))
     val mainBlock = new AsmBlock(Directive("text"), Label("main"), instructions.toList)
@@ -56,10 +57,11 @@ object IRTranslator {
     } else {
       revertSetUp(curBlock)
     }
-    blocks.reverse.addOne(mainBlock).reverse
+    blocks.insert(0, mainBlock)
+    blocks
   }
 
-  private def setUpScope(symbolTable: mutable.Map[String, Type], scopePrefix: String) = {
+  private def setUpScope(symbolTable: mutable.Map[String, Type], scopePrefix: String): ListBuffer[Instruction] = {
     val instructions: ListBuffer[Instruction] = ListBuffer(Push(BasePointer()))
     usedRegs = symbolTable.keys.count(_.startsWith(scopePrefix)) - paramCount
 
@@ -107,6 +109,7 @@ object IRTranslator {
     var statementsLeft = ListBuffer(stmts: _*)
     var instructions:ListBuffer[Instruction] = ListBuffer.empty
     for (stmt <- stmts) {
+      statementsLeft = statementsLeft.tail
       instructions = instructions.concat(stmt match {
         case Skip() => List.empty
         case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
@@ -118,7 +121,7 @@ object IRTranslator {
           val thenLabel = getNewLabel()
           val elseLabel = getNewLabel()
           blocks.addOne(new AsmBlock(Directive(""), thenLabel, translateStatements(thenStat, symbolTable).toList))
-          val elseBlock = new AsmBlock(Directive(""), elseLabel, translateStatements(statementsLeft.tail.toList, symbolTable).toList)
+          val elseBlock = new AsmBlock(Directive(""), elseLabel, translateStatements(statementsLeft.toList, symbolTable).toList)
           blocks.addOne(elseBlock)
           curBlock = elseBlock
           evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel)))
@@ -144,7 +147,6 @@ object IRTranslator {
           }
         }
       })
-      statementsLeft = statementsLeft.tail
     }
 
     instructions
