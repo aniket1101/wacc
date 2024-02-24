@@ -211,9 +211,30 @@ object IRTranslator {
   }
 
   def translatePrint(typ:Type): List[Instruction] = {
-    var instr:ListBuffer[Instruction] = ListBuffer.empty
 
     typ match {
+      case CharType() => {
+        val charPrintBlock = new AsmBlock(Directive(""), Label("_printc"), List.empty)
+        val paramRegOne = getParamReg()
+        val printInstrs: List[Instruction] = List(
+          Push(BasePointer()),
+          MovInstr(StackPointer(), BasePointer()),
+          Align(StackPointer()),
+          MovInstr(new scratchReg("dil"), new scratchReg("sil")), 
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
+          MovInstr(Immediate(0), new scratchReg("al")),
+          CallInstr(Label("printf@plt")),
+          MovInstr(Immediate(0), new scratchReg("rdi")),
+          CallInstr(Label("fflush@plt")),
+          MovInstr(StackPointer(), BasePointer()),
+          Pop(BasePointer()),
+          Ret()
+        )
+        charPrintBlock.instructions = printInstrs
+        blocks.addOne(charPrintBlock)
+        printInstrs
+      }
+
       case StringType() => {
         val strBlock = new AsmBlock(Directive(""), Label("_prints"), List.empty)
         val paramRegOne = getParamReg()
@@ -239,30 +260,10 @@ object IRTranslator {
         printInstrs
       }
 
-      case CharType() => {
-        val charPrintBlock = new AsmBlock(Directive(""), Label("_printc"), List.empty)
-        val paramRegOne = getParamReg()
-        val printInstrs: List[Instruction] = List(
-          Push(BasePointer()),
-          MovInstr(StackPointer(), BasePointer()),
-          Align(StackPointer()),
-          MovInstr(new scratchReg("dil"), new scratchReg("sil")), 
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
-          MovInstr(Immediate(0), new scratchReg("al")),
-          CallInstr(Label("printf@plt")),
-          MovInstr(Immediate(0), new scratchReg("rdi")),
-          CallInstr(Label("fflush@plt")),
-          MovInstr(StackPointer(), BasePointer()),
-          Pop(BasePointer()),
-          Ret()
-        )
-        charPrintBlock.instructions = printInstrs
-        blocks.addOne(charPrintBlock)
-        printInstrs
-      }
-
       case BoolType() => {
-        val boolPrintBlock = new AsmBlock(Directive(""), Label("_printi"), List.empty)
+        val boolPrintBlock = new AsmBlock(Directive(""), Label("_printb"), List.empty)
+        val printb0Block = new AsmBlock(Directive(""), Label(".L_printb0"), List.empty)
+        val printb1Block = new AsmBlock(Directive(""), Label(".L_printb1"), List.empty)
         val paramRegOne = getParamReg() 
         val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
         val printInstrs: List[Instruction] = List(
@@ -272,10 +273,12 @@ object IRTranslator {
           CmpInstr(Immediate(0), paramRegOne),
           JneInstr(Label(".L_printb0")),
           LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
-          JumpInstr(Label(".L_printb1")),
-          Label(".L_printb0"),
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx")),
-          Label(".L_printb1"),
+          JumpInstr(Label(".L_printb1"))
+        )
+        val printb0Instrs: List[Instruction] = List(
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx"))
+        )
+        val printb1Instrs: List[Instruction] = List(
           MovInstr(Memory(new scratchReg("rdx"), -4), new scratchReg("esi")),
           LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
           MovInstr(Immediate(0), new scratchReg("al")),
@@ -287,7 +290,11 @@ object IRTranslator {
           Ret()
         )
         boolPrintBlock.instructions = printInstrs
+        printb0Block.instructions = printb0Instrs
+        printb1Block.instructions = printb1Instrs
         blocks.addOne(boolPrintBlock)
+        blocks.addOne(printb0Block)
+        blocks.addOne(printb1Block)
         printInstrs
       }
 
@@ -311,6 +318,22 @@ object IRTranslator {
         )
         intPrintBlock.instructions = printInstrs
         blocks.addOne(intPrintBlock)
+        printInstrs
+      }
+
+      case ArrayType(elementType) => {
+        val arrayTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
+        val printInstrs: List[Instruction] = List.empty
+        arrayTypePrintBlock.instructions = printInstrs
+        blocks.addOne(arrayTypePrintBlock)
+        printInstrs
+      }
+
+      case PairType(firstType, secondType) => {
+        val pairTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
+        val printInstrs: List[Instruction] = List.empty
+        pairTypePrintBlock.instructions = printInstrs
+        blocks.addOne(pairTypePrintBlock)
         printInstrs
       }
     }
