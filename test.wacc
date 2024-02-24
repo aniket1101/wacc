@@ -1,3 +1,18 @@
 begin
-  print "Hello World!"
+  if (true) then
+    if (true) then
+        int l = 1
+    else
+        int m = 2
+    fi
+  else
+    if (true) then
+        int n = 3
+    else
+        int x = 4
+    fi
+  fi;
+
+  int j = 10
+
 end

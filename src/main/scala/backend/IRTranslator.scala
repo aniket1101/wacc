@@ -108,7 +108,8 @@ object IRTranslator {
   private def translateStatements(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]):ListBuffer[Instruction] = {
     var statementsLeft = ListBuffer(stmts: _*)
     var instructions:ListBuffer[Instruction] = ListBuffer.empty
-    for (stmt <- stmts) {
+    var reachedRestBlock = false
+    for (stmt <- stmts if reachedRestBlock != true) {
       statementsLeft = statementsLeft.tail
       instructions = instructions.concat(stmt match {
         case Skip() => List.empty
@@ -119,13 +120,14 @@ object IRTranslator {
         case Print(expr) => translatePrint(checkType(expr)(symbolTable))
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
-          val elseLabel = getNewLabel()
+          val restLabel = getNewLabel()
           blocks.addOne(new AsmBlock(Directive(""), thenLabel, translateStatements(thenStat, symbolTable).toList))
-          val elseBlock = new AsmBlock(Directive(""), elseLabel, translateStatements(statementsLeft.toList, symbolTable).toList)
-          blocks.addOne(elseBlock)
-          curBlock = elseBlock
+          val restBlock = new AsmBlock(Directive(""), restLabel, translateStatements(statementsLeft.toList, symbolTable).toList)
+          blocks.addOne(restBlock)
+          curBlock = restBlock
+          reachedRestBlock = true
           evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel)))
-            .concat(translateStatements(elseStat, symbolTable).addOne(JumpInstr(elseLabel)))
+            .concat(translateStatements(elseStat, symbolTable).addOne(JumpInstr(restLabel)))
         }
         case While(cond, doStat) => {
           val conditionLabel = getNewLabel()
@@ -134,6 +136,7 @@ object IRTranslator {
           blocks.addOne(new AsmBlock(Directive(""), bodyLabel, translateStatements(doStat, symbolTable).toList))
           blocks.addOne(new AsmBlock(Directive(""), conditionLabel, evaluateExpr(cond, ReturnRegister()).addOne(CmpInstr(ReturnRegister(), Immediate(1))).toList))
           val restBlock = new AsmBlock(Directive(""), restLabel, List(JeInstr(bodyLabel)))
+          reachedRestBlock = true
           blocks.addOne(restBlock)
           curBlock = restBlock
           List(JumpInstr(conditionLabel))

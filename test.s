@@ -1,47 +1,57 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-# length of .L.str0
-	.int 12
-.L.str0:
-	.asciz "Hello World!"
 .text
 main:
 	push rbp
-	push rbx
+	sub rsp, 48
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], scratchReg2
+	mov qword ptr [rsp + 16], scratchReg3
+	mov qword ptr [rsp + 24], scratchReg4
+	mov qword ptr [rsp + 32], scratchReg5
+	mov qword ptr [rsp + 40], scratchReg6
 	mov rbp, rsp
-	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	mov rax, 0
-	pop rbx
-	pop rbp
-	ret
+	mov rax, 1
+	cmp rax, 1
+	je .L0
+	mov rax, 1
+	cmp rax, 1
+	je .L4
+	mov rax, 4
+	mov scratchReg6, rax
+	jmp .L5
+	jmp .L1
 
-.section .rodata
-# length of .L._prints_str0
-	.int 4
-.L._prints_str0:
-	.asciz "%.*s"
-.text
-_prints:
-	push rbp
-	mov rbp, rsp
-	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
-	and rsp, -16
-	mov rdx, rdi
-	mov esi, dword ptr [rdi - 4]
-	lea rdi, [rip + .L._prints_str0]
-	# on x86, al represents the number of SIMD registers used as variadic arguments
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
+.L2:
+	mov rax, 1
+	mov scratchReg2, rax
+
+.L3:
+.L0:
+	mov rax, 1
+	cmp rax, 1
+	je .L2
+	mov rax, 2
+	mov scratchReg3, rax
+	jmp .L3
+
+.L1:
+	mov rax, 10
+	mov scratchReg4, rax
+
+.L4:
+	mov rax, 3
+	mov scratchReg5, rax
+
+.L5:
+	mov rax, 0
+	mov rbx, qword ptr [rsp]
+	mov scratchReg2, qword ptr [rsp + 8]
+	mov scratchReg3, qword ptr [rsp + 16]
+	mov scratchReg4, qword ptr [rsp + 24]
+	mov scratchReg5, qword ptr [rsp + 32]
+	mov scratchReg6, qword ptr [rsp + 40]
+	add rsp, 48
 	pop rbp
 	ret
