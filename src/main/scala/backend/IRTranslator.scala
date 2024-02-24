@@ -17,8 +17,9 @@ object IRTranslator {
 
   var usedRegs = 0
 
-  var scratchRegs: ListBuffer[scratchReg] = ListBuffer.empty
   var scratchCounter = 0
+  var varRegs: ListBuffer[varReg] = ListBuffer.empty
+  var varCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
   var paramCount = 0
 
@@ -31,8 +32,8 @@ object IRTranslator {
   private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[AsmBlock], symbolTable:mutable.Map[String, Type]): ListBuffer[AsmBlock] = {
     for (fun <- funcs) {
       variableMap = mutable.Map.empty
-      scratchCounter = 0
-      scratchRegs = ListBuffer.empty
+      varCounter = 0
+      varRegs = ListBuffer.empty
       val funBlock = new AsmBlock(Directive(""), Label(s"wacc_${fun.ident.name}"), List.empty)
       curBlock = funBlock
       inFunc = true
@@ -66,18 +67,18 @@ object IRTranslator {
     usedRegs = symbolTable.keys.count(_.startsWith(scopePrefix)) - paramCount
 
     if (usedRegs == 0) {
-      val rbx = new scratchReg("rbx")
+      val rbx = new varReg("rbx")
       instructions.addOne(Push(rbx))
-      scratchRegs += rbx
+      varRegs += rbx
     } else {
       instructions.addOne(SubInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
-      val rbx = new scratchReg("rbx")
-      scratchRegs += rbx
+      val rbx = new varReg("rbx")
+      varRegs += rbx
       instructions.addOne(MovInstr(rbx, Memory(StackPointer())))
       for (regNo <- 1 to usedRegs) {
-        val newScratchReg = new scratchReg(s"scratchReg${scratchRegs.length + 1}")
-        instructions.addOne(MovInstr(newScratchReg, Memory(StackPointer(), 8 * regNo)))
-        scratchRegs += newScratchReg
+        val newVarReg = new varReg(s"varReg${varRegs.length + 1}")
+        instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo)))
+        varRegs += newVarReg
       }
     }
 
@@ -92,11 +93,11 @@ object IRTranslator {
     }
 
     if (usedRegs == 0) {
-      instructions.addOne(Pop(scratchRegs.head: scratchReg))
+      instructions.addOne(Pop(varRegs.head: varReg))
     } else {
-      instructions.addOne(MovInstr(Memory(StackPointer()), scratchRegs.head: scratchReg))
+      instructions.addOne(MovInstr(Memory(StackPointer()), varRegs.head: varReg))
       for (regNo <- 1 to usedRegs) {
-        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), scratchRegs(regNo): scratchReg))
+        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), varRegs(regNo): varReg))
       }
       instructions.addOne(AddInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
     }
@@ -195,8 +196,8 @@ object IRTranslator {
   }
 
   def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): ListBuffer[Instruction] = {
-    val newReg = scratchRegs(scratchCounter + 1)
-    scratchCounter += 1
+    val newReg = varRegs(varCounter + 1)
+    varCounter += 1
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
       case IntType() | BoolType() => RValue match {
@@ -233,16 +234,25 @@ object IRTranslator {
         case _ => ListBuffer(MovInstr(Immediate(0), reg))
       }
       case Add(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
-        evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(AddInstr(reg, yReg)))
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(AddInstr(reg, yReg))
+        scratchCounter = 0
+        instrs
       }
       case Sub(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
-        evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(SubInstr(reg, yReg)))
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(SubInstr(reg, yReg))
+        scratchCounter = 0
+        instrs
       }
       case Mul(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
-        evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(MulInstr(reg, yReg)))
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(MulInstr(reg, yReg))
+        scratchCounter = 0
+        instrs
       }
       case Ident(x) => ListBuffer(MovInstr(variableMap.get(x).orNull, reg))
     }

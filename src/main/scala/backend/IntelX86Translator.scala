@@ -37,6 +37,7 @@ class IntelX86Translator {
       case Align(reg) =>              formatInstr("and", reg, stackAlignmentMask)
       case AddInstr(reg1, reg2) =>    formatInstr("add", reg1, reg2)
       case SubInstr(value, reg) =>    formatInstr("sub", value, reg)
+      case MulInstr(value, reg) =>    formatInstr("imul", value, reg)
       case JeInstr(label) =>          formatInstr("je", label)
       case JumpInstr(label) =>        formatInstr("jmp", label)
       case CmpInstr(op1, op2) =>      formatInstr("cmp", op1, op2)

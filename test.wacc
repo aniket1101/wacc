@@ -1,6 +1,5 @@
 begin
-  begin
-    int x = 5;
-    int f = 2
-  end
+  int x = 5;
+  int y = 7;
+  int c = (x + y) * (3 + 4) * (3 + 9)
 end
