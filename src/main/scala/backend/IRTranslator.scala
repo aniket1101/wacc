@@ -20,11 +20,14 @@ object IRTranslator {
   var scratchCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
   var paramCount = 0
+  var strings: ListBuffer[String] = ListBuffer()
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
 
   def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
-    translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
+    val ourProgram = translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
+    ourProgram.insert(0, new ReadOnlyData(strings.toList))
+    ourProgram.toList
   }
 
   private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
@@ -113,7 +116,12 @@ object IRTranslator {
         case Assign(Ident(x), rValue) => rValue match {
           case expr: Expr => evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
         }
-        case Print(expr) => translatePrint(checkType(expr)(symbolTable))
+        case Print(expr) => val typ = checkType(expr)(symbolTable)
+          expr match {
+            case StrLit(str) => strings.addOne(str)
+            case _ =>
+          }
+          translatePrint(checkType(expr)(symbolTable))
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
           val elseLabel = getNewLabel()
@@ -183,6 +191,9 @@ object IRTranslator {
         case true => ListBuffer(MovInstr(Immediate(1), reg))
         case _ => ListBuffer(MovInstr(Immediate(0), reg))
       }
+      case StrLit(str) =>
+        strings.addOne(str)
+        ListBuffer(MovInstr(Immediate(0), reg)) // TODO: Fix this
       case Add(x, y) => {
         val yReg = new scratchReg(s"scratchReg${scratchRegs.length}")
         evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(AddInstr(reg, yReg)))
@@ -199,12 +210,12 @@ object IRTranslator {
     }
   }
 
-  def translatePrint(typ:Type):ListBuffer[Instruction] = {
+  def translatePrint(typ:Type): List[Instruction] = {
     var instr:ListBuffer[Instruction] = ListBuffer.empty
 
     typ match {
       case StringType() => {
-        val strBlock = new AsmBlock(Directive(""), Label("prints"), List.empty)
+        val strBlock = new AsmBlock(Directive(""), Label("_prints"), List.empty)
         val paramRegOne = getParamReg()
         val paramRegTwo = getParamReg()
         val scratchRegOne = new scratchReg(s"${scratchRegs.length + 1}")
@@ -212,12 +223,12 @@ object IRTranslator {
           Push(BasePointer()),
           MovInstr(StackPointer(), BasePointer()),
           Align(StackPointer()),
-          MovInstr(scratchRegOne, paramRegOne),
-          MovInstr(Memory(Some(paramRegOne), None, None, Some(-4)), paramRegTwo),
-          LeaInstr(ReturnRegister(), Memory(Some(paramRegOne), None, None, None)),
-          MovInstr(Immediate(0), ReturnRegister()),
+          MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
+          MovInstr(Memory(new scratchReg("rdi"), -4), new scratchReg("esi")),
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
+          MovInstr(Immediate(0), new scratchReg("al")),
           CallInstr(Label("printf@plt")),
-          MovInstr(new scratchReg("rdi"), Immediate(0)),
+          MovInstr(Immediate(0), new scratchReg("rdi")),
           CallInstr(Label("fflush@plt")),
           MovInstr(BasePointer(), StackPointer()),
           Pop(BasePointer()),

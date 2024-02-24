@@ -1,56 +1,43 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
+	.int 11
+.L.str0:
+	.asciz "Hello World"
 .text
 main:
 	push rbp
-	sub rsp, 24
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], scratchReg2
-	mov qword ptr [rsp + 16], scratchReg3
+	push rbx
 	mov rbp, rsp
-	mov rax, 3
-	mov scratchReg2, rax
-	mov rax, 2
-	mov paramReg1, rax
-	mov rax, 3
-	mov paramReg2, rax
-	mov rax, 4
-	mov paramReg3, rax
-	call wacc_foo
-	mov scratchReg3, rax
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	mov rdx, rdi
+	mov esi, qword ptr [rdi - 4]
+	lea rdi, [rip + .L._prints_str0]
+	mov al, 0
+	call printf@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
 	mov rax, 0
-	mov rbx, qword ptr [rsp]
-	mov scratchReg2, qword ptr [rsp + 8]
-	mov scratchReg3, qword ptr [rsp + 16]
-	add rsp, 24
+	pop rbx
 	pop rbp
 	ret
 
-wacc_wacc_foo:
+_prints:
 	push rbp
-	sub rsp, 40
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], scratchReg2
-	mov qword ptr [rsp + 16], scratchReg3
-	mov qword ptr [rsp + 24], scratchReg4
-	mov qword ptr [rsp + 32], scratchReg5
 	mov rbp, rsp
-	mov rax, paramReg1
-	mov scratchReg2, rax
-	mov rax, paramReg2
-	mov scratchReg3, rax
-	mov rax, paramReg3
-	mov scratchReg4, rax
-	mov rax, 23
-	mov scratchReg5, rax
-	mov rax, scratchReg5
-	mov rax, 0
-	mov rbx, qword ptr [rsp]
-	mov scratchReg2, qword ptr [rsp + 8]
-	mov scratchReg3, qword ptr [rsp + 16]
-	mov scratchReg4, qword ptr [rsp + 24]
-	mov scratchReg5, qword ptr [rsp + 32]
-	add rsp, 40
+	and rsp, -16
+	mov rdx, rdi
+	mov esi, qword ptr [rdi - 4]
+	lea rdi, [rip + .L._prints_str0]
+	mov al, 0
+	call printf@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
 	pop rbp
 	ret

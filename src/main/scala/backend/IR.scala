@@ -22,8 +22,14 @@ object IR {
     override def toString: String = reg
   }
 
-  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Int]) extends MemOrReg {
-    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(offset) else None)
+  sealed trait Offset
+
+  case class OffsetInt(value: Int) extends Offset
+
+  case class OffsetLabel(label: Label) extends Offset
+
+  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Offset]) extends MemOrReg {
+    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(OffsetInt(offset)) else None)
 
     def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
 
@@ -32,16 +38,17 @@ object IR {
     }
 
     def this(secReg: Register, multiplier: Int, offset: Int) = {
-      this (None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(offset) else None)
+      this (None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None)
     }
 
     def this(primReg: Register, secReg: Register, multiplier: Int, offset: Int) = {
-      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(offset) else None)
+      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None)
     }
   }
   object Memory {
     def apply(primReg: Register): Memory = new Memory(Some(primReg), None, None, None) {}
-    def apply(primReg: Register, offset: Int):Memory = new Memory(Some(primReg), None, None, Some(offset)) {}
+    def apply(primReg: Register, offset: Int):Memory = new Memory(Some(primReg), None, None, Some(OffsetInt(offset))) {}
+    def apply(primReg: Register, label: Label):Memory = new Memory(Some(primReg), None, None, Some(OffsetLabel(label))) {}
   }
 
   // ADD instruction
@@ -116,7 +123,7 @@ object IR {
   sealed abstract case class LeaInstr(src: Operand, value: Operand) extends Instruction
 
   object LeaInstr {
-    def apply(src: Register, dst: Memory): LeaInstr = new LeaInstr(src, dst) {}
+    def apply(src: Memory, dst: Register): LeaInstr = new LeaInstr(src, dst) {}
   }
 
   case class JeInstr(label: Label) extends Instruction
@@ -147,6 +154,12 @@ object IR {
     Pop(BasePointer()),
     Ret()
   ))
+
+  class ReadOnlyData(val strings: List[String]) extends Block {
+    override def toString: String = {
+      s".section .rodata\n" + strings.map(str => s".L.str${strings.indexOf(str)}:\n\t.asciz \"$str\"").mkString("\n") + "\n"
+    }
+  }
 
   case class PrintBlock() extends AsmBlock(Directive(""), Label("_prints"), translatePrint(StringType()(-1,-1)).toList)
 
