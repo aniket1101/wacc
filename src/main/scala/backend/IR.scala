@@ -130,6 +130,7 @@ object IR {
   case class JgeInstr(label: Label) extends Instruction
   case class JlInstr(label: Label) extends Instruction
   case class JleInstr(label: Label) extends Instruction
+  case class JneInstr(label: Label) extends Instruction
   case class JumpInstr(label: Label) extends Instruction
 
   case class Push(reg: Register) extends Instruction

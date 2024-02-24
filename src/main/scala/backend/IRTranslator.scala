@@ -241,9 +241,58 @@ object IRTranslator {
 
       case CharType() => ???
 
-      case BoolType() => ???
+      case BoolType() => {
+        val boolPrintBlock = new AsmBlock(Directive(""), Label("_printi"), List.empty)
+        val paramRegOne = getParamReg() 
+        val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
+        val printInstrs: List[Instruction] = List(
+          Push(BasePointer()),
+          MovInstr(StackPointer(), BasePointer()),
+          Align(StackPointer()),
+          CmpInstr(Immediate(0), paramRegOne),
+          JneInstr(Label(".L_printb0")),
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
+          JumpInstr(Label(".L_printb1")),
+          Label(".L_printb0"),
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx")),
+          Label(".L_printb1"),
+          MovInstr(Memory(new scratchReg("rdx"), -4), new scratchReg("esi")),
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
+          MovInstr(Immediate(0), new scratchReg("al")),
+          CallInstr(Label("printf@plt")),
+          MovInstr(Immediate(0), new scratchReg("rdi")),
+          CallInstr(Label("fflush@plt")),
+          MovInstr(BasePointer(), StackPointer()),
+          Pop(BasePointer()),
+          Ret()
+        )
+        boolPrintBlock.instructions = printInstrs
+        blocks.addOne(boolPrintBlock)
+        printInstrs
+      }
 
-      case IntType() => ???
+      case IntType() => {
+        val intPrintBlock = new AsmBlock(Directive(""), Label("_printi"), List.empty)
+        val paramRegOne = getParamReg() 
+        val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
+        val printInstrs: List[Instruction] = List(
+          Push(BasePointer()),
+          MovInstr(StackPointer(), BasePointer()),
+          Align(StackPointer()),
+          MovInstr(paramRegOne, new scratchReg("esi")),
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0")), new scratchReg("rdi")),
+          MovInstr(Immediate(0), new scratchReg("al")),
+          CallInstr(Label("printf@plt")),
+          MovInstr(Immediate(0), new scratchReg("rdi")),
+          CallInstr(Label("fflush@plt")),
+          MovInstr(BasePointer(), StackPointer()),
+          Pop(BasePointer()),
+          Ret()
+        )
+        intPrintBlock.instructions = printInstrs
+        blocks.addOne(intPrintBlock)
+        printInstrs
+      }
     }
   }
 
