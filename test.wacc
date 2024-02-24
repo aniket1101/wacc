@@ -1,8 +1,6 @@
 begin
-  int foo(int x, int y) is
-    return x + y
+  begin
+    int x = 5;
+    int f = 2
   end
-
-  int c = call foo(5, 7)
-
 end

@@ -4,34 +4,19 @@
 .text
 main:
 	push rbp
-	sub rsp, 16
+	sub rsp, 24
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], scratchReg2
+	mov qword ptr [rsp + 16], scratchReg3
 	mov rbp, rsp
 	mov rax, 5
-	push rdi
-	mov rdi, rax
-	mov rax, 7
-	push rsi
-	mov rsi, rax
-	call wacc_foo
 	mov scratchReg2, rax
-	pop rsi
-	pop rdi
+	mov rax, 2
+	mov scratchReg3, rax
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov scratchReg2, qword ptr [rsp + 8]
-	add rsp, 16
-	pop rbp
-	ret
-
-wacc_wacc_foo:
-	push rbp
-	push rbx
-	mov rbp, rsp
-	mov rax, rdi
-	mov scratchReg1, rsi
-	add scratchReg1, rax
-	pop rbx
+	mov scratchReg3, qword ptr [rsp + 16]
+	add rsp, 24
 	pop rbp
 	ret

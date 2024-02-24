@@ -179,12 +179,14 @@ object IRTranslator {
           List.empty
         }
         case Return(expr) => evaluateExpr(expr, ReturnRegister())
-        case fun => fun match {
-          case Exit(expr) => {
-            addBlock(ExitBlock())
-            val newParamReg = getParamReg()
-            evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(Push(newParamReg), MovInstr(ReturnRegister(), newParamReg), CallInstr(Label("_exit")), Pop(newParamReg)))
-          }
+        case Exit(expr) => {
+          addBlock(ExitBlock())
+          val newParamReg = getParamReg()
+          evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(Push(newParamReg), MovInstr(ReturnRegister(), newParamReg), CallInstr(Label("_exit")), Pop(newParamReg)))
+        }
+        case Scope(stats) => {
+          translateStatements(stats, symbolTable)
+          List.empty
         }
       })
     }
