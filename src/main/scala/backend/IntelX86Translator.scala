@@ -14,7 +14,19 @@ class IntelX86Translator {
     asmInstr.map({
       case block: AsmBlock => convertDir(block.directive) +
       convertLabel(block.label) + convertInstrs(block.instructions)
+      case rodata: ReadOnlyData => convertROData(rodata.strings)
     }).mkString("").strip() + "\n"
+  }
+
+  def convertROData(strings: List[String]): String = {
+    val rod: StringBuilder = new StringBuilder(".section .rodata\n")
+    for (i <- strings.indices) {
+      val str = strings(i)
+      rod.append(s"\t.int ${str.length}\n")
+      rod.append(s".L.str$i:\n")
+      rod.append(s"\t.asciz \"$str\"\n")
+    }
+    rod.toString()
   }
 
   private def convertDir(dir: Directive): String = if (dir.name.isEmpty) "" else s".${dir.name}\n"
@@ -41,6 +53,7 @@ class IntelX86Translator {
       case JeInstr(label) =>          formatInstr("je", label)
       case JumpInstr(label) =>        formatInstr("jmp", label)
       case CmpInstr(op1, op2) =>      formatInstr("cmp", op1, op2)
+      case LeaInstr(reg, mem) =>      formatInstr("lea", reg, mem)
     }
   }
 
@@ -72,11 +85,16 @@ class IntelX86Translator {
         case _ => register.reg
       }
       case memory: Memory =>
+        var size = "qword ptr "
         val expr = memory.offset match {
-        case None => ""
-        case Some(x) => s" ${if (x > 0) "+" else "-"} ${Math.abs(x)}"
-      }
-        s"qword ptr [${memory.primReg.get}$expr]"
+          case None => ""
+          case Some(OffsetInt(x)) => s" ${if (x > 0) "+" else "-"} ${Math.abs(x)}"
+          case Some(OffsetLabel(label)) =>
+            size = ""
+            s" + ${label.name}"
+        }
+
+        s"$size[${memory.primReg.get}$expr]"
     }
   }
 
