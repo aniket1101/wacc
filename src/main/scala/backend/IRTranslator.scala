@@ -239,7 +239,27 @@ object IRTranslator {
         printInstrs
       }
 
-      case CharType() => ???
+      case CharType() => {
+        val charPrintBlock = new AsmBlock(Directive(""), Label("_printc"), List.empty)
+        val paramRegOne = getParamReg()
+        val printInstrs: List[Instruction] = List(
+          Push(BasePointer()),
+          MovInstr(StackPointer(), BasePointer()),
+          Align(StackPointer()),
+          MovInstr(new scratchReg("dil"), new scratchReg("sil")), 
+          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
+          MovInstr(Immediate(0), new scratchReg("al")),
+          CallInstr(Label("printf@plt")),
+          MovInstr(Immediate(0), new scratchReg("rdi")),
+          CallInstr(Label("fflush@plt")),
+          MovInstr(StackPointer(), BasePointer()),
+          Pop(BasePointer()),
+          Ret()
+        )
+        charPrintBlock.instructions = printInstrs
+        blocks.addOne(charPrintBlock)
+        printInstrs
+      }
 
       case BoolType() => {
         val boolPrintBlock = new AsmBlock(Directive(""), Label("_printi"), List.empty)
