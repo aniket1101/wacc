@@ -10,9 +10,10 @@ import scala.collection.mutable.ListBuffer
 
 object IRTranslator {
 
+  var inFunc = false
   var labels = 0
-  var blocks: ListBuffer[Block] = ListBuffer()
-  var curBlock: AsmBlock = null
+  var blocks: ListBuffer[AsmBlock] = ListBuffer()
+  var curBlock: AsmBlock = _
 
   var usedRegs = 0
 
@@ -23,41 +24,40 @@ object IRTranslator {
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
 
-  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):ListBuffer[Block] = {
+  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):ListBuffer[AsmBlock] = {
     translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
   }
 
-  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
+  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[AsmBlock], symbolTable:mutable.Map[String, Type]): ListBuffer[AsmBlock] = {
     for (fun <- funcs) {
       variableMap = mutable.Map.empty
       scratchCounter = 0
       scratchRegs = ListBuffer.empty
+      val funBlock = new AsmBlock(Directive(""), Label(s"wacc_${fun.ident.name}"), List.empty)
+      curBlock = funBlock
+      inFunc = true
       for (arg <- fun.paramList) {
         val paramReg = getParamReg()
         paramCount += 1
         variableMap.addOne(s"func-${fun.ident.name}-param-${arg.ident.name}", paramReg)
       }
-      val setUp = setUpScope(symbolTable, s"func-${fun.ident.name}")
+      updateCurBlock(setUpScope(symbolTable, s"func-${fun.ident.name}").toList)
       paramCount = 0
-      val funBlock = new AsmBlock(Directive(""), Label(s"wacc_${fun.ident.name}"), setUp.concat(translateStatements(fun.stats, symbolTable)).toList)
-      currBlocks.addOne(funBlock)
-      curBlock = funBlock
+      translateStatements(fun.stats, symbolTable)
+      addBlock(funBlock)
+
       revertSetUp(funBlock)
     }
     currBlocks
   }
 
-  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Block] = {
+  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[AsmBlock] = {
     blocks = ListBuffer()
-    var instructions = setUpScope(symbolTable, "main-")
-    instructions = instructions.concat(translateStatements(stmts, symbolTable))
-    val mainBlock = new AsmBlock(Directive("text"), Label("main"), instructions.toList)
-    if (curBlock == null) {
-      revertSetUp(mainBlock)
-    } else {
-      revertSetUp(curBlock)
-    }
-    blocks.insert(0, mainBlock)
+    val mainBlock = new AsmBlock(Directive("text"), Label("main"), setUpScope(symbolTable, "main-").toList)
+    addBlock(mainBlock)
+    curBlock = mainBlock
+    translateStatements(stmts, symbolTable)
+    revertSetUp(curBlock)
     blocks
   }
 
@@ -87,7 +87,9 @@ object IRTranslator {
 
   private def revertSetUp(block:AsmBlock): Unit = {
     val instructions: ListBuffer[Instruction] = ListBuffer.empty
-    instructions += MovInstr(Immediate(0), ReturnRegister())
+    if (!inFunc) {
+      instructions += MovInstr(Immediate(0), ReturnRegister())
+    }
 
     if (usedRegs == 0) {
       instructions.addOne(Pop(scratchRegs.head: scratchReg))
@@ -105,11 +107,11 @@ object IRTranslator {
     block.instructions = block.instructions.concat(instructions)
   }
 
-  private def translateStatements(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]):ListBuffer[Instruction] = {
+  private def translateStatements(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]):Unit = {
     var statementsLeft = ListBuffer(stmts: _*)
     var instructions:ListBuffer[Instruction] = ListBuffer.empty
     var reachedRestBlock = false
-    for (stmt <- stmts if reachedRestBlock != true) {
+    for (stmt <- stmts if !reachedRestBlock) {
       statementsLeft = statementsLeft.tail
       instructions = instructions.concat(stmt match {
         case Skip() => List.empty
@@ -121,30 +123,65 @@ object IRTranslator {
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
           val restLabel = getNewLabel()
-          blocks.addOne(new AsmBlock(Directive(""), thenLabel, translateStatements(thenStat, symbolTable).toList))
-          val restBlock = new AsmBlock(Directive(""), restLabel, translateStatements(statementsLeft.toList, symbolTable).toList)
-          blocks.addOne(restBlock)
+          val thenBlock = new AsmBlock(Directive(""), thenLabel, List.empty)
+          val restBlock = new AsmBlock(Directive(""), restLabel, List.empty)
+
+          // Translating else block (adds statements to end of current block)
+          updateCurBlock(evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel))).toList)
+          translateStatements(elseStat, symbolTable)
+          updateCurBlock(JumpInstr(restLabel))
+
+          // Translating then block (new block)
+          curBlock = thenBlock
+          translateStatements(thenStat, symbolTable)
+          updateCurBlock(JumpInstr(restLabel))
+
+          // Translating rest block (new block)
           curBlock = restBlock
+          translateStatements(statementsLeft.toList, symbolTable)
+
+          addBlock(thenBlock)
+          addBlock(restBlock)
+
           reachedRestBlock = true
-          evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel)))
-            .concat(translateStatements(elseStat, symbolTable).addOne(JumpInstr(restLabel)))
+
+          List.empty
         }
         case While(cond, doStat) => {
-          val conditionLabel = getNewLabel()
+          val condLabel = getNewLabel()
           val bodyLabel = getNewLabel()
           val restLabel = getNewLabel()
-          blocks.addOne(new AsmBlock(Directive(""), bodyLabel, translateStatements(doStat, symbolTable).toList))
-          blocks.addOne(new AsmBlock(Directive(""), conditionLabel, evaluateExpr(cond, ReturnRegister()).addOne(CmpInstr(ReturnRegister(), Immediate(1))).toList))
-          val restBlock = new AsmBlock(Directive(""), restLabel, List(JeInstr(bodyLabel)))
-          reachedRestBlock = true
-          blocks.addOne(restBlock)
+          val condBlock = new AsmBlock(Directive(""), condLabel, List.empty)
+          val bodyBlock = new AsmBlock(Directive(""), bodyLabel, List.empty)
+          val restBlock = new AsmBlock(Directive(""), restLabel, List.empty)
+
+          updateCurBlock(JumpInstr(condLabel))
+
+          // Translating Condition block (new block)
+          curBlock = condBlock
+          updateCurBlock(evaluateExpr(cond, ReturnRegister()).toList)
+          updateCurBlock(List(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(bodyLabel), JumpInstr(restLabel)))
+
+          // Translating Body block (new block)
+          curBlock = bodyBlock
+          translateStatements(doStat, symbolTable)
+          updateCurBlock(JumpInstr(restLabel))
+
+          // Translating Rest block (new block)
           curBlock = restBlock
-          List(JumpInstr(conditionLabel))
+          translateStatements(statementsLeft.toList, symbolTable)
+
+          addBlock(condBlock)
+          addBlock(bodyBlock)
+          addBlock(restBlock)
+
+          reachedRestBlock = true
+          List.empty
         }
         case Return(expr) => evaluateExpr(expr, ReturnRegister())
         case fun => fun match {
           case Exit(expr) => {
-            blocks.addOne(ExitBlock())
+            addBlock(ExitBlock())
             val newParamReg = getParamReg()
             evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(Push(newParamReg), MovInstr(ReturnRegister(), newParamReg), CallInstr(Label("_exit")), Pop(newParamReg)))
           }
@@ -152,7 +189,7 @@ object IRTranslator {
       })
     }
 
-    instructions
+    curBlock.instructions = curBlock.instructions.concat(instructions)
   }
 
   def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): ListBuffer[Instruction] = {
@@ -168,10 +205,15 @@ object IRTranslator {
             val paramReg = getParamReg()
             paramRegs += paramReg
             paramCount += 1
-            moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister()).addOne(MovInstr(ReturnRegister(), paramReg))))
+            moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister()).concat(ListBuffer(Push(paramReg), MovInstr(ReturnRegister(), paramReg)))))
+          }
+          instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), newReg))
+          for (arg <- args) {
+            paramCount -= 1
+            val paramReg = getParamReg()
+            moveParams = moveParams.addOne(Pop(paramReg))
           }
           paramCount = 0
-          instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), newReg))
         }
       }
       case _ => ListBuffer(Ret())
@@ -206,6 +248,13 @@ object IRTranslator {
 
   private def translatePrint(typ:Type):ListBuffer[Instruction] = ???
 
+  private def updateCurBlock(instruction: Instruction): Unit = {
+    updateCurBlock(List(instruction))
+  }
+
+  private def updateCurBlock(instructions: List[Instruction]): Unit = {
+    curBlock.instructions = curBlock.instructions.concat(instructions)
+  }
   private def getParamReg(): paramReg = {
     if (paramCount >= paramRegs.length) {
       new paramReg(s"paramReg${paramRegs.length + 1}")
@@ -219,12 +268,9 @@ object IRTranslator {
     Label(s".L${labels-1}")
   }
 
-  private def getParams(stmt:Stat): Int = 1
-
-  private def getParams(rVal:RValue): Int = {
-    rVal match {
-      case Call(_, params) => params.length
-      case _ => -1
+  private def addBlock(block: AsmBlock) = {
+    if (!blocks.map(block => block.label).contains(block.label)) {
+      blocks.addOne(block)
     }
   }
 }

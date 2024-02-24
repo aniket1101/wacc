@@ -1,18 +1,8 @@
 begin
-  if (true) then
-    if (true) then
-        int l = 1
-    else
-        int m = 2
-    fi
-  else
-    if (true) then
-        int n = 3
-    else
-        int x = 4
-    fi
-  fi;
+  int foo(int x, int y) is
+    return x + y
+  end
 
-  int j = 10
+  int c = call foo(5, 7)
 
 end

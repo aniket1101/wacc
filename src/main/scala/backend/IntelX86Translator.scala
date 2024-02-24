@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
 class IntelX86Translator {
   private val stackAlignmentMask: Int = -16
   private val paramRegs: List[Register] = List(new paramReg("RDI"), new paramReg("RSI"), new paramReg("RCX"), new paramReg("R8"), new paramReg("R9"))
-  def toAsmCode(asmInstr: ListBuffer[Block]): String = {
+  def toAsmCode(asmInstr: ListBuffer[AsmBlock]): String = {
     ".intel_syntax noprefix\n.globl main\n.section .rodata\n" +
     asmInstr.map({
       case block: AsmBlock => convertDir(block.directive) +
