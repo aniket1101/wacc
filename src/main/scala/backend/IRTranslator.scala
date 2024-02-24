@@ -199,24 +199,44 @@ object IRTranslator {
     }
   }
 
-  private def translatePrint(typ:Type):ListBuffer[Instruction] = {
+  def translatePrint(typ:Type):ListBuffer[Instruction] = {
     var instr:ListBuffer[Instruction] = ListBuffer.empty
 
     typ match {
-      case StringType => {
-        // val strBlock = new AsmBlock(Directive(""), , )
-        blocks.addOne(StrBlock())
+      case StringType() => {
+        val strBlock = new AsmBlock(Directive(""), Label("prints"), List.empty)
+        val paramRegOne = getParamReg()
+        val paramRegTwo = getParamReg()
+        val scratchRegOne = new scratchReg(s"${scratchRegs.length + 1}")
+        val printInstrs:List[Instruction] = List(
+          Push(BasePointer()),
+          MovInstr(StackPointer(), BasePointer()),
+          Align(StackPointer()),
+          MovInstr(scratchRegOne, paramRegOne),
+          MovInstr(Memory(Some(paramRegOne), None, None, Some(-4)), paramRegTwo),
+          LeaInstr(ReturnRegister(), Memory(Some(paramRegOne), None, None, None)),
+          MovInstr(Immediate(0), ReturnRegister()),
+          CallInstr(Label("printf@plt")),
+          MovInstr(new scratchReg("rdi"), Immediate(0)),
+          CallInstr(Label("fflush@plt")),
+          MovInstr(BasePointer(), StackPointer()),
+          Pop(BasePointer()),
+          Ret()
+        )
+        blocks.addOne(strBlock)
+        strBlock.instructions = printInstrs
+        printInstrs
       }
 
-      case CharType => 
+      case CharType() => ???
 
-      case BoolType => 
+      case BoolType() => ???
 
-      case IntType => 
+      case IntType() => ???
     }
   }
 
-  private def getParamReg(): paramReg = {
+  def getParamReg(): paramReg = {
     if (paramCount >= paramRegs.length) {
       new paramReg(s"paramReg${paramRegs.length + 1}")
     } else {

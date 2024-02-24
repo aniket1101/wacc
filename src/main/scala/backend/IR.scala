@@ -1,5 +1,7 @@
 package backend
 import IRRegisters._
+import IRTranslator.{getParamReg, translatePrint}
+import frontend.ast.StringType
 
 object IR {
 
@@ -111,7 +113,8 @@ object IR {
     def apply(src: Immediate, dst: Memory): CmpInstr = new CmpInstr(src, dst) {}
   }
 
-  sealed abstract case class CmpInstr(src: Operand, value: Operand) extends Instruction
+  sealed abstract case class LeaInstr(src: Operand, value: Operand) extends Instruction
+
   object LeaInstr {
     def apply(src: Register, dst: Memory): LeaInstr = new LeaInstr(src, dst) {}
   }
@@ -145,20 +148,6 @@ object IR {
     Ret()
   ))
 
-  case class PrintBlock() extends AsmBlock(Directive(""), Label("_prints"), List(
-    Push(BasePointer()),
-    MovInstr(StackPointer(), BasePointer()),
-    Align(StackPointer()),
-    MovInstr(new scratchReg("rdx"), new paramReg("paramReg1"))
-    // MovInstr(new scratchReg("esi"), ??? dword ptr [rdi - 4] ???)
-    // LeaInstr(ReturnRegister(), Memory())
-    // mov al, 0
-    CallInstr(Label("printf@plt")),
-    MovInstr(new scratchReg("rdi"), Immediate(0))
-    CallInstr(Label("fflush@plt")),
-    MovInstr(BasePointer(), StackPointer()),
-    Pop(BasePointer()),
-    Ret()
-  ))
+  case class PrintBlock() extends AsmBlock(Directive(""), Label("_prints"), translatePrint(StringType()(-1,-1)).toList)
 
 }
