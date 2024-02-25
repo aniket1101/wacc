@@ -5,9 +5,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
 import java.io.File
+import scala.io.Source
 
 class IntelX86Test extends AnyFlatSpec {
-  def compileAndRunAsm(filename: String): Int = {
+  class ExecOutput(val exitCode: Int, val output: String)
+  def compileAndRunAsm(filename: String): ExecOutput = {
     val osName = System.getProperty("os.name").toLowerCase
     if (osName.contains("windows")) {
       // Windows device - Use WSL
@@ -15,21 +17,25 @@ class IntelX86Test extends AnyFlatSpec {
       val output = removeFileExt(linuxFilename)
       s"wsl gcc -o $output $linuxFilename".! match {
         case 0 =>
-          val returnVal = s"wsl ./$output".!
+          val returnVal = s"wsl ./$output >> output.txt".!
+          val contents = readFileToString(new File("output.txt"))
           // Delete produced file
           s"wsl rm $output".!
-          returnVal
-        case _ => -1
+          s"wsl rm output.txt".!
+          new ExecOutput(returnVal, contents)
+        case _ => new ExecOutput(-1, "")
       }
     } else {
       val output = removeFileExt(filename)
       s"gcc -o $output $filename".! match {
         case 0 =>
-          val returnVal = s"./$output".!
+          val returnVal = s"./$output >> output.txt".!
+          val contents = readFileToString(new File("output.txt"))
           // Delete produced file
           s"rm $output".!
-          returnVal
-        case _ => -1
+          s"rm output.txt".!
+          new ExecOutput(returnVal, readFileToString(new File("output.txt")))
+        case _ => new ExecOutput(-1, "")
       }
     }
   }
@@ -37,20 +43,21 @@ class IntelX86Test extends AnyFlatSpec {
   val src = "src/test/scala/intelX86Examples"
   new ProcessExamples(src, ".s").processFolder()
     .foreach { case (testName, testCode) =>
-      val correctExitCode = compileAndRunAsm(testCode.getPath)
+      val correctOutput = compileAndRunAsm(testCode.getPath)
 
       val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
       val compilerOutput = compileProgram(waccFile)
       assert(compilerOutput <= 0, s"Error: $testName did not produce assembly")
 
       val outputFile = removeFileExt(new File(waccFile).getName) + ".s"
-      val exitCode = compileAndRunAsm(outputFile)
+      val output = compileAndRunAsm(outputFile)
 
       // Delete generated files
-//      deleteFile(outputFile)
+      deleteFile(outputFile)
 
-      s"Compiler should compile: $testName" should s"return exit code $correctExitCode" in {
-        exitCode shouldBe correctExitCode
+      s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
+        output.exitCode shouldBe correctOutput.exitCode
+        output.output shouldBe correctOutput.output
       }
     }
 
@@ -60,6 +67,15 @@ class IntelX86Test extends AnyFlatSpec {
       if (file.delete()) 0 else -1
     } else {
       -1
+    }
+  }
+
+  def readFileToString(file: File): String = {
+    val source = Source.fromFile(file)
+    try {
+      source.mkString
+    } finally {
+      source.close()
     }
   }
 }

@@ -12,7 +12,7 @@ object IRTranslator {
 
   var inFunc = false
   var labels = 0
-  var blocks: ListBuffer[AsmBlock] = ListBuffer()
+  var blocks: ListBuffer[Block] = ListBuffer()
   var curBlock: AsmBlock = _
 
   var usedRegs = 0
@@ -22,15 +22,18 @@ object IRTranslator {
   var varCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
   var paramCount = 0
-  var strings: ListBuffer[String] = ListBuffer()
+  var roData: ReadOnlyData = new ReadOnlyData()
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
+  var scratchRegs: List[Register] = List(new scratchReg("foo1"), new scratchReg("foo2"), new scratchReg("foo3"), new scratchReg("foo4"),new scratchReg("foo5"))
 
-  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):ListBuffer[AsmBlock] = {
-    translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
+  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
+    val ourProgram: ListBuffer[Block] = translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
+    ourProgram.insert(0, roData)
+    ourProgram.toList
   }
 
-  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[AsmBlock], symbolTable:mutable.Map[String, Type]): ListBuffer[AsmBlock] = {
+  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
     for (fun <- funcs) {
       variableMap = mutable.Map.empty
       varCounter = 0
@@ -53,7 +56,16 @@ object IRTranslator {
     currBlocks
   }
 
-  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[AsmBlock] = {
+  private def updateCurBlock(instruction: Instruction): Unit = {
+    updateCurBlock(List(instruction))
+  }
+
+  private def updateCurBlock(instructions: List[Instruction]): Unit = {
+    curBlock.instructions = curBlock.instructions.concat(instructions)
+  }
+
+
+  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Block] = {
     blocks = ListBuffer()
     val mainBlock = new AsmBlock(Directive("text"), Label("main"), setUpScope(symbolTable, "main-").toList)
     addBlock(mainBlock)
@@ -121,9 +133,9 @@ object IRTranslator {
         case Assign(Ident(x), rValue) => rValue match {
           case expr: Expr => evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
         }
-        case Print(expr) => val typ = checkType(expr)(symbolTable)
+        case Print(expr) =>
           expr match {
-            case StrLit(str) => strings.addOne(str)
+            case StrLit(str) => roData.add(str)
             case _ =>
           }
           translatePrint(checkType(expr)(symbolTable))
@@ -240,7 +252,7 @@ object IRTranslator {
         case _ => ListBuffer(MovInstr(Immediate(0), reg))
       }
       case StrLit(str) =>
-        strings.addOne(str)
+        roData.add(str)
         ListBuffer(MovInstr(Immediate(0), reg)) // TODO: Fix this
       case Add(x, y) => {
         val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
@@ -277,7 +289,7 @@ object IRTranslator {
           Push(BasePointer()),
           MovInstr(StackPointer(), BasePointer()),
           Align(StackPointer()),
-          MovInstr(new scratchReg("dil"), new scratchReg("sil")), 
+          MovInstr(new scratchReg("dil"), new scratchReg("sil")),
           LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
           MovInstr(Immediate(0), new scratchReg("al")),
           CallInstr(Label("printf@plt")),
@@ -293,35 +305,22 @@ object IRTranslator {
       }
 
       case StringType() => {
-        val strBlock = new AsmBlock(Directive(""), Label("_prints"), List.empty)
-        val paramRegOne = getParamReg()
-        val paramRegTwo = getParamReg()
-        val scratchRegOne = new scratchReg(s"${scratchRegs.length + 1}")
-        val printInstrs:List[Instruction] = List(
-          Push(BasePointer()),
-          MovInstr(StackPointer(), BasePointer()),
-          Align(StackPointer()),
-          MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
-          MovInstr(Memory(new scratchReg("rdi"), -4), new scratchReg("esi")),
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
-          MovInstr(Immediate(0), new scratchReg("al")),
-          CallInstr(Label("printf@plt")),
-          MovInstr(Immediate(0), new scratchReg("rdi")),
-          CallInstr(Label("fflush@plt")),
-          MovInstr(BasePointer(), StackPointer()),
-          Pop(BasePointer()),
-          Ret()
+        addBlock(PrintBlock())
+        List(
+          LeaInstr(Memory(new scratchReg("rip"), roData.prevString()), ReturnRegister()),
+          Push(ReturnRegister()),
+          Pop(ReturnRegister()),
+          MovInstr(ReturnRegister(), ReturnRegister()),
+          MovInstr(ReturnRegister(), new scratchReg("rdi")),
+          CallInstr(Label("_prints"))
         )
-        blocks.addOne(strBlock)
-        strBlock.instructions = printInstrs
-        printInstrs
       }
 
       case BoolType() => {
         val boolPrintBlock = new AsmBlock(Directive(""), Label("_printb"), List.empty)
         val printb0Block = new AsmBlock(Directive(""), Label(".L_printb0"), List.empty)
         val printb1Block = new AsmBlock(Directive(""), Label(".L_printb1"), List.empty)
-        val paramRegOne = getParamReg() 
+        val paramRegOne = getParamReg()
         val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
         val printInstrs: List[Instruction] = List(
           Push(BasePointer()),
@@ -357,7 +356,7 @@ object IRTranslator {
 
       case IntType() => {
         val intPrintBlock = new AsmBlock(Directive(""), Label("_printi"), List.empty)
-        val paramRegOne = getParamReg() 
+        val paramRegOne = getParamReg()
         val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
         val printInstrs: List[Instruction] = List(
           Push(BasePointer()),
@@ -409,9 +408,15 @@ object IRTranslator {
     Label(s".L${labels-1}")
   }
 
-  private def addBlock(block: AsmBlock) = {
-    if (!blocks.map(block => block.label).contains(block.label)) {
-      blocks.addOne(block)
+  private def addBlock(block: Block): Unit = {
+    block match {
+      case prt: PrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prt.label)) {
+        blocks.addOne(new PrintBlockROData())
+        blocks.addOne(prt)
+      }
+      case asm: AsmBlock => if (!blocks.map({ case b: AsmBlock => b.label }).contains(asm.label)) {
+        blocks.addOne(block)
+      }
     }
   }
 }

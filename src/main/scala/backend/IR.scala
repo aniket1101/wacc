@@ -1,7 +1,10 @@
 package backend
 import IRRegisters._
 import IRTranslator.{getParamReg, translatePrint}
+import backend.IR.{Label, Ret}
 import frontend.ast.StringType
+
+import scala.collection.mutable.ListBuffer
 
 object IR {
 
@@ -156,12 +159,36 @@ object IR {
     Ret()
   ))
 
-  class ReadOnlyData(val strings: List[String]) extends Block {
+  case class PrintBlock() extends AsmBlock(Directive("text"), Label("_prints"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
+    MovInstr(Memory(new scratchReg("rdi"), -4), new scratchReg("esi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
+    MovInstr(Immediate(0), new scratchReg("al")),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), new scratchReg("rdi")),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
+  class ReadOnlyData() extends Block {
+    val strings: ListBuffer[String] = ListBuffer()
+
+    def add(str: String): Unit = strings.addOne(str)
     override def toString: String = {
       s".section .rodata\n" + strings.map(str => s".L.str${strings.indexOf(str)}:\n\t.asciz \"$str\"").mkString("\n") + "\n"
     }
+
+    def prevString(): Label = Label(s".L.str${strings.length-1}")
   }
 
-  case class PrintBlock() extends AsmBlock(Directive(""), Label("_prints"), translatePrint(StringType()(-1,-1)).toList)
-
+  class PrintBlockROData() extends ReadOnlyData() {
+    override def toString: String = {
+      ".section .rodata\n\t.int 4\n.L._prints_str0:\n\t.asciz \"%.*s\"\n"
+    }
+  }
 }

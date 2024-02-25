@@ -1,5 +1,4 @@
 begin
-  int x = 5;
-  int y = 7;
-  int c = (x + y) * (3 + 4) * (3 + 9)
+  print "Hello World!";
+  print "Goodbye!"
 end

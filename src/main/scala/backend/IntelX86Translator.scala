@@ -3,30 +3,34 @@ package backend
 import backend.IR._
 import backend.IRRegisters.paramReg
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
 class IntelX86Translator {
   private val stackAlignmentMask: Int = -16
   private val paramRegs: List[Register] = List(new paramReg("RDI"), new paramReg("RSI"), new paramReg("RCX"), new paramReg("R8"), new paramReg("R9"))
-  def toAsmCode(asmInstr: ListBuffer[AsmBlock]): String = {
-    ".intel_syntax noprefix\n.globl main\n.section .rodata\n" +
+  def toAsmCode(asmInstr: List[Block]): String = {
+    ".intel_syntax noprefix\n.globl main\n" +
     asmInstr.map({
       case block: AsmBlock => convertDir(block.directive) +
       convertLabel(block.label) + convertInstrs(block.instructions)
-      case rodata: ReadOnlyData => convertROData(rodata.strings)
+      case rodata: ReadOnlyData => convertROData(rodata)
     }).mkString("").strip() + "\n"
   }
 
-  def convertROData(strings: List[String]): String = {
-    val rod: StringBuilder = new StringBuilder(".section .rodata\n")
-    for (i <- strings.indices) {
-      val str = strings(i)
-      rod.append(s"\t.int ${str.length}\n")
-      rod.append(s".L.str$i:\n")
-      rod.append(s"\t.asciz \"$str\"\n")
+  def convertROData(rodata: ReadOnlyData): String = {
+    rodata match {
+      case rod: PrintBlockROData => {
+        rod.toString
+      }
+      case rodata =>
+        val rod: StringBuilder = new StringBuilder(".section .rodata\n")
+        for (i <- rodata.strings.indices) {
+          val str = rodata.strings(i)
+          rod.append(s"\t.int ${str.length}\n")
+          rod.append(s".L.str$i:\n")
+          rod.append(s"\t.asciz \"$str\"\n")
+        }
+        rod.toString()
     }
-    rod.toString()
+
   }
 
   private def convertDir(dir: Directive): String = if (dir.name.isEmpty) "" else s".${dir.name}\n"
@@ -85,7 +89,7 @@ class IntelX86Translator {
         case _ => register.reg
       }
       case memory: Memory =>
-        var size = "qword ptr "
+        var size = "dword ptr "
         val expr = memory.offset match {
           case None => ""
           case Some(OffsetInt(x)) => s" ${if (x > 0) "+" else "-"} ${Math.abs(x)}"
