@@ -20,17 +20,17 @@ class IntelX86Test extends AnyFlatSpec {
           val returnVal = s"wsl ./$output > output.txt".!
           // Delete produced file
           s"wsl rm $output".!
-          new ExecOutput(returnVal, readFileToString(new File("output.txt")))
+          new ExecOutput(returnVal, readFileToString("output.txt"))
         case _ => new ExecOutput(-1, "")
       }
     } else {
       val output = removeFileExt(filename)
       s"gcc -o $output $filename".! match {
         case 0 =>
-          val returnVal = s"./$output > output".!
+          val returnVal = s"./$output > output.txt".!
           // Delete produced file
           s"rm $output".!
-          new ExecOutput(returnVal, readFileToString(new File("output")))
+          new ExecOutput(returnVal, readFileToString("output.txt"))
         case _ => new ExecOutput(-1, "")
       }
     }
@@ -67,7 +67,7 @@ class IntelX86Test extends AnyFlatSpec {
     }
   }
 
-  def readFileToString(file: File): String = {
+  def readFileToString(file: String): String = {
     val source = Source.fromFile(file)
     try {
       source.mkString
