@@ -34,7 +34,7 @@ class IntelX86Test extends AnyFlatSpec {
           // Delete produced file
           s"rm $output".!
           s"rm output.txt".!
-          new ExecOutput(returnVal, readFileToString(new File("output.txt")))
+          new ExecOutput(returnVal, contents)
         case _ => new ExecOutput(-1, "")
       }
     }
