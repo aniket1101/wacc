@@ -191,4 +191,23 @@ object IR {
       ".section .rodata\n\t.int 4\n.L._prints_str0:\n\t.asciz \"%.*s\"\n"
     }
   }
+
+  case class PrintlnBlock() extends AsmBlock(Directive("text"), Label("_println"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._println_str0")), new scratchReg("rdi")),
+    CallInstr(Label("puts@plt")),
+    MovInstr(Immediate(0), new scratchReg("rdi")),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
+  class PrintlnBlockROData() extends ReadOnlyData() {
+    override def toString: String = {
+      ".section .rodata\n\t.int 0\n.L._println_str0:\n\t.asciz \"\"\n"
+    }
+  }
 }

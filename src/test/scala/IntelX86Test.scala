@@ -17,24 +17,20 @@ class IntelX86Test extends AnyFlatSpec {
       val output = removeFileExt(linuxFilename)
       s"wsl gcc -o $output $linuxFilename".! match {
         case 0 =>
-          val returnVal = s"wsl ./$output >> output.txt".!
-          val contents = readFileToString(new File("output.txt"))
+          val returnVal = s"wsl ./$output > output.txt".!
           // Delete produced file
           s"wsl rm $output".!
-          s"wsl rm output.txt".!
-          new ExecOutput(returnVal, contents)
+          new ExecOutput(returnVal, readFileToString(new File("output.txt")))
         case _ => new ExecOutput(-1, "")
       }
     } else {
       val output = removeFileExt(filename)
       s"gcc -o $output $filename".! match {
         case 0 =>
-          val returnVal = s"./$output >> output.txt".!
-          val contents = readFileToString(new File("output.txt"))
+          val returnVal = s"./$output > output.txt".!
           // Delete produced file
           s"rm $output".!
-          s"rm output.txt".!
-          new ExecOutput(returnVal, contents)
+          new ExecOutput(returnVal, readFileToString(new File("output.txt")))
         case _ => new ExecOutput(-1, "")
       }
     }
@@ -54,6 +50,7 @@ class IntelX86Test extends AnyFlatSpec {
 
       // Delete generated files
       deleteFile(outputFile)
+      deleteFile("output.txt")
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode

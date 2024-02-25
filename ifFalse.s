@@ -1,14 +1,20 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-	.int 12
+	.int 4
 .L.str0:
-	.asciz "Hello World!"
+	.asciz "here"
+	.int 8
+.L.str1:
+	.asciz "not here"
 .text
 main:
 	push rbp
 	push rbx
 	mov rbp, rsp
+	mov rax, 0
+	cmp rax, 1
+	je .L2
 	lea rax, [rip + .L.str0]
 	push rax
 	pop rax
@@ -16,10 +22,7 @@ main:
 	mov rdi, rax
 	call _prints
 	call _println
-	mov rax, 0
-	pop rbx
-	pop rbp
-	ret
+	jmp .L3
 
 .section .rodata
 	.int 4
@@ -55,5 +58,21 @@ _println:
 	mov rdi, 0
 	call fflush@plt
 	mov rsp, rbp
+	pop rbp
+	ret
+
+.L2:
+	lea rax, [rip + .L.str1]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	call _prints
+	call _println
+	jmp .L3
+
+.L3:
+	mov rax, 0
+	pop rbx
 	pop rbp
 	ret

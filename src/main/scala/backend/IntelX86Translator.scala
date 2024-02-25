@@ -20,6 +20,9 @@ class IntelX86Translator {
       case rod: PrintBlockROData => {
         rod.toString
       }
+      case rod: PrintlnBlockROData => {
+        rod.toString
+      }
       case rodata =>
         val rod: StringBuilder = new StringBuilder(".section .rodata\n")
         for (i <- rodata.strings.indices) {

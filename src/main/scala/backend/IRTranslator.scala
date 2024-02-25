@@ -139,6 +139,14 @@ object IRTranslator {
             case _ =>
           }
           translatePrint(checkType(expr)(symbolTable))
+        case Println(expr) =>
+          expr match {
+            case StrLit(str) => roData.add(str)
+            case _ =>
+          }
+          val instrs = translatePrint(checkType(expr)(symbolTable)).concat(List(CallInstr(Label("_println"))))
+          addBlock(PrintlnBlock())
+          instrs
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
           val restLabel = getNewLabel()
@@ -414,7 +422,12 @@ object IRTranslator {
         blocks.addOne(new PrintBlockROData())
         blocks.addOne(prt)
       }
-      case asm: AsmBlock => if (!blocks.map({ case b: AsmBlock => b.label }).contains(asm.label)) {
+
+      case prtLn: PrintlnBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ => }).contains(prtLn.label)) {
+        blocks.addOne(new PrintlnBlockROData())
+        blocks.addOne(prtLn)
+      }
+      case asm: AsmBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(asm.label)) {
         blocks.addOne(block)
       }
     }
