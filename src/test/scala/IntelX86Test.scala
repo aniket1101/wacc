@@ -27,10 +27,10 @@ class IntelX86Test extends AnyFlatSpec {
       val output = removeFileExt(filename)
       s"gcc -o $output $filename".! match {
         case 0 =>
-          val returnVal = s"./$output > output.txt".!
+          val returnVal = s"./$output > output".!
           // Delete produced file
           s"rm $output".!
-          new ExecOutput(returnVal, readFileToString(new File("output.txt")))
+          new ExecOutput(returnVal, readFileToString(new File("output")))
         case _ => new ExecOutput(-1, "")
       }
     }
