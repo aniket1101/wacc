@@ -1,8 +1,5 @@
 package backend
-import IRRegisters._
-import IRTranslator.{getParamReg, translatePrint}
-import backend.IR.{Label, Ret}
-import frontend.ast.StringType
+import backend.IRRegisters._
 
 import scala.collection.mutable.ListBuffer
 
@@ -31,27 +28,27 @@ object IR {
 
   case class OffsetLabel(label: Label) extends Offset
 
-  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Offset]) extends MemOrReg {
-    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(OffsetInt(offset)) else None)
+  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Offset], size: Int) extends MemOrReg {
+    def this(primReg: Register, offset: Int, size: Int) = this(Some(primReg), None, None, if (offset != 0) Some(OffsetInt(offset)) else None, size)
 
-    def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
+    def this(primReg: Register, secReg: Register, size: Int) = this(Some(primReg), Some(secReg), None, None, size)
 
-    def this(primReg: Register, secReg: Register, multiplier: Int) = {
-      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None)
+    def this(primReg: Register, secReg: Register, multiplier: Int, size: Int) = {
+      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None, size)
     }
 
-    def this(secReg: Register, multiplier: Int, offset: Int) = {
-      this (None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None)
+    def this(secReg: Register, multiplier: Int, offset: Int, size: Int) = {
+      this (None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None, size)
     }
 
-    def this(primReg: Register, secReg: Register, multiplier: Int, offset: Int) = {
-      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None)
+    def this(primReg: Register, secReg: Register, multiplier: Int, offset: Int, size: Int) = {
+      this (Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None, size)
     }
   }
   object Memory {
-    def apply(primReg: Register): Memory = new Memory(Some(primReg), None, None, None) {}
-    def apply(primReg: Register, offset: Int):Memory = new Memory(Some(primReg), None, None, Some(OffsetInt(offset))) {}
-    def apply(primReg: Register, label: Label):Memory = new Memory(Some(primReg), None, None, Some(OffsetLabel(label))) {}
+    def apply(primReg: Register, size: Int): Memory = new Memory(Some(primReg), None, None, None, size) {}
+    def apply(primReg: Register, offset: Int, size: Int):Memory = new Memory(Some(primReg), None, None, Some(OffsetInt(offset)), size) {}
+    def apply(primReg: Register, label: Label, size: Int):Memory = new Memory(Some(primReg), None, None, Some(OffsetLabel(label)), size) {}
   }
 
   // ADD instruction
@@ -189,8 +186,8 @@ object IR {
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
     MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
-    MovInstr(Memory(new scratchReg("rdi"), -4), new scratchReg("esi")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
+    MovInstr(Memory(new scratchReg("rdi"), -4, 4), new scratchReg("esi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0"), 4), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
@@ -205,7 +202,7 @@ object IR {
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
     MovInstr(new scratchReg("dil"), new scratchReg("sil")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0"), 4), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
@@ -221,17 +218,17 @@ object IR {
     Align(StackPointer()),
     CmpInstr(Immediate(0), new scratchReg("dil")),
     JneInstr(Label(".L_printb0")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0"), 4), new scratchReg("rdx")),
     JumpInstr(Label(".L_printb1"))
   ))
 
   case class BoolPrintBlock0() extends AsmBlock(Directive(""), Label(".L_printb0"), List(
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx"))
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1"), 4), new scratchReg("rdx"))
   ))
 
   case class BoolPrintBlock1() extends AsmBlock(Directive(""), Label(".L_printb1"), List(
-    MovInstr(Memory(new scratchReg("rdx"), -4), new scratchReg("esi")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
+    MovInstr(Memory(new scratchReg("rdx"), -4, 4), new scratchReg("esi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2"), 4), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
@@ -246,7 +243,7 @@ object IR {
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
     MovInstr(new scratchReg("edi"), new scratchReg("esi")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0")), new scratchReg("rdi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0"), 4), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
@@ -307,7 +304,7 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._println_str0")), new scratchReg("rdi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._println_str0"), 4), new scratchReg("rdi")),
     CallInstr(Label("puts@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
     CallInstr(Label("fflush@plt")),

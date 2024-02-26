@@ -1,15 +1,13 @@
-# printing the contents of a char[] is possible via an intermediate variable
+# variable can have _ in their names
 
 # Output:
-# hi!
-#
 
 # Exit:
-# 0
+# 19
 
 # Program:
 
 begin
-  char[] s = ['h','i','!'];
-  println s
+  int an_underscore = 19 ;
+  exit an_underscore
 end

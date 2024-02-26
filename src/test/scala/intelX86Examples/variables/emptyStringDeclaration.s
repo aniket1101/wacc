@@ -1,32 +1,29 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
+# length of .L.str0
+	.int 0
+.L.str0:
+	.asciz ""
 .text
 main:
 	push rbp
+	# push {rbx, r12}
 	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
-	mov rax, 19
+	# Stack pointer unchanged, no stack allocated variables
+	lea rax, [rip + .L.str0]
+	push rax
+	pop rax
+	mov rax, rax
 	mov r12, rax
-	mov rax, r12
-	push rdi
-	mov rdi, rax
-	call _exit
-	pop rdi
+	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
+	# pop {rbx, r12}
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
 	add rsp, 16
-	pop rbp
-	ret
-
-_exit:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	call exit@plt
-	mov rsp, rbp
 	pop rbp
 	ret

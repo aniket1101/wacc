@@ -88,10 +88,10 @@ object IRTranslator {
       instructions.addOne(SubInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
       val rbx = new varReg("rbx")
       varRegs += rbx
-      instructions.addOne(MovInstr(rbx, Memory(StackPointer())))
+      instructions.addOne(MovInstr(rbx, Memory(StackPointer(), 8)))
       for (regNo <- 1 to usedRegs) {
         val newVarReg = new varReg(s"varReg${varRegs.length + 1}")
-        instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo)))
+        instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo, 8)))
         varRegs += newVarReg
       }
     }
@@ -109,9 +109,9 @@ object IRTranslator {
     if (usedRegs == 0) {
       instructions.addOne(Pop(varRegs.head: varReg))
     } else {
-      instructions.addOne(MovInstr(Memory(StackPointer()), varRegs.head: varReg))
+      instructions.addOne(MovInstr(Memory(StackPointer(), 8), varRegs.head: varReg))
       for (regNo <- 1 to usedRegs) {
-        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), varRegs(regNo): varReg))
+        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo, 8), varRegs(regNo): varReg))
       }
       instructions.addOne(AddInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
     }
@@ -377,7 +377,7 @@ object IRTranslator {
       case StringType() => {
         addBlock(StringPrintBlock())
         List(
-          LeaInstr(Memory(new scratchReg("rip"), roData.prevString()), ReturnRegister()),
+          LeaInstr(Memory(new scratchReg("rip"), roData.prevString(), 4), ReturnRegister()),
           Push(ReturnRegister()),
           Pop(ReturnRegister()),
           MovInstr(ReturnRegister(), ReturnRegister()),

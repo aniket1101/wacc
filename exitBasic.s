@@ -4,21 +4,15 @@
 .text
 main:
 	push rbp
-	sub rsp, 16
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
+	push rbx
 	mov rbp, rsp
-	mov rax, 19
-	mov r12, rax
-	mov rax, r12
+	mov rax, 7
 	push rdi
 	mov rdi, rax
 	call _exit
 	pop rdi
 	mov rax, 0
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	pop rbx
 	pop rbp
 	ret
 

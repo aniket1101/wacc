@@ -6,18 +6,18 @@ main:
 	push rbp
 	sub rsp, 16
 	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 8], r16
 	mov rbp, rsp
-	mov rax, 19
-	mov r12, rax
-	mov rax, r12
+	mov rax, 5
+	mov rbx, rax
+	mov rax, rbx
 	push rdi
 	mov rdi, rax
 	call _exit
 	pop rdi
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
+	mov rbx, qword ptr [rsp + 8]
 	add rsp, 16
 	pop rbp
 	ret

@@ -53,7 +53,7 @@ class IntelX86Test extends AnyFlatSpec {
       val output = compileAndRunAsm(outputFile)
 
       // Delete generated files
-      deleteFile(outputFile)
+//      deleteFile(outputFile)
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode

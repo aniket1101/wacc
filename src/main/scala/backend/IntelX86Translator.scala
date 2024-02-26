@@ -1,7 +1,7 @@
 package backend
 
 import backend.IR._
-import backend.IRRegisters.paramReg
+import backend.IRRegisters.{paramReg, varReg}
 
 class IntelX86Translator {
   private val stackAlignmentMask: Int = -16
@@ -106,10 +106,15 @@ class IntelX86Translator {
       case imm: Immediate => imm.value.toString
       case register: Register => register match {
         case param: paramReg => getParamReg(param.reg.replace("paramReg", "").toInt-1)
+        case vReg: varReg => if (vReg.reg.contains("varReg")) ("r1" + vReg.reg.replace("varReg", "").last) else (vReg.reg)
         case _ => register.reg
       }
       case memory: Memory =>
-        var size = "dword ptr "
+        var size = (memory.size match {
+          case 4 => "dword"
+          case 8 => "qword"
+          case _ => "word"
+        }) + " ptr "
         val expr = memory.offset match {
           case None => ""
           case Some(OffsetInt(x)) => s" ${if (x > 0) "+" else "-"} ${Math.abs(x)}"
