@@ -184,13 +184,70 @@ object IR {
     Ret()
   ))
 
-  case class PrintBlock() extends AsmBlock(Directive("text"), Label("_prints"), List(
+  case class StringPrintBlock() extends AsmBlock(Directive("text"), Label("_prints"), List(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
     MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
     MovInstr(Memory(new scratchReg("rdi"), -4), new scratchReg("esi")),
     LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
+    MovInstr(Immediate(0), new sc
+    ratchReg("al")),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), new scratchReg("rdi")),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
+  case class CharPrintBlock() extends AsmBlock(Directive("text"), Label("_printc"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    MovInstr(new scratchReg("dil"), new scratchReg("sil")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
+    MovInstr(Immediate(0), new scratchReg("al")),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), new scratchReg("rdi")),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(StackPointer(), BasePointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
+  case class BoolPrintBlock() extends AsmBlock(Directive("text"), Label("_printb"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    CmpInstr(Immediate(0), paramRegOne),
+    JneInstr(Label(".L_printb0")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
+    JumpInstr(Label(".L_printb1"))
+  ))
+
+  case class BoolPrintBlock0() extends AsmBlock(Directive("text"), Label("_printb0"), List(
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx"))
+  ))
+
+  case class BoolPrintBlock1() extends AsmBlock(Directive("text"), Label("_printb1"), List(
+    MovInstr(Memory(new scratchReg("rdx"), -4), new scratchReg("esi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
+    MovInstr(Immediate(0), new scratchReg("al")),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), new scratchReg("rdi")),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
+  case class IntPrintBlock() extends AsmBlock(Directive("text"), Label("_printi"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    MovInstr(paramRegOne, new scratchReg("esi")),
+    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0")), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
@@ -211,9 +268,27 @@ object IR {
     def prevString(): Label = Label(s".L.str${strings.length-1}")
   }
 
-  class PrintBlockROData() extends ReadOnlyData() {
+  class StringPrintBlockROData() extends ReadOnlyData() {
     override def toString: String = {
       ".section .rodata\n\t.int 4\n.L._prints_str0:\n\t.asciz \"%.*s\"\n"
+    }
+  }
+
+  class CharPrintBlockROData() extends ReadOnlyData() {
+    override def toString: String = {
+      ".section .rodata\n\t.int 2\n.L._printc_str0:\n\t.asciz \"%c\"\n"
+    }
+  }
+
+  class IntPrintBlockROData() extends ReadOnlyData() {
+    override def toString: String = {
+      ".section .rodata\n\t.int 2\n.L._printi_str0:\n\t.asciz \"%d\"\n"
+    }
+  }
+
+  class BoolPrintBlockROData() extends ReadOnlyData() {
+    override def toString: String = {
+      ".section .rodata\n\t.int 5\n.L._printb_str0:\n\t.asciz \"false\"\n\t.int 4\n.L._printb_str1:\n\t.asciz \"true\"\n\t.int 4\n.L._printb_str2:\n\t.asciz \"%.*s\"\n"
     }
   }
 

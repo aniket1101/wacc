@@ -138,13 +138,13 @@ object IRTranslator {
             case StrLit(str) => roData.add(str)
             case _ =>
           }
-          translatePrint(checkType(expr)(symbolTable))
+          translatePrint(checkType(expr)(symbolTable), expr: Expr)
         case Println(expr) =>
           expr match {
             case StrLit(str) => roData.add(str)
             case _ =>
           }
-          val instrs = translatePrint(checkType(expr)(symbolTable)).concat(List(CallInstr(Label("_println"))))
+          val instrs = translatePrint(checkType(expr)(symbolTable), expr:Expr).concat(List(CallInstr(Label("_println"))))
           addBlock(PrintlnBlock())
           instrs
         case If(cond, thenStat, elseStat) => {
@@ -358,33 +358,23 @@ object IRTranslator {
     }
   }
 
-  def translatePrint(typ:Type): List[Instruction] = {
+  def translatePrint(typ:Type, expr: Expr): List[Instruction] = {
 
     typ match {
       case CharType() => {
-        val charPrintBlock = new AsmBlock(Directive(""), Label("_printc"), List.empty)
-        val paramRegOne = getParamReg()
-        val printInstrs: List[Instruction] = List(
-          Push(BasePointer()),
-          MovInstr(StackPointer(), BasePointer()),
-          Align(StackPointer()),
-          MovInstr(new scratchReg("dil"), new scratchReg("sil")),
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
-          MovInstr(Immediate(0), new scratchReg("al")),
-          CallInstr(Label("printf@plt")),
-          MovInstr(Immediate(0), new scratchReg("rdi")),
-          CallInstr(Label("fflush@plt")),
-          MovInstr(StackPointer(), BasePointer()),
-          Pop(BasePointer()),
-          Ret()
-        )
-        charPrintBlock.instructions = printInstrs
-        blocks.addOne(charPrintBlock)
-        printInstrs
+        addBlock(CharPrintBlock())
+        expr match {
+          case CharLit(chr) => 
+            List(
+              MovInstr(Immediate(chr), new scratchReg("rax")),
+              MovInstr(new scratchReg("rax"), new scratchReg("rdi")),
+              CallInstr(Label("_printc"))
+            )
+        }
       }
 
       case StringType() => {
-        addBlock(PrintBlock())
+        addBlock(StringPrintBlock())
         List(
           LeaInstr(Memory(new scratchReg("rip"), roData.prevString()), ReturnRegister()),
           Push(ReturnRegister()),
@@ -396,64 +386,29 @@ object IRTranslator {
       }
 
       case BoolType() => {
-        val boolPrintBlock = new AsmBlock(Directive(""), Label("_printb"), List.empty)
-        val printb0Block = new AsmBlock(Directive(""), Label(".L_printb0"), List.empty)
-        val printb1Block = new AsmBlock(Directive(""), Label(".L_printb1"), List.empty)
-        val paramRegOne = getParamReg()
-        val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
-        val printInstrs: List[Instruction] = List(
-          Push(BasePointer()),
-          MovInstr(StackPointer(), BasePointer()),
-          Align(StackPointer()),
-          CmpInstr(Immediate(0), paramRegOne),
-          JneInstr(Label(".L_printb0")),
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
-          JumpInstr(Label(".L_printb1"))
-        )
-        val printb0Instrs: List[Instruction] = List(
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx"))
-        )
-        val printb1Instrs: List[Instruction] = List(
-          MovInstr(Memory(new scratchReg("rdx"), -4), new scratchReg("esi")),
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
-          MovInstr(Immediate(0), new scratchReg("al")),
-          CallInstr(Label("printf@plt")),
-          MovInstr(Immediate(0), new scratchReg("rdi")),
-          CallInstr(Label("fflush@plt")),
-          MovInstr(BasePointer(), StackPointer()),
-          Pop(BasePointer()),
-          Ret()
-        )
-        boolPrintBlock.instructions = printInstrs
-        printb0Block.instructions = printb0Instrs
-        printb1Block.instructions = printb1Instrs
-        blocks.addOne(boolPrintBlock)
-        blocks.addOne(printb0Block)
-        blocks.addOne(printb1Block)
-        printInstrs
+        addBlock(BoolPrintBlock())
+        addBlock(BoolPrintBlock0())
+        addBlock(BoolPrintBlock1())
+        expr match {
+          case BoolLit(bl) => 
+            List(
+              MovInstr(Immediate(if (bl) 1 else 0), new scratchReg("rax")),
+              MovInstr(new scratchReg("rax"), new scratchReg("rdi")),
+              CallInstr(Label("_printb"))
+            )
+        }
       }
 
       case IntType() => {
-        val intPrintBlock = new AsmBlock(Directive(""), Label("_printi"), List.empty)
-        val paramRegOne = getParamReg()
-        val scratchRegOne = new scratchReg(s"scratch${scratchRegs.length + 1}")
-        val printInstrs: List[Instruction] = List(
-          Push(BasePointer()),
-          MovInstr(StackPointer(), BasePointer()),
-          Align(StackPointer()),
-          MovInstr(paramRegOne, new scratchReg("esi")),
-          LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0")), new scratchReg("rdi")),
-          MovInstr(Immediate(0), new scratchReg("al")),
-          CallInstr(Label("printf@plt")),
-          MovInstr(Immediate(0), new scratchReg("rdi")),
-          CallInstr(Label("fflush@plt")),
-          MovInstr(BasePointer(), StackPointer()),
-          Pop(BasePointer()),
-          Ret()
-        )
-        intPrintBlock.instructions = printInstrs
-        blocks.addOne(intPrintBlock)
-        printInstrs
+        addBlock(IntPrintBlock())
+        expr match {
+          case IntLit(myInt) => 
+            List(
+              MovInstr(Immediate(myInt), new scratchReg("rax")),
+              MovInstr(new scratchReg("rax"), new scratchReg("rdi")),
+              CallInstr(Label("_printi"))
+            )
+        }
       }
 
       case ArrayType(elementType) => {
@@ -489,9 +444,24 @@ object IRTranslator {
 
   private def addBlock(block: Block): Unit = {
     block match {
-      case prt: PrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prt.label)) {
-        blocks.addOne(new PrintBlockROData())
-        blocks.addOne(prt)
+      case prtS: StringPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtS.label)) {
+        blocks.addOne(new StringPrintBlockROData())
+        blocks.addOne(prtS)
+      }
+
+      case prtC: CharPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtC.label)) {
+        blocks.addOne(new CharPrintBlockROData())
+        blocks.addOne(prtC)
+      }
+
+      case prtB: BoolPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtB.label)) {
+        blocks.addOne(new BoolPrintBlockROData())
+        blocks.addOne(prtB)
+      }
+
+      case prtI: IntPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtI.label)) {
+        blocks.addOne(new IntPrintBlockROData())
+        blocks.addOne(prtI)
       }
 
       case prtLn: PrintlnBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ => }).contains(prtLn.label)) {
