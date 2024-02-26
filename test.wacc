@@ -1,13 +1,15 @@
-# consistent indentation is for readability purposes only
+# printing the contents of a char[] is possible via an intermediate variable
 
 # Output:
+# hi!
+#
+
+# Exit:
+# 0
 
 # Program:
 
-           begin
- while
-false
-         do
-    skip
-done
-                    end
+begin
+  char[] s = ['h','i','!'];
+  println s
+end

@@ -256,6 +256,18 @@ object IR {
     Ret()
   ))
 
+  case class MallocBlock() extends AsmBlock(Directive("text"), Label("_printi"), List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    CallInstr(Label("malloc@plt")),
+    CmpInstr(Immediate(0), new scratchReg("Rax")),
+    JeInstr(Label("_errOutOfMemory")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
   class ReadOnlyData() extends Block {
     val strings: ListBuffer[String] = ListBuffer()
 
