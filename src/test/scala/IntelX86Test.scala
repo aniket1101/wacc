@@ -17,20 +17,24 @@ class IntelX86Test extends AnyFlatSpec {
       val output = removeFileExt(linuxFilename)
       s"wsl gcc -o $output $linuxFilename".! match {
         case 0 =>
-          val returnVal = s"wsl ./$output > output.txt".!
-          // Delete produced file
+          val outputBuffer = new StringBuilder
+          val processLogger = ProcessLogger((output: String) => outputBuffer.append(output).append("\n"))
+          val exitCode = s"wsl ./$output".run(processLogger).exitValue()
+          val outputString = outputBuffer.toString()
           s"wsl rm $output".!
-          new ExecOutput(returnVal, readFileToString("output.txt"))
+          new ExecOutput(exitCode, outputString)
         case _ => new ExecOutput(-1, "")
       }
     } else {
-      val output = removeFileExt(filename)
-      s"gcc -o $output $filename".! match {
+      val output = removeFileExt(filename).replace("-", "")
+      s"gcc -o '$output' '$filename'".! match {
         case 0 =>
-          val returnVal = s"./$output > output.txt".!
-          // Delete produced file
+          val outputBuffer = new StringBuilder
+          val processLogger = ProcessLogger((output: String) => outputBuffer.append(output))
+          val exitCode = s"./$output".run(processLogger).exitValue()
+          val outputString = outputBuffer.toString()
           s"rm $output".!
-          new ExecOutput(returnVal, readFileToString("output.txt"))
+          new ExecOutput(exitCode, outputString)
         case _ => new ExecOutput(-1, "")
       }
     }
@@ -50,7 +54,6 @@ class IntelX86Test extends AnyFlatSpec {
 
       // Delete generated files
       deleteFile(outputFile)
-      deleteFile("output.txt")
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode
