@@ -283,6 +283,77 @@ object IRTranslator {
         scratchCounter = 0
         instrs
       }
+      case Mod(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(ModInstr(reg, yReg))
+        scratchCounter = 0
+        instrs
+      }
+      case GT(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveGT(reg)))
+        scratchCounter = 0
+        instrs
+      }
+      case GTE(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveGTE(reg)))
+        scratchCounter = 0
+        instrs
+      }
+      case LT(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveLT(reg)))
+        scratchCounter = 0
+        instrs
+      }
+      case LTE(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveLTE(reg)))
+        scratchCounter = 0
+        instrs
+      }
+      case Eq(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveEq(reg)))
+        scratchCounter = 0
+        instrs
+      }
+      case NEq(x, y) => {
+        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        scratchCounter += 1
+        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveNEq(reg)))
+        scratchCounter = 0
+        instrs
+      }
+      case And(x, y) => {
+        val shortCircuitLabel = getNewLabel()
+        val shortCircuitBlock = new AsmBlock(Directive(""), shortCircuitLabel, List.empty)
+        var instrs = evaluateExpr(x, reg).concat(List(CmpInstr(Immediate(1), reg), JneInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg))
+        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg), JumpInstr(shortCircuitLabel)))
+        shortCircuitBlock.instructions = List(MoveEq(reg))
+        updateCurBlock(instrs.toList)
+        addBlock(shortCircuitBlock)
+        curBlock = shortCircuitBlock
+        ListBuffer.empty
+      }
+      case Or(x, y) => {
+        val shortCircuitLabel = getNewLabel()
+        val shortCircuitBlock = new AsmBlock(Directive(""), shortCircuitLabel, List.empty)
+        var instrs = evaluateExpr(x, reg).concat(List(CmpInstr(Immediate(1), reg), JeInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg))
+        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg), JumpInstr(shortCircuitLabel)))
+        shortCircuitBlock.instructions = List(MoveEq(reg))
+        updateCurBlock(instrs.toList)
+        addBlock(shortCircuitBlock)
+        curBlock = shortCircuitBlock
+        ListBuffer.empty
+      }
       case Ident(x) => ListBuffer(MovInstr(variableMap.get(x).orNull, reg))
     }
   }

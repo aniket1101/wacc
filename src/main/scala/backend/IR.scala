@@ -88,6 +88,24 @@ object IR {
     def apply(src: Immediate, dst: Memory): MulInstr = new MulInstr(src, dst) {}
   }
 
+  // Mod Instruction
+  sealed abstract case class ModInstr(src: Operand, dst: Operand) extends Instruction
+  object ModInstr {
+    def apply(src: Register, dst: Register): ModInstr = new ModInstr(src, dst) {}
+
+    def apply(src: Register, dst: Memory): ModInstr = new ModInstr(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): ModInstr = new ModInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Register): ModInstr = new ModInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Immediate): ModInstr = new ModInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): ModInstr = new ModInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): ModInstr = new ModInstr(src, dst) {}
+  }
+
   // XOR instruction
   sealed abstract case class XORInstr(src: Operand, dst: Operand) extends Instruction
   object XORInstr {
@@ -135,6 +153,13 @@ object IR {
   case class JleInstr(label: Label) extends Instruction
   case class JneInstr(label: Label) extends Instruction
   case class JumpInstr(label: Label) extends Instruction
+
+  case class MoveGT(reg:Register) extends Instruction
+  case class MoveGTE(reg:Register) extends Instruction
+  case class MoveLT(reg:Register) extends Instruction
+  case class MoveLTE(reg:Register) extends Instruction
+  case class MoveEq(reg:Register) extends Instruction
+  case class MoveNEq(reg:Register) extends Instruction
 
   case class Push(reg: Register) extends Instruction
   case class Pop(reg: Register) extends Instruction

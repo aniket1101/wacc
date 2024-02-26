@@ -11,3 +11,4 @@ wacc-compiler
 .bloop/
 test.wacc
 test.s
+.attach_pid*

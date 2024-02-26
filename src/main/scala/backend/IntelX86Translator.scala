@@ -58,9 +58,17 @@ class IntelX86Translator {
       case SubInstr(value, reg) =>    formatInstr("sub", value, reg)
       case MulInstr(value, reg) =>    formatInstr("imul", value, reg)
       case JeInstr(label) =>          formatInstr("je", label)
+      case JneInstr(label) =>         formatInstr("jne", label)
       case JumpInstr(label) =>        formatInstr("jmp", label)
       case CmpInstr(op1, op2) =>      formatInstr("cmp", op1, op2)
       case LeaInstr(reg, mem) =>      formatInstr("lea", reg, mem)
+      case ModInstr(reg1, reg2) =>    formatInstr("mod", reg1, reg2)
+      case MoveEq(reg) =>             formatInstr("meq", reg)
+      case MoveNEq(reg) =>            formatInstr("mneq", reg)
+      case MoveLT(reg) =>             formatInstr("mlt", reg)
+      case MoveLTE(reg) =>            formatInstr("mlte", reg)
+      case MoveGT(reg) =>             formatInstr("mgt", reg)
+      case MoveGTE(reg) =>            formatInstr("mgte", reg)
     }
   }
 
