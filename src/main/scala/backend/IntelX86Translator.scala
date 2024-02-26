@@ -17,7 +17,16 @@ class IntelX86Translator {
 
   def convertROData(rodata: ReadOnlyData): String = {
     rodata match {
-      case rod: PrintBlockROData => {
+      case rod: StringPrintBlockROData => {
+        rod.toString
+      }
+      case rod: CharPrintBlockROData => {
+        rod.toString
+      }
+      case rod: IntPrintBlockROData => {
+        rod.toString
+      }
+      case rod: BoolPrintBlockROData => {
         rod.toString
       }
       case rod: PrintlnBlockROData => {

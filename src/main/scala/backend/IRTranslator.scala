@@ -28,6 +28,7 @@ object IRTranslator {
   var scratchRegs: List[Register] = List(new scratchReg("foo1"), new scratchReg("foo2"), new scratchReg("foo3"), new scratchReg("foo4"),new scratchReg("foo5"))
 
   def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
+    roData = new ReadOnlyData()
     val ourProgram: ListBuffer[Block] = translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
     ourProgram.insert(0, roData)
     ourProgram.toList

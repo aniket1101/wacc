@@ -191,8 +191,7 @@ object IR {
     MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
     MovInstr(Memory(new scratchReg("rdi"), -4), new scratchReg("esi")),
     LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
-    MovInstr(Immediate(0), new sc
-    ratchReg("al")),
+    MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
     CallInstr(Label("fflush@plt")),
@@ -211,7 +210,7 @@ object IR {
     CallInstr(Label("printf@plt")),
     MovInstr(Immediate(0), new scratchReg("rdi")),
     CallInstr(Label("fflush@plt")),
-    MovInstr(StackPointer(), BasePointer()),
+    MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
     Ret()
   ))
@@ -220,17 +219,17 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    CmpInstr(Immediate(0), paramRegOne),
+    CmpInstr(Immediate(0), new scratchReg("dil")),
     JneInstr(Label(".L_printb0")),
     LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
     JumpInstr(Label(".L_printb1"))
   ))
 
-  case class BoolPrintBlock0() extends AsmBlock(Directive("text"), Label("_printb0"), List(
+  case class BoolPrintBlock0() extends AsmBlock(Directive(""), Label(".L_printb0"), List(
     LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx"))
   ))
 
-  case class BoolPrintBlock1() extends AsmBlock(Directive("text"), Label("_printb1"), List(
+  case class BoolPrintBlock1() extends AsmBlock(Directive(""), Label(".L_printb1"), List(
     MovInstr(Memory(new scratchReg("rdx"), -4), new scratchReg("esi")),
     LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
@@ -246,7 +245,7 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    MovInstr(paramRegOne, new scratchReg("esi")),
+    MovInstr(new scratchReg("edi"), new scratchReg("esi")),
     LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0")), new scratchReg("rdi")),
     MovInstr(Immediate(0), new scratchReg("al")),
     CallInstr(Label("printf@plt")),

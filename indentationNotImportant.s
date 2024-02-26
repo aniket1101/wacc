@@ -6,18 +6,18 @@ main:
 	push rbp
 	push rbx
 	mov rbp, rsp
-	jmp .L0
+	jmp .L9
 
-.L0:
+.L9:
 	mov rax, 0
 	cmp rax, 1
-	je .L1
-	jmp .L2
+	je .L10
+	jmp .L11
 
-.L1:
-	jmp .L2
+.L10:
+	jmp .L11
 
-.L2:
+.L11:
 	mov rax, 0
 	pop rbx
 	pop rbp
