@@ -1,41 +1,20 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-	.int 11
-.L.str0:
-	.asciz "Hello World"
 .text
 main:
 	push rbp
-	push rbx
+	sub rsp, 16
+	mov dword ptr [rsp], rbx
+	mov dword ptr [rsp + 8], varReg2
 	mov rbp, rsp
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
-	mov rdi, rax
-	call _prints
+	mov rax, 7
+	mov scratchReg1, 9
+	mod scratchReg1, rax
+	mov varReg2, rax
 	mov rax, 0
-	pop rbx
-	pop rbp
-	ret
-
-.section .rodata
-	.int 4
-.L._prints_str0:
-	.asciz "%.*s"
-.text
-_prints:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	mov rdx, rdi
-	mov esi, dword ptr [rdi - 4]
-	lea rdi, [rip + .L._prints_str0]
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
+	mov rbx, dword ptr [rsp]
+	mov varReg2, dword ptr [rsp + 8]
+	add rsp, 16
 	pop rbp
 	ret

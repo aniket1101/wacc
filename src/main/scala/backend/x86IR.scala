@@ -1,5 +1,6 @@
 package backend
 
+import backend.IR.Immediate
 import backend.x86IR.InstrSize.InstrSize
 
 object x86IR {
@@ -137,44 +138,44 @@ object x86IR {
   }
 
   // MOV instruction
-  sealed abstract case class Mov(src: x86Operand, dst: x86Operand) extends x86Instruction
+  sealed abstract case class Mov(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Mov {
-    def apply(src: x86Register, dst: x86Register): Mov = new Mov(src, dst) {}
+    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Memory): Mov = new Mov(src, dst) {}
+    def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate): Mov = new Mov(src, dst) {}
+    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Register): Mov = new Mov(src, dst) {}
+    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register): Mov = new Mov(src, dst) {}
+    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Memory): Mov = new Mov(src, dst) {}
+    def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
   }
 
   case class Call(label: x86Label) extends x86Instruction
 
-  sealed abstract case class Cmp(src: x86Operand, value: x86Operand) extends x86Instruction
+  sealed abstract case class Cmp(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Cmp {
-    def apply(src: x86Immediate, dst: x86Immediate): Cmp = new Cmp(src, dst) {}
+    def apply(src: x86Immediate, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Memory): Cmp = new Cmp(src, dst) {}
+    def apply(src: x86Memory, dst: x86Memory, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Register): Cmp = new Cmp(src, dst) {}
+    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register): Cmp = new Cmp(src, dst) {}
+    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate): Cmp = new Cmp(src, dst) {}
+    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Memory): Cmp = new Cmp(src, dst) {}
+    def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
   }
 
-  sealed abstract case class LeaInstr(src: x86Operand, value: x86Operand) extends x86Instruction
+  sealed abstract case class Lea(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
 
-  object LeaInstr {
-    def apply(src: x86Memory, dst: x86Register): LeaInstr = new LeaInstr(src, dst) {}
+  object Lea {
+    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Lea = new Lea(src, dst, instrSize) {}
   }
 
   case class Je(label: x86Label) extends x86Instruction
@@ -187,15 +188,42 @@ object x86IR {
 
   case class Jne(label: x86Label) extends x86Instruction
 
+  case class Jo() extends x86Instruction
+
   case class Jump(label: x86Label) extends x86Instruction
 
-  case class Push(reg: x86Register) extends x86Instruction
+  case class Push(reg: x86Register, instrSize: InstrSize) extends x86Instruction
 
-  case class Pop(reg: x86Register) extends x86Instruction
+  case class Pop(reg: x86Register, instrSize: InstrSize) extends x86Instruction
 
-  case class Align(reg: x86Register) extends x86Instruction
+  case class And(reg:x86Register, value:x86Immediate, instrSize: InstrSize) extends x86Instruction
 
-  case class Ret() extends x86Instruction
+  case class Sete(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Setne(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Setg(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Setge(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Setl(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Setle(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+
+  // MOVSX instruction
+  sealed abstract case class MoveSX(src:x86Operand, dst:x86Operand, srcSize: InstrSize, dstSize: InstrSize) extends x86Instruction
+
+  object MoveSX {
+    def apply(src:x86Register, dst:x86Register, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+
+    def apply(src:x86Register, dst:x86Memory, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+
+    def apply(src:x86Register, dst:x86Immediate, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+
+    def apply(src:x86Memory, dst:x86Register, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+
+    def apply(src:x86Immediate, dst:x86Register, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+
+    def apply(src:x86Immediate, dst:x86Memory, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+  }
+
+  case class CDQ() extends x86Instruction
+  case class Return() extends x86Instruction
 
   sealed trait Block
 
