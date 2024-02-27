@@ -1,6 +1,7 @@
 package backend
 import IRRegisters._
 import IRTranslator.{getParamReg, translatePrint}
+import backend.IR.Size.{BIT_32, BIT_64, Size}
 import backend.IR.{Label, Ret}
 import frontend.ast.StringType
 
@@ -9,6 +10,15 @@ import scala.collection.mutable.ListBuffer
 object IR {
 
   sealed trait Instruction
+
+  object Size extends Enumeration {
+    type Size = Value
+
+    val BIT_64 = Value(64)
+    val BIT_32 = Value(32)
+    val BIT_16 = Value(16)
+    val BIT_8 = Value(8)
+  }
 
   case class Label(name: String)
   case class Directive(name: String)
@@ -55,7 +65,12 @@ object IR {
   }
 
   // ADD instruction
-  sealed abstract case class AddInstr(src: Operand, dst: Operand) extends Instruction
+  sealed abstract case class AddInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): AddInstr = {
+      this.size = size
+      this
+    }
+  }
   object AddInstr {
     def apply(src:Register, dst:Register):AddInstr = new AddInstr(src, dst) {}
     def apply(src:Register, dst:Memory):AddInstr = new AddInstr(src, dst) {}
@@ -66,7 +81,12 @@ object IR {
     def apply(src:Immediate, dst:Memory):AddInstr = new AddInstr(src, dst) {}
   }
 
-  sealed abstract case class SubInstr(src: Operand, dst: Operand) extends Instruction
+  sealed abstract case class SubInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): SubInstr = {
+      this.size = size
+      this
+    }
+  }
   object SubInstr {
     def apply(src: Register, dst: Register): SubInstr = new SubInstr(src, dst) {}
     def apply(src: Register, dst: Memory): SubInstr = new SubInstr(src, dst) {}
@@ -77,7 +97,12 @@ object IR {
     def apply(src: Immediate, dst: Memory): SubInstr = new SubInstr(src, dst) {}
   }
 
-  sealed abstract case class MulInstr(src: Operand, dst: Operand) extends Instruction
+  sealed abstract case class MulInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): MulInstr = {
+      this.size = size
+      this
+    }
+  }
   object MulInstr {
     def apply(src: Register, dst: Register): MulInstr = new MulInstr(src, dst) {}
     def apply(src: Register, dst: Memory): MulInstr = new MulInstr(src, dst) {}
@@ -89,7 +114,12 @@ object IR {
   }
 
   // Mod Instruction
-  sealed abstract case class ModInstr(src: Operand, dst: Operand) extends Instruction
+  sealed abstract case class ModInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): ModInstr = {
+      this.size = size
+      this
+    }
+  }
   object ModInstr {
     def apply(src: Register, dst: Register): ModInstr = new ModInstr(src, dst) {}
 
@@ -119,7 +149,12 @@ object IR {
   }
 
   // MOV instruction
-  sealed abstract case class MovInstr(src: Operand, dst: Operand) extends Instruction
+  sealed abstract case class MovInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): MovInstr = {
+      this.size = size
+      this
+    }
+  }
   object MovInstr {
     def apply(src: Register, dst: Register): MovInstr = new MovInstr(src, dst) {}
     def apply(src: Register, dst: Memory): MovInstr = new MovInstr(src, dst) {}
@@ -131,7 +166,12 @@ object IR {
 
   case class CallInstr(label:Label) extends Instruction
 
-  sealed abstract case class CmpInstr(src: Operand, value: Operand) extends Instruction
+  sealed abstract case class CmpInstr(src: Operand, value: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): CmpInstr = {
+      this.size = size
+      this
+    }
+  }
   object CmpInstr {
     def apply(src: Immediate, dst: Immediate): CmpInstr = new CmpInstr(src, dst) {}
     def apply(src: Memory, dst: Memory): CmpInstr = new CmpInstr(src, dst) {}
@@ -141,7 +181,12 @@ object IR {
     def apply(src: Immediate, dst: Memory): CmpInstr = new CmpInstr(src, dst) {}
   }
 
-  sealed abstract case class LeaInstr(src: Operand, value: Operand) extends Instruction
+  sealed abstract case class LeaInstr(src: Operand, value: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): LeaInstr = {
+      this.size = size
+      this
+    }
+  }
 
   object LeaInstr {
     def apply(src: Memory, dst: Register): LeaInstr = new LeaInstr(src, dst) {}
@@ -154,17 +199,32 @@ object IR {
   case class JneInstr(label: Label) extends Instruction
   case class JumpInstr(label: Label) extends Instruction
 
-  case class MoveGT(reg:Register) extends Instruction
-  case class MoveGTE(reg:Register) extends Instruction
-  case class MoveLT(reg:Register) extends Instruction
-  case class MoveLTE(reg:Register) extends Instruction
-  case class MoveEq(reg:Register) extends Instruction
-  case class MoveNEq(reg:Register) extends Instruction
+  case class MoveGT(reg:Register, size: Size = BIT_64) extends Instruction
+  case class MoveGTE(reg:Register, size: Size = BIT_64) extends Instruction
+  case class MoveLT(reg:Register, size: Size = BIT_64) extends Instruction
+  case class MoveLTE(reg:Register, size: Size = BIT_64) extends Instruction
+  case class MoveEq(reg:Register, size: Size = BIT_64) extends Instruction
+  case class MoveNEq(reg:Register, size: Size = BIT_64) extends Instruction
 
-  case class Push(reg: Register) extends Instruction
-  case class Pop(reg: Register) extends Instruction
+  case class Push(reg: Register, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): Push = {
+      this.size = size
+      this
+    }
+  }
+  case class Pop(reg: Register, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): Pop = {
+      this.size = size
+      this
+    }
+  }
 
-  case class Align(reg: Register) extends Instruction
+  case class Align(reg: Register, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): Align = {
+      this.size = size
+      this
+    }
+  }
   case class Ret() extends Instruction
 
   sealed trait Block
