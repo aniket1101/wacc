@@ -60,7 +60,12 @@ class IntelX86Translator {
       case JumpInstr(label) =>        formatInstr("jmp", label)
       case CmpInstr(op1, op2) =>      formatInstr("cmp", op1, op2)
       case LeaInstr(reg, mem) =>      formatInstr("lea", reg, mem)
-      case ModInstr(reg1, reg2) =>    formatInstr("mod", reg1, reg2)
+      case ModInstr(reg1, reg2) =>    "push rdx\n" +
+                                      "mov rax" + formatOperand(reg1) + "\n" +
+                                      "xor rdx, rdx\n" +
+                                      "div " + formatOperand(reg2) + "\n" +
+                                      "mov " + formatOperand(reg1) + ", rdx\n" +
+                                      "pop rdx"
       case MoveEq(reg) =>             formatInstr("meq", reg)
       case MoveNEq(reg) =>            formatInstr("mneq", reg)
       case MoveLT(reg) =>             formatInstr("mlt", reg)
