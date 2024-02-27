@@ -8,7 +8,7 @@ import frontend.validator.checkType
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-object IRTranslator {
+class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   var inFunc = false
   var labels = 0
@@ -22,16 +22,13 @@ object IRTranslator {
   var varCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
   var paramCount = 0
-  var roData: ReadOnlyData = new ReadOnlyData()
+  var roData: ReadOnlyData = new ReadOnlyData("")
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
   var scratchRegs: List[Register] = List(new scratchReg("foo1"), new scratchReg("foo2"), new scratchReg("foo3"), new scratchReg("foo4"),new scratchReg("foo5"))
 
-  def translateAST(prog: Prog, symbolTable:mutable.Map[String, Type]):List[Block] = {
-    roData = new ReadOnlyData()
-    val ourProgram: ListBuffer[Block] = translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable)
-    ourProgram.insert(0, roData)
-    ourProgram.toList
+  def translate():List[Block] = {
+    translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
   }
 
   private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
@@ -39,7 +36,7 @@ object IRTranslator {
       variableMap = mutable.Map.empty
       varCounter = 0
       varRegs = ListBuffer.empty
-      val funBlock = new AsmBlock(Directive(""), Label(s"wacc_${fun.ident.name}"), List.empty)
+      val funBlock = new AsmBlock(s"wacc_${fun.ident.name}", List.empty)
       curBlock = funBlock
       inFunc = true
       for (arg <- fun.paramList) {
@@ -68,11 +65,12 @@ object IRTranslator {
 
   private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Block] = {
     blocks = ListBuffer()
-    val mainBlock = new AsmBlock(Directive("text"), Label("main"), setUpScope(symbolTable, "main-").toList)
-    addBlock(mainBlock)
+    val mainBlock = new AsmBlock("text", "main", setUpScope(symbolTable, "main-").toList)
     curBlock = mainBlock
     translateStatements(stmts, symbolTable)
     revertSetUp(curBlock)
+    mainBlock.addROData(roData)
+    blocks.insert(0, mainBlock)
     blocks
   }
 
@@ -151,8 +149,8 @@ object IRTranslator {
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
           val restLabel = getNewLabel()
-          val thenBlock = new AsmBlock(Directive(""), thenLabel, List.empty)
-          val restBlock = new AsmBlock(Directive(""), restLabel, List.empty)
+          val thenBlock = new AsmBlock(thenLabel, List.empty)
+          val restBlock = new AsmBlock(restLabel, List.empty)
 
           // Translating else block (adds statements to end of current block)
           updateCurBlock(evaluateExpr(cond, ReturnRegister()).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel))).toList)
@@ -179,9 +177,9 @@ object IRTranslator {
           val condLabel = getNewLabel()
           val bodyLabel = getNewLabel()
           val restLabel = getNewLabel()
-          val condBlock = new AsmBlock(Directive(""), condLabel, List.empty)
-          val bodyBlock = new AsmBlock(Directive(""), bodyLabel, List.empty)
-          val restBlock = new AsmBlock(Directive(""), restLabel, List.empty)
+          val condBlock = new AsmBlock("", condLabel, List.empty)
+          val bodyBlock = new AsmBlock("", bodyLabel.name, List.empty)
+          val restBlock = new AsmBlock("", restLabel.name, List.empty)
 
           updateCurBlock(JumpInstr(condLabel))
 
@@ -335,7 +333,7 @@ object IRTranslator {
       }
       case And(x, y) => {
         val shortCircuitLabel = getNewLabel()
-        val shortCircuitBlock = new AsmBlock(Directive(""), shortCircuitLabel, List.empty)
+        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
         var instrs = evaluateExpr(x, reg).concat(List(CmpInstr(Immediate(1), reg), JneInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg))
         instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg), JumpInstr(shortCircuitLabel)))
         shortCircuitBlock.instructions = List(MoveEq(reg))
@@ -346,7 +344,7 @@ object IRTranslator {
       }
       case Or(x, y) => {
         val shortCircuitLabel = getNewLabel()
-        val shortCircuitBlock = new AsmBlock(Directive(""), shortCircuitLabel, List.empty)
+        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
         var instrs = evaluateExpr(x, reg).concat(List(CmpInstr(Immediate(1), reg), JeInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg))
         instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg), JumpInstr(shortCircuitLabel)))
         shortCircuitBlock.instructions = List(MoveEq(reg))
@@ -412,21 +410,21 @@ object IRTranslator {
         }
       }
 
-      case ArrayType(elementType) => {
-        val arrayTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
-        val printInstrs: List[Instruction] = List.empty
-        arrayTypePrintBlock.instructions = printInstrs
-        blocks.addOne(arrayTypePrintBlock)
-        printInstrs
-      }
-
-      case PairType(firstType, secondType) => {
-        val pairTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
-        val printInstrs: List[Instruction] = List.empty
-        pairTypePrintBlock.instructions = printInstrs
-        blocks.addOne(pairTypePrintBlock)
-        printInstrs
-      }
+//      case ArrayType(elementType) => {
+//        val arrayTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
+//        val printInstrs: List[Instruction] = List.empty
+//        arrayTypePrintBlock.instructions = printInstrs
+//        blocks.addOne(arrayTypePrintBlock)
+//        printInstrs
+//      }
+//
+//      case PairType(firstType, secondType) => {
+//        val pairTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
+//        val printInstrs: List[Instruction] = List.empty
+//        pairTypePrintBlock.instructions = printInstrs
+//        blocks.addOne(pairTypePrintBlock)
+//        printInstrs
+//      }
     }
   }
 
@@ -443,35 +441,10 @@ object IRTranslator {
     Label(s".L${labels-1}")
   }
 
-  private def addBlock(block: Block): Unit = {
-    block match {
-      case prtS: StringPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtS.label)) {
-        blocks.addOne(new StringPrintBlockROData())
-        blocks.addOne(prtS)
-      }
-
-      case prtC: CharPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtC.label)) {
-        blocks.addOne(new CharPrintBlockROData())
-        blocks.addOne(prtC)
-      }
-
-      case prtB: BoolPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtB.label)) {
-        blocks.addOne(new BoolPrintBlockROData())
-        blocks.addOne(prtB)
-      }
-
-      case prtI: IntPrintBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(prtI.label)) {
-        blocks.addOne(new IntPrintBlockROData())
-        blocks.addOne(prtI)
-      }
-
-      case prtLn: PrintlnBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ => }).contains(prtLn.label)) {
-        blocks.addOne(new PrintlnBlockROData())
-        blocks.addOne(prtLn)
-      }
-      case asm: AsmBlock => if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(asm.label)) {
-        blocks.addOne(block)
-      }
+  private def addBlock(block: AsmBlock): Unit = {
+    if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(block.label)) {
+      blocks.addOne(block)
     }
+
   }
 }

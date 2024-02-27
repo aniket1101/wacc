@@ -9,40 +9,29 @@ class IntelX86Translator {
   def toAsmCode(asmInstr: List[Block]): String = {
     ".intel_syntax noprefix\n.globl main\n" +
     asmInstr.map({
-      case block: AsmBlock => convertDir(block.directive) +
+      case block: AsmBlock =>
+        block.roData.map(convertROData).getOrElse("") +
+        block.directive.map(convertDir).getOrElse("") +
       convertLabel(block.label) + convertInstrs(block.instructions)
-      case rodata: ReadOnlyData => convertROData(rodata)
     }).mkString("").strip() + "\n"
   }
 
   def convertROData(rodata: ReadOnlyData): String = {
-    rodata match {
-      case rod: StringPrintBlockROData => {
-        rod.toString
-      }
-      case rod: CharPrintBlockROData => {
-        rod.toString
-      }
-      case rod: IntPrintBlockROData => {
-        rod.toString
-      }
-      case rod: BoolPrintBlockROData => {
-        rod.toString
-      }
-      case rod: PrintlnBlockROData => {
-        rod.toString
-      }
-      case rodata =>
-        val rod: StringBuilder = new StringBuilder(".section .rodata\n")
-        for (i <- rodata.strings.indices) {
-          val str = rodata.strings(i)
-          rod.append(s"\t.int ${str.length}\n")
-          rod.append(s".L.str$i:\n")
-          rod.append(s"\t.asciz \"$str\"\n")
+  val rod: StringBuilder = new StringBuilder(".section .rodata\n")
+  for (i <- rodata.data.indices) {
+    rodata.data(i) match {
+      case (n: Int, str: String) =>
+        rod.append(s"\t.int $n\n")
+        if (rodata.labelName.isEmpty) {
+          rod.append(s".L.${rodata.labelName}str$i:\n")
+        } else {
+          rod.append(s".L._${rodata.labelName}_str$i:\n")
         }
-        rod.toString()
-    }
 
+        rod.append(s"\t.asciz \"$str\"\n")
+      }
+    }
+    rod.toString()
   }
 
   private def convertDir(dir: Directive): String = if (dir.name.isEmpty) "" else s".${dir.name}\n"
@@ -106,7 +95,7 @@ class IntelX86Translator {
       case imm: Immediate => imm.value.toString
       case register: Register => register match {
         case param: paramReg => getParamReg(param.reg.replace("paramReg", "").toInt-1)
-        case vReg: varReg => if (vReg.reg.contains("varReg")) ("r1" + vReg.reg.replace("varReg", "").last) else (vReg.reg)
+        case vReg: varReg => if (vReg.reg.contains("varReg")) ("r1" + Math.min(vReg.reg.replace("varReg", "").last.toInt, 5).toString) else (vReg.reg)
         case _ => register.reg
       }
       case memory: Memory =>

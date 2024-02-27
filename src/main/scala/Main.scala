@@ -68,7 +68,8 @@ object Main {
     parseProgram(file) match {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
-        val asmInstr = IRTranslator.translateAST(prog, symbolTable)
+        val foo = new IRTranslator(prog, symbolTable)
+        val asmInstr = new IRTranslator(prog, symbolTable).translate()
         val asmCode = new IntelX86Translator().toAsmCode(asmInstr)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
