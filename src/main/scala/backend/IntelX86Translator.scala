@@ -26,8 +26,7 @@ class IntelX86Translator {
           s""".section .rodata
              |  .int $n
              |.L.${labelName}str$i:
-             |  .asciz \"$str\"
-             """.stripMargin)
+             |  .asciz \"$str\"\n""".stripMargin)
       }
     }
     rod.toString()
@@ -99,7 +98,8 @@ class IntelX86Translator {
       case imm: Immediate => imm.value.toString
       case register: Register => register match {
         case param: paramReg => getParamReg(param.reg.replace("paramReg", "").toInt-1)
-        case vReg: varReg => if (vReg.reg.contains("varReg")) ("r1" + Math.min(vReg.reg.replace("varReg", "").last.toInt, 5).toString) else (vReg.reg)
+        case vReg: varReg => if (vReg.reg.contains("varReg")) ("r1" +
+          Math.min(vReg.reg.replace("varReg", "").last.asDigit, 5).toString) else (vReg.reg)
         case _ => register.reg
       }
       case memory: Memory =>

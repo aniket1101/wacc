@@ -19,6 +19,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   var scratchCounter = 0
   var varRegs: ListBuffer[varReg] = ListBuffer.empty
+  val varMap: mutable.Map[String, varReg] = mutable.Map.empty
   var varCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
   var paramCount = 0
@@ -222,11 +223,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): ListBuffer[Instruction] = {
     val newReg = varRegs(varCounter + 1)
+    varMap(ident.name) = newReg
     varCounter += 1
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
       case IntType() | BoolType() | CharType() | StringType() => RValue match {
-        case expr:Expr => instr = evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
+        case expr: Expr => instr = evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
         case Call(name, args) => {
           var moveParams: ListBuffer[Instruction] = ListBuffer.empty
           for (arg <- args) {
@@ -261,12 +263,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case CharLit(chr) => ListBuffer(MovInstr(Immediate(chr.toInt), reg))
       case StrLit(str) =>
         roData.add(str)
-        //lea rax, [rip + .L.str0]
-        //	push rax
-        //	pop rax
-        //	mov rax, rax
         ListBuffer(LeaInstr(Memory(new scratchReg("rip"), roData.prevString(), 4), reg),
           Push(reg), Pop(reg), MovInstr(reg, reg))
+      case Ident(name) => ListBuffer(MovInstr(varMap(name), ReturnRegister()))
       case Add(x, y) => {
         val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
         scratchCounter += 1
@@ -394,14 +393,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         addBlock(BoolPrintBlock())
         addBlock(BoolPrintBlock0())
         addBlock(BoolPrintBlock1())
-        expr match {
-          case BoolLit(bl) => 
-            List(
-              MovInstr(Immediate(if (bl) 1 else 0), new scratchReg("rax")),
-              MovInstr(new scratchReg("rax"), new scratchReg("rdi")),
-              CallInstr(Label("_printb"))
-            )
+        val evalBool: List[Instruction] = expr match {
+          case BoolLit(bl) =>
+            List(MovInstr(Immediate(if (bl) 1 else 0), new scratchReg("rax")))
+          case _ => evaluateExpr(expr, ReturnRegister()).toList
         }
+        evalBool.concat(List(MovInstr(new scratchReg("rax"), new scratchReg("rdi")), CallInstr(Label("_printb")))).toList
       }
 
       case IntType() => {

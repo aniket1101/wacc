@@ -1,9 +1,17 @@
-# simple character variable declaration
+# evaluating and
 
 # Output:
+# false
+# true
+# false
+#
 
 # Program:
 
 begin
-  char c = 'a'
+  bool a = true ;
+  bool b = false ;
+  println a && b ;
+  println a && true ;
+  println b && false
 end
