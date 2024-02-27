@@ -9,44 +9,38 @@ main:
 	mov qword ptr [rsp + 8], r12
 	mov qword ptr [rsp + 16], r13
 	mov rbp, rsp
+	mov rax, -4
+	mov r12, rax
+	mov rax, 2
+	mov r13, rax
 	mov rax, r12
-	cmp rax, 1
-	jne .L0
-	mov rax, r13
-	cmp rax, 1
-	jmp .L0
+	mov r15, r13
+	mov eax, rax
+	cdq
+	idiv r15
+	mov rdi, rax
+	call _printi
+	call _println
+	mov rax, 0
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	mov r13, qword ptr [rsp + 16]
+	add rsp, 24
+	pop rbp
+	ret
 
 .section .rodata
 .section .rodata
-  .int 5
-.L._printb_str0:
-  .asciz "false"
-.section .rodata
-  .int 4
-.L._printb_str1:
-  .asciz "true"
-.section .rodata
-  .int 4
-.L._printb_str2:
-  .asciz "%.*s"
+  .int 2
+.L._printi_str0:
+  .asciz "%d"
 .text
-_printb:
+_printi:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	cmp dil, 0
-	jne .L_printb0
-	lea rdx, [rip + .L._printb_str0]
-	jmp .L_printb1
-
-.text
-.L_printb0:
-	lea rdx, [rip + .L._printb_str1]
-
-.text
-.L_printb1:
-	mov esi, dword ptr [rdx - 4]
-	lea rdi, [rip + .L._printb_str2]
+	mov esi, edi
+	lea rdi, [rip + .L._printi_str0]
 	mov al, 0
 	call printf@plt
 	mov rdi, 0
@@ -54,14 +48,6 @@ _printb:
 	mov rsp, rbp
 	pop rbp
 	ret
-
-.L0:
-	mov rax, r12
-	cmp rax, 1
-	jne .L1
-	mov rax, 1
-	cmp rax, 1
-	jmp .L1
 
 .section .rodata
 .section .rodata
@@ -78,35 +64,5 @@ _println:
 	mov rdi, 0
 	call fflush@plt
 	mov rsp, rbp
-	pop rbp
-	ret
-
-.L1:
-	mov rax, r13
-	cmp rax, 1
-	jne .L2
-	mov rax, 0
-	cmp rax, 1
-	jmp .L2
-
-.L2:
-	mov rax, 1
-	mov r12, rax
-	mov rax, 0
-	mov r13, rax
-	mov rdi, rax
-	call _printb
-	call _println
-	mov rdi, rax
-	call _printb
-	call _println
-	mov rdi, rax
-	call _printb
-	call _println
-	mov rax, 0
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	add rsp, 24
 	pop rbp
 	ret

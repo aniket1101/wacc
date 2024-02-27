@@ -85,6 +85,24 @@ object IR {
     def apply(src: Immediate, dst: Memory): MulInstr = new MulInstr(src, dst) {}
   }
 
+  sealed abstract case class DivInstr(src: Operand, dst: Operand) extends Instruction
+
+  object DivInstr {
+    def apply(src: Register, dst: Register): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Register, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+  }
+
   // Mod Instruction
   sealed abstract case class ModInstr(src: Operand, dst: Operand) extends Instruction
   object ModInstr {

@@ -1,7 +1,7 @@
 package backend
 
 import backend.IR._
-import backend.IRRegisters.{paramReg, varReg}
+import backend.IRRegisters.{paramReg, scratchReg, varReg}
 
 class IntelX86Translator {
   private val stackAlignmentMask: Int = -16
@@ -53,6 +53,7 @@ class IntelX86Translator {
       case AddInstr(reg1, reg2) =>    formatInstr("add", reg1, reg2)
       case SubInstr(value, reg) =>    formatInstr("sub", value, reg)
       case MulInstr(value, reg) =>    formatInstr("imul", value, reg)
+      case DivInstr(srcReg, _) =>     "cdq\n\t" + formatInstr("idiv", srcReg)
       case JeInstr(label) =>          formatInstr("je", label)
       case JneInstr(label) =>         formatInstr("jne", label)
       case JumpInstr(label) =>        formatInstr("jmp", label)
@@ -98,8 +99,9 @@ class IntelX86Translator {
       case imm: Immediate => imm.value.toString
       case register: Register => register match {
         case param: paramReg => getParamReg(param.reg.replace("paramReg", "").toInt-1)
-        case vReg: varReg => if (vReg.reg.contains("varReg")) ("r1" +
-          Math.min(vReg.reg.replace("varReg", "").last.asDigit, 5).toString) else (vReg.reg)
+        case sReg: scratchReg => if (sReg.reg.contains("scratchReg")) "r15" else sReg.reg
+        case vReg: varReg => if (vReg.reg.contains("varReg")) "r1" +
+          Math.min(vReg.reg.replace("varReg", "").last.asDigit, 5).toString else (vReg.reg)
         case _ => register.reg
       }
       case memory: Memory =>

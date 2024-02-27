@@ -1,17 +1,13 @@
-# evaluating and
+# division of a negative number
 
 # Output:
-# false
-# true
-# false
+# -2
 #
 
 # Program:
 
 begin
-  bool a = true ;
-  bool b = false ;
-  println a && b ;
-  println a && true ;
-  println b && false
+  int x = -4 ;
+  int y = 2 ;
+  println x / y
 end
