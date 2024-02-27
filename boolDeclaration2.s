@@ -8,7 +8,7 @@ main:
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r15
 	mov rbp, rsp
-	mov rax, 97
+	mov rax, 1
 	mov r15, rax
 	mov rax, 0
 	mov rbx, qword ptr [rsp]

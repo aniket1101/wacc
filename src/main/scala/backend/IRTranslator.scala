@@ -225,7 +225,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     varCounter += 1
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
-      case IntType() | BoolType() => RValue match {
+      case IntType() | BoolType() | CharType() | StringType() => RValue match {
         case expr:Expr => instr = evaluateExpr(expr, ReturnRegister()).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
         case Call(name, args) => {
           var moveParams: ListBuffer[Instruction] = ListBuffer.empty
@@ -258,9 +258,15 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case true => ListBuffer(MovInstr(Immediate(1), reg))
         case _ => ListBuffer(MovInstr(Immediate(0), reg))
       }
+      case CharLit(chr) => ListBuffer(MovInstr(Immediate(chr.toInt), reg))
       case StrLit(str) =>
         roData.add(str)
-        ListBuffer(MovInstr(Immediate(0), reg)) // TODO: Fix this
+        //lea rax, [rip + .L.str0]
+        //	push rax
+        //	pop rax
+        //	mov rax, rax
+        ListBuffer(LeaInstr(Memory(new scratchReg("rip"), roData.prevString(), 4), reg),
+          Push(reg), Pop(reg), MovInstr(reg, reg))
       case Add(x, y) => {
         val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
         scratchCounter += 1

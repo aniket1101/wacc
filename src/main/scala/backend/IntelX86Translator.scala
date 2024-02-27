@@ -21,14 +21,13 @@ class IntelX86Translator {
   for (i <- rodata.data.indices) {
     rodata.data(i) match {
       case (n: Int, str: String) =>
-        rod.append(s"\t.int $n\n")
-        if (rodata.labelName.isEmpty) {
-          rod.append(s".L.${rodata.labelName}str$i:\n")
-        } else {
-          rod.append(s".L._${rodata.labelName}_str$i:\n")
-        }
-
-        rod.append(s"\t.asciz \"$str\"\n")
+        val labelName = if (rodata.labelName.isEmpty) "" else s"_${rodata.labelName}_"
+        rod.append(
+          s""".section .rodata
+             |  .int $n
+             |.L.${labelName}str$i:
+             |  .asciz \"$str\"
+             """.stripMargin)
       }
     }
     rod.toString()

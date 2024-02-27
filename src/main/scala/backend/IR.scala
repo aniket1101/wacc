@@ -296,8 +296,9 @@ object IR {
     def this(labelName: String, n: Int, str: String) = this(labelName, ListBuffer((n, str)))
     def this(labelName: String, str: String) = this(labelName, ListBuffer((str.length, str)))
 
-    def add(str: String): Unit = data.addOne((str.length, str))
-    def add(n: Int, str: String): Unit = data.addOne((n, str))
+    def add(str: String): Unit = data.addOne((str.length, formatStr(str)))
+    def add(n: Int, str: String): Unit = data.addOne((n, formatStr(str)))
+    private def formatStr(str: String):String = str.replace("\n", "\\n").replace("\b", "\\b")
 
     def prevString(): Label = Label(s".L.str${data.length-1}")
   }

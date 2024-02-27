@@ -1,13 +1,9 @@
-# variable can have _ in their names
+# simple character variable declaration
 
 # Output:
-
-# Exit:
-# 19
 
 # Program:
 
 begin
-  int an_underscore = 19 ;
-  exit an_underscore
+  char c = 'a'
 end
