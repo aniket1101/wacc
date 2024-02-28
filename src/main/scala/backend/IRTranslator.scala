@@ -267,7 +267,24 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         ListBuffer(LeaInstr(Memory(new scratchReg("rip"), roData.prevString(), 4), reg),
           Push(reg), Pop(reg), MovInstr(reg, reg))
       case Ident(name) => ListBuffer(MovInstr(varMap(name), reg))
+      case Not(x) => x match {
+        case BoolLit(bool) => bool match {
+          case true => ListBuffer(MovInstr(Immediate(0), reg))
+          case _ => ListBuffer(MovInstr(Immediate(1), reg))
+        }
+        case _ => evaluateExpr(x, reg).concat(evaluateExpr(new Not()))
+      }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg)
+      //case Len(x) =>
+      //case Ord(x) =>
+      case Chr(x) => {
+        addBlock(errBadCharBlock())
+        ListBuffer(
+          TestInstr(Immediate(-128), new scratchReg("rax"))
+          // Continue here
+        )
+      }
+      //case Plus(x) =>
       case Add(x, y) => {
         (x, y) match {
           case (IntLit(i), j) => evaluateExpr(j, reg).concat(List(AddInstr(Immediate(i), reg)))
