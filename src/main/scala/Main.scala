@@ -1,5 +1,6 @@
 // Import necessary packages and modules
-import backend.{IRTranslator, IntelX86Translator}
+import backend.x86Translator.translateIR
+import backend.{IR, IRTranslator, IntelTranslator, IntelX86Translator, x86Translator}
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
@@ -52,7 +53,7 @@ object Main {
           // If parsing fails according to the Parsley parser
           case parsley.Failure(err) =>
             // Print syntax error and exit with syntax error status
-            println(err.display)
+            println(err)
             Left(SYNTAX_ERROR_EXIT_STATUS)
         }
       // If parsing fails
@@ -68,8 +69,10 @@ object Main {
     parseProgram(file) match {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
-        val asmInstr = IRTranslator.translateAST(prog, symbolTable)
-        val asmCode = new IntelX86Translator().toAsmCode(asmInstr)
+        val irTranslator = new IRTranslator(prog, symbolTable)
+        val asmInstr = irTranslator.translate()
+        val x86Code = translateIR(asmInstr:List[IR.AsmBlock])
+        val asmCode = IntelTranslator.translate(x86Code)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>

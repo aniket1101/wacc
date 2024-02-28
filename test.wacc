@@ -1,3 +1,3 @@
 begin
-    int y = 7 % 9
+    int y = 7
 end

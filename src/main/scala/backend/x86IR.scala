@@ -1,6 +1,5 @@
 package backend
 
-import backend.IR.Immediate
 import backend.x86IR.InstrSize.InstrSize
 
 object x86IR {
@@ -27,6 +26,18 @@ object x86IR {
     def address(): Int = 0
 
     override def toString: String = reg
+  }
+
+  abstract class x86Registers(val reg64Bit: x86Register, val reg32Bit: x86Register,
+                     val reg16Bit: x86Register, val reg8Bit: x86Register) extends x86Operand {
+    def get(instrSize: InstrSize): x86Register = {
+      instrSize match {
+        case fullReg => reg64Bit
+        case halfReg => reg32Bit
+        case quarterReg => reg16Bit
+        case eigthReg => reg8Bit
+      }
+    }
   }
 
   sealed trait x86Offset
@@ -59,6 +70,8 @@ object x86IR {
     def apply(primReg: x86Register, offset: Int): x86Memory = new x86Memory(Some(primReg), None, None, Some(x86OffsetInt(offset))) {}
 
     def apply(primReg: x86Register, label: x86Label): x86Memory = new x86Memory(Some(primReg), None, None, Some(x86OffsetLabel(label))) {}
+
+    def apply(primReg: Option[x86Register], secReg: Option[x86Register], multiplier: Option[Int], offset: Option[x86Offset]):x86Memory = new x86Memory(primReg, secReg, multiplier, offset) {}
   }
 
   // ADD instruction
