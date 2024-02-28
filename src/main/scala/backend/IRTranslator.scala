@@ -280,8 +280,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case Chr(x) => {
         addBlock(errBadCharBlock())
         ListBuffer(
-          TestInstr(Immediate(-128), new scratchReg("rax"))
-          // Continue here
+          TestInstr(Immediate(-128), new scratchReg("rax")),
+          CMovInstr(new scratchReg("rax"), new scratchReg("rsi")),
+          JneInstr(Label("_errBadChar"))
         )
       }
       //case Plus(x) =>
