@@ -31,6 +31,8 @@ object x86IR {
 
   abstract class x86Registers(val reg64Bit: x86Register, val reg32Bit: x86Register,
                      val reg16Bit: x86Register, val reg8Bit: x86Register) extends x86Operand {
+
+    def this(reg: x86Register) = this(reg, reg, reg, reg)
     def get(instrSize: InstrSize): x86Register = {
       instrSize match {
         case fullReg => reg64Bit
@@ -47,32 +49,32 @@ object x86IR {
 
   case class x86OffsetLabel(label: x86Label) extends x86Offset
 
-  case class x86Memory(primReg: Option[x86Register], secReg: Option[x86Register], multiplier: Option[Int], offset: Option[x86Offset]) extends x86Operand {
-    def this(primReg: x86Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(x86OffsetInt(offset)) else None)
+  case class x86Memory(primReg: Option[x86Registers], secReg: Option[x86Registers], multiplier: Option[Int], offset: Option[x86Offset]) extends x86Operand {
+    def this(primReg: x86Registers, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(x86OffsetInt(offset)) else None)
 
-    def this(primReg: x86Register, secReg: x86Register) = this(Some(primReg), Some(secReg), None, None)
+    def this(primReg: x86Registers, secReg: x86Registers) = this(Some(primReg), Some(secReg), None, None)
 
-    def this(primReg: x86Register, secReg: x86Register, multiplier: Int) = {
+    def this(primReg: x86Registers, secReg: x86Registers, multiplier: Int) = {
       this(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None)
     }
 
-    def this(secReg: x86Register, multiplier: Int, offset: Int) = {
+    def this(secReg: x86Registers, multiplier: Int, offset: Int) = {
       this(None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(x86OffsetInt(offset)) else None)
     }
 
-    def this(primReg: x86Register, secReg: x86Register, multiplier: Int, offset: Int) = {
+    def this(primReg: x86Registers, secReg: x86Registers, multiplier: Int, offset: Int) = {
       this(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(x86OffsetInt(offset)) else None)
     }
   }
 
   object x86Memory {
-    def apply(primReg: x86Register): x86Memory = new x86Memory(Some(primReg), None, None, None) {}
+    def apply(primReg: x86Registers): x86Memory = new x86Memory(Some(primReg), None, None, None) {}
 
-    def apply(primReg: x86Register, offset: Int): x86Memory = new x86Memory(Some(primReg), None, None, Some(x86OffsetInt(offset))) {}
+    def apply(primReg: x86Registers, offset: Int): x86Memory = new x86Memory(Some(primReg), None, None, Some(x86OffsetInt(offset))) {}
 
-    def apply(primReg: x86Register, label: x86Label): x86Memory = new x86Memory(Some(primReg), None, None, Some(x86OffsetLabel(label))) {}
+    def apply(primReg: x86Registers, label: x86Label): x86Memory = new x86Memory(Some(primReg), None, None, Some(x86OffsetLabel(label))) {}
 
-    def apply(primReg: Option[x86Register], secReg: Option[x86Register], multiplier: Option[Int], offset: Option[x86Offset]):x86Memory = new x86Memory(primReg, secReg, multiplier, offset) {}
+    def apply(primReg: Option[x86Registers], secReg: Option[x86Registers], multiplier: Option[Int], offset: Option[x86Offset]):x86Memory = new x86Memory(primReg, secReg, multiplier, offset) {}
   }
 
   // ADD instruction
@@ -80,17 +82,17 @@ object x86IR {
 
   object Add {
     def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
-    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
     def apply(src: x86Memory, dst: x86Immediate, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
   }
@@ -100,17 +102,17 @@ object x86IR {
 
   object Sub {
     def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
-    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
     def apply(src: x86Memory, dst: x86Immediate, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
   }
@@ -120,17 +122,17 @@ object x86IR {
 
   object Mul {
     def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
-    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
     def apply(src: x86Memory, dst: x86Immediate, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
   }
@@ -139,17 +141,17 @@ object x86IR {
   sealed abstract case class XOR(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object XOR {
-    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
 
     def apply(src: x86Memory, dst: x86Immediate, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): XOR = new XOR(src, dst, instrSize) {}
   }
@@ -160,15 +162,15 @@ object x86IR {
   object Mov {
     def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
   }
@@ -182,11 +184,11 @@ object x86IR {
 
     def apply(src: x86Memory, dst: x86Memory, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Immediate, dst: x86Register, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
-    def apply(src: x86Register, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
   }
@@ -194,7 +196,7 @@ object x86IR {
   sealed abstract case class Lea(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Lea {
-    def apply(src: x86Memory, dst: x86Register, instrSize: InstrSize): Lea = new Lea(src, dst, instrSize) {}
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): Lea = new Lea(src, dst, instrSize) {}
   }
 
   case class Je(label: x86Label) extends x86Instruction
@@ -215,28 +217,28 @@ object x86IR {
 
   case class Pop(reg: x86Register, instrSize: InstrSize) extends x86Instruction
 
-  case class And(reg:x86Register, value:x86Immediate, instrSize: InstrSize) extends x86Instruction
+  case class And(reg:x86Registers, value:x86Immediate, instrSize: InstrSize) extends x86Instruction
 
-  case class Sete(reg:x86Register, instrSize: InstrSize) extends x86Instruction
-  case class Setne(reg:x86Register, instrSize: InstrSize) extends x86Instruction
-  case class Setg(reg:x86Register, instrSize: InstrSize) extends x86Instruction
-  case class Setge(reg:x86Register, instrSize: InstrSize) extends x86Instruction
-  case class Setl(reg:x86Register, instrSize: InstrSize) extends x86Instruction
-  case class Setle(reg:x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Sete(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
+  case class Setne(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
+  case class Setg(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
+  case class Setge(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
+  case class Setl(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
+  case class Setle(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
 
   // MOVSX instruction
   sealed abstract case class MoveSX(src:x86Operand, dst:x86Operand, srcSize: InstrSize, dstSize: InstrSize) extends x86Instruction
 
   object MoveSX {
-    def apply(src:x86Register, dst:x86Register, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+    def apply(src:x86Registers, dst:x86Registers, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
 
-    def apply(src:x86Register, dst:x86Memory, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+    def apply(src:x86Registers, dst:x86Memory, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
 
-    def apply(src:x86Register, dst:x86Immediate, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+    def apply(src:x86Registers, dst:x86Immediate, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
 
-    def apply(src:x86Memory, dst:x86Register, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+    def apply(src:x86Memory, dst:x86Registers, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
 
-    def apply(src:x86Immediate, dst:x86Register, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
+    def apply(src:x86Immediate, dst:x86Registers, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
 
     def apply(src:x86Immediate, dst:x86Memory, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
   }

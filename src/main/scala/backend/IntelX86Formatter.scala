@@ -1,44 +1,43 @@
 package backend
 
+import backend.IR._
+import backend.x86IR.InstrSize.fullReg
 import backend.x86IR._
 import backend.x86Registers._
-object IntelTranslator {
+object IntelX86Formatter {
     private val stackAlignmentMask: Int = -16
-    private val paramRegs: List[x86Register] = List(RDI(), RSI(), RDX(), RCX(), R8(), R9())
 
-    def translate(asmInstr: List[x86Block]): String = ???
-//      ".intel_syntax noprefix\n.globl main\n" +
-//        asmInstr.map({
-//          case block: x86Block => convertDir(block.directive) +
-//            convertLabel(block.label) + convertInstrs(block.instructions)
-////          case rodata: ReadOnlyData => convertROData(rodata)
-//        }).mkString("").strip() + "\n"
-//    }
+    def translate(asmInstr: List[x86Block]): String = {
+      ".intel_syntax noprefix\n.globl main\n" +
+        asmInstr.map(convertBlock).mkString("").strip() + "\n"
+    }
 
-//    def convertROData(rodata: ReadOnlyData): String = {
-//      rodata match {
-//        case rod: PrintBlockROData => {
-//          rod.toString
-//        }
-//        case rod: PrintlnBlockROData => {
-//          rod.toString
-//        }
-//        case rodata =>
-//          val rod: StringBuilder = new StringBuilder(".section .rodata\n")
-//          for (i <- rodata.strings.indices) {
-//            val str = rodata.strings(i)
-//            rod.append(s"\t.int ${str.length}\n")
-//            rod.append(s".L.str$i:\n")
-//            rod.append(s"\t.asciz \"$str\"\n")
-//          }
-//          rod.toString()
-//      }
-//
-//    }
+    def convertBlock(block: x86Block): String = {
+      convertROData(block.roData.get) +
+      block.directive.map(convertDir).getOrElse("") +
+        convertLabel(block.label) +
+        convertInstrs(block.instructions)
+    }
 
-    private def convertDir(dir: x86Directive): String = if (dir.name.isEmpty) "" else s".${dir.name}\n"
+    def convertROData(rodata: ReadOnlyData): String = {
+      val rod: StringBuilder = new StringBuilder(".section .rodata\n")
+      for (i <- rodata.data.indices) {
+        rodata.data(i) match {
+          case (n: Int, str: String) =>
+            val labelName = if (rodata.labelName.isEmpty) "" else s"_${rodata.labelName}_"
+            rod.append(
+              s""".section .rodata
+                 |  .int $n
+                 |.L.${labelName}str$i:
+                 |  .asciz \"$str\"\n""".stripMargin)
+        }
+      }
+      rod.toString()
+    }
 
-    private def convertLabel(label: x86Label): String = if (label.name.isEmpty) "" else s"${label.name}:\n"
+    private def convertDir(dir: Directive): String = if (dir.name.isEmpty) "" else s".${dir.name}\n"
+
+    private def convertLabel(label: Label): String = if (label.name.isEmpty) "" else s"${label.name}:\n"
 
     private def convertInstrs(instrs: List[x86Instruction]): String = {
       instrs match {
@@ -50,8 +49,8 @@ object IntelTranslator {
 
     private def convertInstr(instr: x86Instruction): String = {
       instr match {
-        case Push(reg, size) => formatInstr("push", reg)
-        case Pop(reg, size) => formatInstr("pop", reg)
+        case x86IR.Push(reg, size) => formatInstr("push", reg)
+        case x86IR.Pop(reg, size) => formatInstr("pop", reg)
         case Return() => formatInstr("ret")
         case CDQ() => formatInstr("cdq")
         case Mov(src, dst, size) => formatInstr("mov", src, dst)
@@ -93,15 +92,11 @@ object IntelTranslator {
 
     private def formatInstr(opcode: String): String = opcode
 
-    def getParamReg(i: Int): String = paramRegs(i).reg.toLowerCase()
-
     private def formatOperand(operand: x86Operand): String = {
       operand match {
         case imm: x86Immediate => imm.value.toString
-        case register: x86Register => register match {
-          case param: parameterReg => getParamReg(param.reg.replace("paramReg", "").toInt - 1)
-          case _ => register.reg
-        }
+        case register: x86Register => register.reg
+        case registers: x86Registers => registers.get(fullReg).reg
         case memory: x86Memory =>
           var size = "dword ptr "
           val expr = memory.offset match {
@@ -112,7 +107,7 @@ object IntelTranslator {
               s" + ${label.name}"
           }
 
-          s"$size[${memory.primReg.get}$expr]"
+          s"$size[${memory.primReg.get.reg64Bit}$expr]"
       }
     }
 

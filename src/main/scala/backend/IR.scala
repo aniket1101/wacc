@@ -1,21 +1,12 @@
 package backend
 import IRRegisters._
-import backend.IR.Size.{BIT_32, BIT_64, Size}
+import backend.Size._
 
 import scala.collection.mutable.ListBuffer
 
 object IR {
 
   sealed trait Instruction
-
-  object Size extends Enumeration {
-    type Size = Value
-
-    val BIT_64 = Value(64)
-    val BIT_32 = Value(32)
-    val BIT_16 = Value(16)
-    val BIT_8 = Value(8)
-  }
 
   case class Label(name: String)
 
@@ -29,11 +20,7 @@ object IR {
 
   case class Immediate(value: Int) extends RegOrImm
 
-  class Register(val reg: String) extends MemOrReg with RegOrImm {
-    def address(): Int = 0
-
-    override def toString: String = reg
-  }
+  class Register() extends MemOrReg with RegOrImm
 
   sealed trait Offset
 
@@ -342,12 +329,12 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    MovInstr(new scratchReg("rdi"), new scratchReg("rdx")),
-    MovInstr(Memory(new scratchReg("rdi")), new scratchReg("esi")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._prints_str0")), new scratchReg("rdi")),
-    MovInstr(Immediate(0), new scratchReg("al")),
+    MovInstr(DestinationRegister(), DataRegister()),
+    MovInstr(Memory(DestinationRegister()), SourceRegister()).changeSize(BIT_32),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._prints_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
     CallInstr(Label("printf@plt")),
-    MovInstr(Immediate(0), new scratchReg("rdi")),
+    MovInstr(Immediate(0), DestinationRegister()),
     CallInstr(Label("fflush@plt")),
     MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
@@ -358,11 +345,11 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    MovInstr(new scratchReg("dil"), new scratchReg("sil")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printc_str0")), new scratchReg("rdi")),
-    MovInstr(Immediate(0), new scratchReg("al")),
+    MovInstr(DestinationRegister(), SourceRegister()).changeSize(BIT_8),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printc_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
     CallInstr(Label("printf@plt")),
-    MovInstr(Immediate(0), new scratchReg("rdi")),
+    MovInstr(Immediate(0), DestinationRegister()),
     CallInstr(Label("fflush@plt")),
     MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
@@ -375,22 +362,22 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    CmpInstr(Immediate(0), new scratchReg("dil")),
+    CmpInstr(Immediate(0), DestinationRegister()).changeSize(BIT_8),
     JneInstr(Label(".L_printb0")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str0")), new scratchReg("rdx")),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str0")), DestinationRegister()),
     JumpInstr(Label(".L_printb1"))
   ))
 
   case class BoolPrintBlock0() extends AsmBlock("text", ".L_printb0", List(
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str1")), new scratchReg("rdx"))
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str1")), DestinationRegister())
   ))
 
   case class BoolPrintBlock1() extends AsmBlock("text", ".L_printb1", List(
-    MovInstr(Memory(new scratchReg("rdx")), new scratchReg("esi")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printb_str2")), new scratchReg("rdi")),
-    MovInstr(Immediate(0), new scratchReg("al")),
+    MovInstr(Memory(DestinationRegister()), SourceRegister()).changeSize(BIT_32),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str2")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
     CallInstr(Label("printf@plt")),
-    MovInstr(Immediate(0), new scratchReg("rdi")),
+    MovInstr(Immediate(0), DestinationRegister()),
     CallInstr(Label("fflush@plt")),
     MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
@@ -401,11 +388,11 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    MovInstr(new scratchReg("edi"), new scratchReg("esi")),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._printi_str0")), new scratchReg("rdi")),
-    MovInstr(Immediate(0), new scratchReg("al")),
+    MovInstr(DestinationRegister(), SourceRegister()).changeSize(BIT_32),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printi_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
     CallInstr(Label("printf@plt")),
-    MovInstr(Immediate(0), new scratchReg("rdi")),
+    MovInstr(Immediate(0), DestinationRegister()),
     CallInstr(Label("fflush@plt")),
     MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
@@ -416,9 +403,9 @@ object IR {
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
-    LeaInstr(Memory(new scratchReg("rip"), Label(".L._println_str0")), new scratchReg("rdi")),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._println_str0")), DestinationRegister()),
     CallInstr(Label("puts@plt")),
-    MovInstr(Immediate(0), new scratchReg("rdi")),
+    MovInstr(Immediate(0), DestinationRegister()),
     CallInstr(Label("fflush@plt")),
     MovInstr(BasePointer(), StackPointer()),
     Pop(BasePointer()),
@@ -428,21 +415,21 @@ object IR {
   case class errBadChar() extends AsmBlock(new ReadOnlyData("errBadChar", 50, "fatal error: int %d is not ascii character 0-127 \\n"),
     "text", "_errBadChar", List(
       Align(StackPointer()),
-      LeaInstr(Memory(new scratchReg("rip"), Label(".L._errBadChar_str0")), new scratchReg("rdi")),
-      MovInstr(Immediate(0), new scratchReg("al")),
+      LeaInstr(Memory(InstrPtrRegister(), Label(".L._errBadChar_str0")), DestinationRegister()),
+      MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
       CallInstr(Label("printf@plt")),
-      MovInstr(Immediate(0), new scratchReg("rdi")),
+      MovInstr(Immediate(0), DestinationRegister()),
       CallInstr(Label("fflush@plt")),
-      MovInstr(Immediate(0), new scratchReg("dil")),
+      MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt"))
   ))
 
   case class errDivZero() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero \\n"),
     "text", "_errDivZero", List(
       Align(StackPointer()),
-      LeaInstr(Memory(new scratchReg("rip"), Label(".L._errDivZero_str0")), new scratchReg("rdi")),
+      LeaInstr(Memory(InstrPtrRegister(), Label(".L._errDivZero_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
-      MovInstr(Immediate(-1), new scratchReg("dil")),
+      MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt")),
     ))
 
@@ -451,7 +438,7 @@ object IR {
   //    MovInstr(StackPointer(), BasePointer()),
   //    Align(StackPointer()),
   //    CallInstr(Label("malloc@plt")),
-  //    CmpInstr(Immediate(0), new scratchReg("Rax")),
+  //    CmpInstr(Immediate(0), ReturnRegister()),
   //    JeInstr(Label("_errOutOfMemory")),
   //    MovInstr(BasePointer(), StackPointer()),
   //    Pop(BasePointer()),

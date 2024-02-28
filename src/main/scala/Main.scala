@@ -72,8 +72,8 @@ object Main {
         val irTranslator = new IRTranslator(prog, symbolTable)
         val asmInstr = irTranslator.translate()
         val x86Code = new X86Translator(asmInstr).translate()
-//        val asmCode = IntelTranslator.translate(x86Code)
-        writeToFile(x86Code.mkString("\n"), removeFileExt(file.getName) + ".s") match {
+        val asmCode = IntelX86Formatter.translate(x86Code)
+        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>
             println("Failed to write to output file")
