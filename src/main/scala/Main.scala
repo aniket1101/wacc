@@ -1,6 +1,6 @@
 // Import necessary packages and modules
-import backend.x86Translator.translateIR
-import backend.{IR, IRTranslator, IntelTranslator, IntelX86Translator, x86Translator}
+import backend.X86Translator
+import backend._
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
@@ -71,9 +71,9 @@ object Main {
       case Right((prog, symbolTable)) =>
         val irTranslator = new IRTranslator(prog, symbolTable)
         val asmInstr = irTranslator.translate()
-        val x86Code = translateIR(asmInstr:List[IR.AsmBlock])
-        val asmCode = IntelTranslator.translate(x86Code)
-        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
+        val x86Code = new X86Translator(asmInstr).translate()
+//        val asmCode = IntelTranslator.translate(x86Code)
+        writeToFile(x86Code.mkString("\n"), removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>
             println("Failed to write to output file")

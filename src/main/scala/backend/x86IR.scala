@@ -1,5 +1,6 @@
 package backend
 
+import backend.IR.{Directive, Label, ReadOnlyData}
 import backend.x86IR.InstrSize.InstrSize
 
 object x86IR {
@@ -46,7 +47,7 @@ object x86IR {
 
   case class x86OffsetLabel(label: x86Label) extends x86Offset
 
-  sealed abstract case class x86Memory(primReg: Option[x86Register], secReg: Option[x86Register], multiplier: Option[Int], offset: Option[x86Offset]) extends x86Operand {
+  case class x86Memory(primReg: Option[x86Register], secReg: Option[x86Register], multiplier: Option[Int], offset: Option[x86Offset]) extends x86Operand {
     def this(primReg: x86Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(x86OffsetInt(offset)) else None)
 
     def this(primReg: x86Register, secReg: x86Register) = this(Some(primReg), Some(secReg), None, None)
@@ -78,6 +79,7 @@ object x86IR {
   sealed abstract case class Add(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Add {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
     def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
 
     def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Add = new Add(src, dst, instrSize) {}
@@ -97,6 +99,7 @@ object x86IR {
   sealed abstract case class Sub(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Sub {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
     def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
 
     def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Sub = new Sub(src, dst, instrSize) {}
@@ -116,6 +119,7 @@ object x86IR {
   sealed abstract case class Mul(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Mul {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
     def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
 
     def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
@@ -154,6 +158,8 @@ object x86IR {
   sealed abstract case class Mov(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Mov {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
+
     def apply(src: x86Register, dst: x86Register, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
 
     def apply(src: x86Register, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
@@ -240,7 +246,7 @@ object x86IR {
 
   sealed trait Block
 
-  class x86Block(val directive: x86Directive, val label: x86Label, var instructions: List[x86Instruction]) extends Block {
+  class x86Block(val roData: Option[ReadOnlyData], val directive: Option[Directive], val label: Label, var instructions: List[x86Instruction]) extends Block {
     override def toString: String = {
       s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n") + "\n"
     }

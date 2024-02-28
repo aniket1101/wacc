@@ -6,14 +6,14 @@ object IntelTranslator {
     private val stackAlignmentMask: Int = -16
     private val paramRegs: List[x86Register] = List(RDI(), RSI(), RDX(), RCX(), R8(), R9())
 
-    def translate(asmInstr: List[x86Block]): String = {
-      ".intel_syntax noprefix\n.globl main\n" +
-        asmInstr.map({
-          case block: x86Block => convertDir(block.directive) +
-            convertLabel(block.label) + convertInstrs(block.instructions)
-//          case rodata: ReadOnlyData => convertROData(rodata)
-        }).mkString("").strip() + "\n"
-    }
+    def translate(asmInstr: List[x86Block]): String = ???
+//      ".intel_syntax noprefix\n.globl main\n" +
+//        asmInstr.map({
+//          case block: x86Block => convertDir(block.directive) +
+//            convertLabel(block.label) + convertInstrs(block.instructions)
+////          case rodata: ReadOnlyData => convertROData(rodata)
+//        }).mkString("").strip() + "\n"
+//    }
 
 //    def convertROData(rodata: ReadOnlyData): String = {
 //      rodata match {
