@@ -95,7 +95,7 @@ object parser {
         Not("!" ~> unOppExpr) <|>
         (Neg("-" ~> unOppExpr).map({
               case p@Neg(IntLit(x)) => IntLit(-x)(p.pos)
-              case otherExpr => Neg(otherExpr)(otherExpr.pos)
+              case otherExpr => otherExpr
           }) <|>
             Len("len" ~> unOppExpr) <|>
             Ord("ord" ~> unOppExpr) <|>

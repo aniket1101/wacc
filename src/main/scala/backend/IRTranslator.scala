@@ -88,7 +88,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       instructions.addOne(SubInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
       val rbx = BaseRegister()
       varRegs += rbx
-      instructions.addOne(MovInstr(BaseRegister(), Memory(StackPointer(), 8)))
+      instructions.addOne(MovInstr(BaseRegister(), Memory(StackPointer())))
       for (regNo <- 1 to usedRegs) {
         val newVarReg = new varReg(varRegs.length)
         instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo)))
@@ -109,7 +109,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     if (usedRegs == 0) {
       instructions.addOne(Pop(varRegs.head))
     } else {
-      instructions.addOne(MovInstr(Memory(StackPointer(), 8), varRegs.head))
+      instructions.addOne(MovInstr(Memory(StackPointer()), varRegs.head))
       for (regNo <- 1 to usedRegs) {
         instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), varRegs(regNo)))
       }

@@ -8,9 +8,13 @@ object IR {
 
   sealed trait Instruction
 
-  case class Label(name: String)
+  case class Label(name: String) {
+    def this(label: Label) = this(label.name)
+  }
 
-  case class Directive(name: String)
+  case class Directive(name: String) {
+    def this(directive: Directive) = this(directive.name)
+  }
 
   sealed trait Operand
 
@@ -233,7 +237,7 @@ object IR {
     def apply(src: Immediate, dst: Memory): TestInstr = new TestInstr(src, dst) {}
   }
 
-  sealed abstract case class LeaInstr(src: Operand, value: Operand, var size: Size = BIT_64) extends Instruction {
+  sealed abstract case class LeaInstr(src: Memory, value: Register, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): LeaInstr = {
       this.size = size
       this
@@ -330,7 +334,7 @@ object IR {
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
     MovInstr(DestinationRegister(), DataRegister()),
-    MovInstr(Memory(DestinationRegister()), SourceRegister()).changeSize(BIT_32),
+    MovInstr(Memory(DestinationRegister(), -4), SourceRegister()).changeSize(BIT_32),
     LeaInstr(Memory(InstrPtrRegister(), Label(".L._prints_str0")), DestinationRegister()),
     MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
     CallInstr(Label("printf@plt")),
@@ -364,16 +368,16 @@ object IR {
     Align(StackPointer()),
     CmpInstr(Immediate(0), DestinationRegister()).changeSize(BIT_8),
     JneInstr(Label(".L_printb0")),
-    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str0")), DestinationRegister()),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str0")), DataRegister()),
     JumpInstr(Label(".L_printb1"))
   ))
 
   case class BoolPrintBlock0() extends AsmBlock("text", ".L_printb0", List(
-    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str1")), DestinationRegister())
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str1")), DataRegister())
   ))
 
   case class BoolPrintBlock1() extends AsmBlock("text", ".L_printb1", List(
-    MovInstr(Memory(DestinationRegister()), SourceRegister()).changeSize(BIT_32),
+    MovInstr(Memory(DataRegister(), -4), SourceRegister()).changeSize(BIT_32),
     LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str2")), DestinationRegister()),
     MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
     CallInstr(Label("printf@plt")),
@@ -446,6 +450,7 @@ object IR {
   //  ))
 
   class ReadOnlyData(val labelName: String, val data: ListBuffer[(Int, String)]) extends Block {
+    def this(readOnlyData: ReadOnlyData) = this(readOnlyData.labelName, readOnlyData.data)
     def this(labelName: String) = this(labelName, ListBuffer.empty: ListBuffer[(Int, String)])
 
     def this(labelName: String, n: Int, str: String) = this(labelName, ListBuffer((n, str)))

@@ -20,9 +20,9 @@ object x86Registers {
   case class x86DestinationReg() extends x86Registers(RDI(), EDI(), DI(), DIL())
 
   case class RSI() extends parameterReg("rsi")
-  case class ESI() extends parameterReg("edi")
+  case class ESI() extends parameterReg("esi")
   case class SI() extends parameterReg("di")
-  case class SIL() extends parameterReg("dil")
+  case class SIL() extends parameterReg("sil")
   case class x86SourceReg() extends x86Registers(RSI(), ESI(), SI(), SIL())
 
   case class RDX() extends parameterReg("rdx")
@@ -116,5 +116,5 @@ object x86Registers {
 
   // Additional Registers
   case class RIP() extends x86Register("rip")
-  case class x86RIP() extends x86Registers(RIP())
+  case class x86InstrPtrRegister() extends x86Registers(RIP())
 }

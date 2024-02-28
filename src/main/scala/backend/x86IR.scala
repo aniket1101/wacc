@@ -15,9 +15,9 @@ object x86IR {
 
   sealed trait x86Instruction
 
-  case class x86Label(name: String)
+  class x86Label(label: Label) extends Label(label)
 
-  case class x86Directive(name: String)
+  class x86Directive(directive: Directive) extends Directive(directive)
 
   sealed trait x86Operand
 
@@ -35,10 +35,10 @@ object x86IR {
     def this(reg: x86Register) = this(reg, reg, reg, reg)
     def get(instrSize: InstrSize): x86Register = {
       instrSize match {
-        case fullReg => reg64Bit
-        case halfReg => reg32Bit
-        case quarterReg => reg16Bit
-        case eigthReg => reg8Bit
+        case InstrSize.fullReg => reg64Bit
+        case InstrSize.halfReg => reg32Bit
+        case InstrSize.quarterReg => reg16Bit
+        case InstrSize.eigthReg => reg8Bit
       }
     }
   }
@@ -180,6 +180,7 @@ object x86IR {
   sealed abstract case class Cmp(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Cmp {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
     def apply(src: x86Immediate, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
     def apply(src: x86Memory, dst: x86Memory, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
@@ -248,7 +249,9 @@ object x86IR {
 
   sealed trait Block
 
-  class x86Block(val roData: Option[ReadOnlyData], val directive: Option[Directive], val label: Label, var instructions: List[x86Instruction]) extends Block {
+  class x86ReadOnlyData(readOnlyData: ReadOnlyData) extends ReadOnlyData(readOnlyData)
+
+  class x86Block(val roData: Option[x86ReadOnlyData], val directive: Option[x86Directive], val label: x86Label, var instructions: List[x86Instruction]) extends Block {
     override def toString: String = {
       s"$directive\n$label:\n" + instructions.map(instr => s"\t$instr").mkString("\n") + "\n"
     }

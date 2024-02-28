@@ -4,42 +4,22 @@
 .text
 main:
 	push rbp
+	# push {rbx, r12}
 	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
-	mov rax, 1
-	mov r14, 2
-	sub rax, r14
-	add rax, 3
-	mov r14, 4
-	sub rax, r14
-	add rax, 5
-	mov r14, 6
-	sub rax, r14
-	add rax, 7
-	mov r14, 8
-	sub rax, r14
-	add rax, 9
-	mov r14, 10
-	sub rax, r14
-	add rax, 11
-	mov r14, 12
-	sub rax, r14
-	add rax, 13
-	mov r13, 14
-	sub rax, r13
-	add rax, 15
-	mov r12, 16
-	sub rax, r12
-	add rax, 17
+	# Stack pointer unchanged, no stack allocated variables
+	mov rax, 19
 	mov r12, rax
+	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
-	push rdi
 	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
 	call _exit
-	pop rdi
+	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
+	# pop {rbx, r12}
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
 	add rsp, 16
@@ -49,6 +29,7 @@ main:
 _exit:
 	push rbp
 	mov rbp, rsp
+	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
 	and rsp, -16
 	call exit@plt
 	mov rsp, rbp
