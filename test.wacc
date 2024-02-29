@@ -1,17 +1,6 @@
-# basic Boolean printing
-
-# Output:
-# True is true
-# False is false
-#
-
-# Program:
-
 begin
-  print "True is " ;
-  println true ;
-
-  print "False is " ;
-  println false
+int x0 = 0 ;
+int x1 = 1 ;
+int x2 = 2 ;
+int x3 = 3
 end
-

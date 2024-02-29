@@ -72,7 +72,7 @@ object Main {
         val irTranslator = new IRTranslator(prog, symbolTable)
         val asmInstr = irTranslator.translate()
         val totalRegsUsed = irTranslator.getRegsUsed()
-        val x86Code = new X86Translator(asmInstr).translate()
+        val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
         val asmCode = IntelX86Formatter.translate(x86Code)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS

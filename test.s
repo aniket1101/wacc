@@ -1,24 +1,30 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-	.int 0
-.L.str0:
-	.asciz ""
 .text
 main:
 	push rbp
-	sub rsp, 16
+	sub rsp, 40
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
+	mov qword ptr [rsp + 24], r14
+	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	lea rax, [rax + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
+	mov rax, 0
 	mov r12, rax
+	mov rax, 1
+	mov r13, rax
+	mov rax, 2
+	mov r14, rax
+	mov rax, 3
+	mov r15, rax
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	mov r13, qword ptr [rsp + 16]
+	mov r14, qword ptr [rsp + 24]
+	mov r15, qword ptr [rsp + 32]
+	add rsp, 40
 	pop rbp
 	ret
