@@ -71,6 +71,7 @@ object Main {
       case Right((prog, symbolTable)) =>
         val irTranslator = new IRTranslator(prog, symbolTable)
         val asmInstr = irTranslator.translate()
+        val totalRegsUsed = irTranslator.getRegsUsed()
         val x86Code = new X86Translator(asmInstr).translate()
         val asmCode = IntelX86Formatter.translate(x86Code)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {

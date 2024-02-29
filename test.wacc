@@ -1,13 +1,17 @@
-# tests whether the compiler can handle long expressions
+# basic Boolean printing
 
 # Output:
+# True is true
+# False is false
+#
 
-# Exit:
-# 9
+# Program:
 
 begin
+  print "True is " ;
+  println true ;
 
-  int x = ((((((((((((((((1 - 2) + 3) - 4) + 5) - 6) + 7) - 8) + 9) - 10) + 11) - 12) + 13) - 14) + 15) - 16) + 17);
-  exit x
-
+  print "False is " ;
+  println false
 end
+

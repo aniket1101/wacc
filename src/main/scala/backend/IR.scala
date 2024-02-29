@@ -128,6 +128,30 @@ object IR {
     def apply(src: Immediate, dst: Memory): MulInstr = new MulInstr(src, dst) {}
   }
 
+  sealed abstract case class DivInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): DivInstr = {
+      this.size = size
+      this
+    }
+  }
+
+  // Divide Instruction
+  object DivInstr {
+    def apply(src: Register, dst: Register): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Register, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+  }
+
   // Mod Instruction
   sealed abstract case class ModInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): ModInstr = {
@@ -191,6 +215,28 @@ object IR {
     def apply(src: Immediate, dst: Register): MovInstr = new MovInstr(src, dst) {}
 
     def apply(src: Immediate, dst: Memory): MovInstr = new MovInstr(src, dst) {}
+  }
+
+  // MOV instruction
+  sealed abstract case class CMovInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): CMovInstr = {
+      this.size = size
+      this
+    }
+  }
+
+  object CMovInstr {
+    def apply(src: Register, dst: Register): CMovInstr = new CMovInstr(src, dst) {}
+
+    def apply(src: Register, dst: Memory): CMovInstr = new CMovInstr(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): CMovInstr = new CMovInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Register): CMovInstr = new CMovInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): CMovInstr = new CMovInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): CMovInstr = new CMovInstr(src, dst) {}
   }
 
   case class CallInstr(label: Label) extends Instruction
@@ -432,6 +478,15 @@ object IR {
     "text", "_errDivZero", List(
       Align(StackPointer()),
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errDivZero_str0")), DestinationRegister()),
+      CallInstr(Label("_prints")),
+      MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
+      CallInstr(Label("exit@plt")),
+    ))
+
+  case class errOverflow() extends AsmBlock(new ReadOnlyData("errOverflow", 52, "fatal error: integer overflow or underflow occurred\\n"),
+    "text", "_errOverflow", List(
+      Align(StackPointer()),
+      LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOverflow_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt")),

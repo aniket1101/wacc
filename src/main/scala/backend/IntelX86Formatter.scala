@@ -59,6 +59,7 @@ object IntelX86Formatter {
         case Add(reg1, reg2, size) => formatInstr("add", reg1, reg2, size)
         case Sub(value, reg, size) => formatInstr("sub", value, reg, size)
         case Mul(value, reg, size) => formatInstr("imul", value, reg, size)
+        case IDiv(_, reg, size) => formatInstr("idiv", reg, size)
         case And(reg1, reg2, size) => formatInstr("and", reg2, reg1, size)
         case Sete(reg, size) => formatInstr("sete", reg, size)
         case Setne(reg, size) => formatInstr("setne", reg, size)
@@ -69,6 +70,7 @@ object IntelX86Formatter {
         case Je(label) => formatInstr("je", label)
         case Jne(label) => formatInstr("jne", label)
         case Jump(label) => formatInstr("jmp", label)
+        case Jo() => formatInstr("jo", new x86Label("_errOverflow"))
         case Cmp(op1, op2, size) => formatInstr("cmp", op1, op2, size)
         case Lea(reg, mem, size) => formatInstr("lea", reg, mem, size)
       }

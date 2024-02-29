@@ -15,7 +15,9 @@ object x86IR {
 
   sealed trait x86Instruction
 
-  class x86Label(label: Label) extends Label(label)
+  class x86Label(label: Label) extends Label(label) {
+    def this(string: String) = this(Label(string))
+  }
 
   class x86Directive(directive: Directive) extends Directive(directive)
 
@@ -137,6 +139,26 @@ object x86IR {
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Mul = new Mul(src, dst, instrSize) {}
   }
 
+  sealed abstract case class IDiv(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
+
+  object IDiv {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Memory, dst: x86Immediate, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): IDiv = new IDiv(src, dst, instrSize) {}
+  }
+
   // XOR instruction
   sealed abstract case class XOR(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
 
@@ -175,11 +197,31 @@ object x86IR {
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Mov = new Mov(src, dst, instrSize) {}
   }
 
+  // CMOV instruction
+  sealed abstract case class CMov(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
+
+  object CMov {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
+  }
+
   case class Call(label: x86Label) extends x86Instruction
 
   sealed abstract case class Cmp(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
 
   object Cmp {
+    def apply(src: x86Immediate, dst: x86Operand, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
     def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
     def apply(src: x86Immediate, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
