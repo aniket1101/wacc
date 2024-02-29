@@ -13,7 +13,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
   private val byteSize = 8
   private val regsUsed = totalRegsUsed - 1
   private val stackAlignmentMask: Int = -16
-  private val paramRegList: List[x86Registers] = List(x86ReturnRegister(), x86SourceReg(), x86CounterReg(), x86Reg8(), x86Reg9())
+  private val paramRegList: List[x86Registers] = List(x86DestinationReg(), x86SourceReg(), x86CounterReg(), x86Reg8(), x86Reg9())
   private val scratchRegList: List[x86Registers] = List(x86BaseReg(), x86Reg10(), x86Reg11())
   private val varRegList: List[x86Registers] = List(x86Reg12(), x86Reg13(), x86Reg14(), x86Reg15())
   private val ptrRegList: List[x86Registers] = List(x86BasePointer(), x86StackPointer())
@@ -65,7 +65,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
               case _ => false
             }
 
-            instructions = instructions.take(indexOfMov - 2) ++ List(AddInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer()), MovInstr(Immediate(0), ReturnRegister())) ++ instructions.slice(indexOfMov, indexOfMov + varRegList.length + 1) ++ List(AddInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer()), IR.Pop(BasePointer()), Ret())
+            instructions = instructions.take(indexOfMov - 2) ++ List(AddInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer()), MovInstr(Immediate(0), ReturnRegister())) ++ instructions.slice(indexOfMov, indexOfMov + varRegList.length + 1) ++ List(AddInstr(Immediate((varRegList.length + 1) * byteSize), StackPointer()), IR.Pop(BasePointer()), Ret())
             block.instructions = instructions
           }
         }
