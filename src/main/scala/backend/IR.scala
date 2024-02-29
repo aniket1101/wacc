@@ -32,10 +32,10 @@ object IR {
 
   case class OffsetLabel(label: Label) extends Offset
 
-  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Offset], size: Int) extends MemOrReg {
-    def this(primReg: Register, offset: Int, size: Int) = this(Some(primReg), None, None, if (offset != 0) Some(OffsetInt(offset)) else None, size)
+  sealed abstract case class Memory(primReg: Option[Register], secReg: Option[Register], multiplier: Option[Int], offset: Option[Offset]) extends MemOrReg {
+    def this(primReg: Register, offset: Int) = this(Some(primReg), None, None, if (offset != 0) Some(OffsetInt(offset)) else None)
 
-    def this(primReg: Register, secReg: Register, size: Int) = this(Some(primReg), Some(secReg), None, None, size)
+    def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
 
     def this(primReg: Register, secReg: Register, multiplier: Int) = {
       this(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None)
@@ -126,24 +126,6 @@ object IR {
     def apply(src: Immediate, dst: Register): MulInstr = new MulInstr(src, dst) {}
 
     def apply(src: Immediate, dst: Memory): MulInstr = new MulInstr(src, dst) {}
-  }
-
-  sealed abstract case class DivInstr(src: Operand, dst: Operand) extends Instruction
-
-  object DivInstr {
-    def apply(src: Register, dst: Register): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Register, dst: Memory): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
   }
 
   // Mod Instruction
