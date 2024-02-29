@@ -513,6 +513,27 @@ object IR {
       CallInstr(Label("exit@plt")),
     ))
 
+  /*
+  _readi:
+    push rbp
+    mov rbp, rsp
+    and rsp, -16
+    sub rsp, 16
+    mov dword ptr [rsp], edi
+    lea rsi, qword ptr [rsp]
+    lea rdi, [rip + .L._readi_str0]
+    mov al, 0
+    call scanf@plt
+    movsx rax, dword ptr [rsp]
+    add rsp, 16
+    mov rsp, rbp
+    pop rbp
+    ret
+  */
+  case class ReadIntBlock() extends AsmBlock(new ReadOnlyData("readi", 2, "%d"), "text", "_readi", List(
+
+  ))
+
   //  case class MallocBlock() extends AsmBlock("text", "_printi", List(
   //    Push(BasePointer()),
   //    MovInstr(StackPointer(), BasePointer()),

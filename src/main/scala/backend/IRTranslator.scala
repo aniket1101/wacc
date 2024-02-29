@@ -149,6 +149,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           val instrs = translatePrint(checkType(expr)(symbolTable), expr:Expr).concat(List(CallInstr(Label("_println"))))
           addBlock(PrintlnBlock())
           instrs
+        case Read(ident: Ident) =>
+          translateRead(checkType(ident: Expr)(symbolTable), ident)
+
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
           val restLabel = getNewLabel()
@@ -403,6 +406,19 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         ListBuffer.empty
       }
       case Ident(x) => ListBuffer(MovInstr(variableMap.get(x).orNull, reg))
+    }
+  }
+
+  def translateRead(typ: Type, ident: Ident): List[Instruction] = {
+    typ match {
+      case IntType() => {
+        addBlock(ReadIntBlock())
+        List()
+      }
+      case CharType() => {
+        // TODO: Add Char Input
+        List()
+      }
     }
   }
 
