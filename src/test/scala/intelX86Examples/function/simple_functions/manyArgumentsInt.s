@@ -1,84 +1,111 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-# length of .L.str0
-	.int 6
-.L.str0:
-	.asciz " Boom!"
-# length of .L.str1
-	.int 12
-.L.str1:
-	.asciz "counting... "
 .text
 main:
 	push rbp
-	# push {rbx, r12, r13, r14}
-	sub rsp, 32
+	# push {rbx, r12}
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 5
-	mov r12, rax
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
-	mov r13, rax
-	jmp .L0
-.L1:
-	# Stack pointer unchanged, no stack allocated variables
-	lea rax, [rip + .L.str1]
-	push rax
-	pop rax
-	mov rax, rax
-	mov r14, rax
-	# Stack pointer unchanged, no stack allocated arguments
-	mov rax, r14
+	sub rsp, 8
+	mov rax, 0
 	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
+	mov rax, 0
+	mov rsi, rax
+	mov rax, 1
+	mov rdx, rax
+	mov rax, 4
+	mov rcx, rax
+	mov rax, 2
+	mov r8, rax
+	mov rax, 3
+	mov r9, rax
+	mov rax, 7
+	mov dword ptr [rsp + 4], eax
+	mov rax, 4
+	mov dword ptr [rsp], eax
+	call wacc_f
+	mov r11, rax
+	add rsp, 8
+	mov rax, r11
+	mov r12, rax
 	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _printi
 	call _println
-	mov eax, r12d
-	sub eax, 1
+	# Stack pointer unchanged, no stack allocated variables
+	mov rax, 0
+	# pop {rbx, r12}
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
+	pop rbp
+	ret
+
+wacc_f:
+	push rbp
+	# push {r12, r13, r14}
+	sub rsp, 24
+	mov qword ptr [rsp], r12
+	mov qword ptr [rsp + 8], r13
+	mov qword ptr [rsp + 16], r14
+	mov rbp, rsp
+	# Stack pointer unchanged, no stack allocated variables
+	mov eax, edx
+	add eax, ecx
 	jo _errOverflow
 	movsx rax, eax
 	push rax
 	pop rax
 	mov rax, rax
 	mov r12, rax
-	# Stack pointer unchanged, no stack allocated variables
-.L0:
-	cmp r12, 0
-	jg .L1
-	# Stack pointer unchanged, no stack allocated arguments
-	mov rax, r12
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _printi
-	# Stack pointer unchanged, no stack allocated arguments
-	mov rax, r13
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	call _println
-	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 0
-	# pop {rbx, r12, r13, r14}
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	add rsp, 32
+	mov eax, r8d
+	imul eax, r9d
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	pop rax
+	mov rax, rax
+	mov r13, rax
+	movsx rbx, dword ptr [rbp + 40]
+	movsx rax, dword ptr [rbp + 44]
+	mov eax, eax
+	sub eax, ebx
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	pop rax
+	mov rax, rax
+	mov r14, rax
+	mov eax, r13d
+	imul eax, r14d
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	pop rbx
+	mov eax, r12d
+	add eax, ebx
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	pop rax
+	mov rax, rax
+	# reset the stack pointer, undoing any pushes: this is often unnecessary, but is cheap
+	mov rsp, rbp
+	# pop {r12, r13, r14}
+	mov r12, qword ptr [rsp]
+	mov r13, qword ptr [rsp + 8]
+	mov r14, qword ptr [rsp + 16]
+	add rsp, 24
 	pop rbp
 	ret
+	# Stack pointer unchanged, no stack allocated variables
+	# 'ere be dragons: this is 100% dead code, functions always end in returns!
 
 .section .rodata
 # length of .L._prints_str0
