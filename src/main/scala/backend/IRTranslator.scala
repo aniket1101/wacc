@@ -214,12 +214,17 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(Push(newParamReg), MovInstr(ReturnRegister(), newParamReg), CallInstr(Label("_exit")), Pop(newParamReg)))
         }
         case Scope(stats) => {
+          updateCurBlock(instructions.toList)
           translateStatements(stats, symbolTable)
+          instructions = ListBuffer.empty
           List.empty
         }
       })
+      stmt match {
+        case Scope(_) => instructions = ListBuffer.empty
+        case _ =>
+      }
     }
-
     curBlock.instructions = curBlock.instructions.concat(instructions)
   }
 

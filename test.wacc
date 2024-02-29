@@ -1,15 +1,18 @@
-# attempt divide by zero
+# more complex variable scoping test that redefines a variable
 
 # Output:
-# #runtime_error#
-
-# Exit:
-# 255
+# true
+# 2
+#
 
 # Program:
 
 begin
-	int x = 10 ;
-	int y = 0 ;
-	print x / y
+  int x = 1 ;
+  begin
+    x = 2 ;
+    bool x = true ;
+    println x
+  end ;
+  println x
 end
