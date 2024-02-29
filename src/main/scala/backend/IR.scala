@@ -172,8 +172,6 @@ object IR {
     def apply(src: Immediate, dst: Memory): CMovInstr = new CMovInstr(src, dst) {}
   }
 
-  case class TestInstr(label:Label) extends Instruction
-
   sealed abstract case class TestInstr(src: Operand, value: Operand) extends Instruction
 
   object TestInstr {
@@ -334,7 +332,7 @@ object IR {
   case class errBadCharBlock() extends AsmBlock(new ReadOnlyData("errBadChar", 50, "fatal error: int %d is not ascii character 0-127 \\n"),
     "text", "_errBadChar", List(
       Align(StackPointer()),
-      LeaInstr(Memory(new scratchReg("rip"), Label(".L._errBadChar_str0")), new scratchReg("rdi")),
+      LeaInstr(Memory(new scratchReg("rip"), Label(".L._errBadChar_str0"), 4), new scratchReg("rdi")),
       MovInstr(Immediate(0), new scratchReg("al")),
       CallInstr(Label("printf@plt")),
       MovInstr(Immediate(0), new scratchReg("rdi")),
@@ -346,7 +344,7 @@ object IR {
   case class errDivZeroBlock() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero \\n"),
     "text", "_errDivZero", List(
       Align(StackPointer()),
-      LeaInstr(Memory(new scratchReg("rip"), Label(".L._errDivZero_str0")), new scratchReg("rdi")),
+      LeaInstr(Memory(new scratchReg("rip"), Label(".L._errDivZero_str0"), 4), new scratchReg("rdi")),
       CallInstr(Label("_prints")),
       MovInstr(Immediate(-1), new scratchReg("dil")),
       CallInstr(Label("exit@plt")),

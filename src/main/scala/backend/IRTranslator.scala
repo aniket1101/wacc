@@ -272,7 +272,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           case true => ListBuffer(MovInstr(Immediate(0), reg))
           case _ => ListBuffer(MovInstr(Immediate(1), reg))
         }
-        case _ => evaluateExpr(x, reg).concat(evaluateExpr(new Not()))
+        // case _ => evaluateExpr(x, reg).concat(evaluateExpr(new Not()))
       }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg)
       //case Len(x) =>
@@ -285,7 +285,6 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           JneInstr(Label("_errBadChar"))
         )
       }
-      //case Plus(x) =>
       case Add(x, y) => {
         (x, y) match {
           case (IntLit(i), j) => evaluateExpr(j, reg).concat(List(AddInstr(Immediate(i), reg)))
