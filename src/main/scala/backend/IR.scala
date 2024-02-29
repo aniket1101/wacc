@@ -217,7 +217,7 @@ object IR {
     def apply(src: Immediate, dst: Memory): MovInstr = new MovInstr(src, dst) {}
   }
 
-  // MOV instruction
+  // CMOV instruction
   sealed abstract case class CMovInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): CMovInstr = {
       this.size = size
@@ -237,6 +237,27 @@ object IR {
     def apply(src: Immediate, dst: Register): CMovInstr = new CMovInstr(src, dst) {}
 
     def apply(src: Immediate, dst: Memory): CMovInstr = new CMovInstr(src, dst) {}
+  }
+
+  sealed abstract case class CMovNeInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): CMovNeInstr = {
+      this.size = size
+      this
+    }
+  }
+
+  object CMovNeInstr {
+    def apply(src: Register, dst: Register): CMovNeInstr = new CMovNeInstr(src, dst) {}
+
+    def apply(src: Register, dst: Memory): CMovNeInstr = new CMovNeInstr(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): CMovNeInstr = new CMovNeInstr(src, dst) {}
+
+    def apply(src: Memory, dst: Register): CMovNeInstr = new CMovNeInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): CMovNeInstr = new CMovNeInstr(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): CMovNeInstr = new CMovNeInstr(src, dst) {}
   }
 
   case class CallInstr(label: Label) extends Instruction
@@ -470,7 +491,7 @@ object IR {
       CallInstr(Label("printf@plt")),
       MovInstr(Immediate(0), DestinationRegister()),
       CallInstr(Label("fflush@plt")),
-      MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_8),
+      MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt"))
   ))
 
@@ -512,7 +533,11 @@ object IR {
 
     def this(labelName: String, str: String) = this(labelName, ListBuffer((str.length, str)))
 
-    def add(str: String): Unit = data.addOne((str.length, formatStr(str)))
+    def add(str: String): Unit = {
+      if (!data.map(e => e._2).contains(str)) {
+        data.addOne((str.length, formatStr(str)))
+      }
+    }
 
     def add(n: Int, str: String): Unit = data.addOne((n, formatStr(str)))
 

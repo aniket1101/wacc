@@ -1,17 +1,21 @@
-# basic Boolean printing
+# evalutaing ord and chr
 
 # Output:
-# True is true
-# False is false
+# a is 97
+# 99 is c
 #
 
 # Program:
 
 begin
-  print "True is " ;
-  println true ;
+  char a = 'a' ;
+  int i = 99 ;
 
-  print "False is " ;
-  println false
+  print a ;
+  print " is " ;
+  println ord a ;
+
+  print i ;
+  print " is " ;
+  println chr i
 end
-

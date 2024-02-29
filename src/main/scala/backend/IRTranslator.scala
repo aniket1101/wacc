@@ -16,6 +16,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   var blocks: ListBuffer[AsmBlock] = ListBuffer()
   var curBlock: AsmBlock = _
   val nullPos: (Int, Int) = (-1, -1)
+  val CHAR_RANGE_MASK = -128
 
   var usedRegs = 0
 
@@ -28,7 +29,6 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   var roData: ReadOnlyData = new ReadOnlyData("")
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
-//  var scratchRegs: List[Register] = List(new scratchReg("foo1"), new scratchReg("foo2"), new scratchReg("foo3"), new scratchReg("foo4"),new scratchReg("foo5"))
 
   def translate():List[AsmBlock] = {
     translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
@@ -271,24 +271,24 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg, size)
       case Chr(x) => {
         addBlock(errBadChar())
-        var instrs = ListBuffer() : ListBuffer[Instruction]
-        x match {
+        val evalChar: ListBuffer[Instruction] = x match {
           case IntLit(x) =>
-            instrs.concat(List(MovInstr(Immediate(x), reg).changeSize(size)))
+            ListBuffer(MovInstr(Immediate(x), reg).changeSize(size))
           case _ =>
-            instrs.concat(evaluateExpr(x, reg, BIT_64))
+            evaluateExpr(x, reg, BIT_64)
         }
-        instrs.concat(List(
-          TestInstr(Immediate(-128), reg).changeSize(size),
+        evalChar.concat(List(
+          TestInstr(Immediate(CHAR_RANGE_MASK), reg).changeSize(size),
+          CMovNeInstr(ReturnRegister(), SourceRegister()),
           JneInstr(Label("_errBadChar"))
         ))
-        instrs
       }
       case Ord(x) =>
         evaluateExpr(x, reg, BIT_64)
       // case Len(x) =>
       case Add(x, y) => {
         addBlock(errOverflow())
+        addBlock(StringPrintBlock())
         (x, y) match {
           case (IntLit(i), j) => evaluateExpr(j, reg, size).concat(List(AddInstr(Immediate(i), reg).changeSize(size)))
           case (i, IntLit(j)) => evaluateExpr(i, reg, size).concat(List(AddInstr(Immediate(j), reg).changeSize(size)))
@@ -302,6 +302,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       }
 
       case Sub(x, y) => {
+        addBlock(errOverflow())
+        addBlock(StringPrintBlock())
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(SubInstr(yReg, reg).changeSize(size))
@@ -309,6 +311,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         instrs
       }
       case Mul(x, y) => {
+        addBlock(errOverflow())
+        addBlock(StringPrintBlock())
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(MulInstr(yReg, reg).changeSize(size))
@@ -328,7 +332,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case Mod(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(ModInstr(reg, yReg).changeSize(size))
+        val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
+          ModInstr(yReg, ReturnRegister()).changeSize(BIT_32))
+        )
         scratchCounter = 0
         instrs
       }
@@ -405,15 +411,16 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     typ match {
       case CharType() => {
         addBlock(CharPrintBlock())
-        expr match {
+        val evalChar: List[Instruction] = expr match {
           case CharLit(chr) =>
-            List(
-              MovInstr(Immediate(chr),  ReturnRegister()),
-              MovInstr(ReturnRegister(), DestinationRegister()),
-              CallInstr(Label("_printc"))
-            )
+            List(MovInstr(Immediate(chr),  ReturnRegister()))
+          case _ => evaluateExpr(expr, ReturnRegister(), BIT_64).toList
         }
-      }
+        evalChar.concat(List(
+          MovInstr(ReturnRegister(), DestinationRegister()),
+          CallInstr(Label("_printc"))
+        ))
+        }
 
       case StringType() => {
         addBlock(StringPrintBlock())

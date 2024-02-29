@@ -60,9 +60,10 @@ class X86Translator(val asmInstr: List[AsmBlock]) {
         case IR.AddInstr(src, dst, size) => translateAdd(src, dst, size)
         case IR.SubInstr(src, dst, size) => translateSub(src, dst, size)
         case IR.MulInstr(src, dst, size) => translateMul(src, dst, size)
-        case IR.DivInstr(src, dst, size) => ListBuffer(x86IR.Cmp(x86Immediate(0), getOperand(dst), getSize(size)),
+        case IR.DivInstr(src, dst, size) => ListBuffer(x86IR.Cmp(x86Immediate(0), getOperand(src), getSize(size)),
           x86IR.CDQ(), x86IR.IDiv(getOperand(src), getOperand(dst), getSize(size)))
-        //        case ModInstr(src, dst, size) => ???
+        case IR.ModInstr(src, dst, size) => ListBuffer(x86IR.Cmp(x86Immediate(0), getOperand(src), getSize(size)),
+          x86IR.CDQ(), x86IR.IDiv(getOperand(src), getOperand(dst), getSize(size)), x86IR.Mov(x86DataReg(), x86ReturnRegister(), halfReg))
         case CallInstr(label) => ListBuffer(Call(new x86Label(label)))
         case LeaInstr(src, dst, size) => {
           getRegister(dst) match {
@@ -71,10 +72,12 @@ class X86Translator(val asmInstr: List[AsmBlock]) {
           }
         }
         case IR.CmpInstr(src, value, size) => ListBuffer(x86IR.Cmp(getOperand(src), getOperand(value), getSize(size)))
-        case TestInstr(src, value, size) => ???
-        case CMovInstr(src, dst, size) => ???
-        case JeInstr(label) => ListBuffer(Je(new x86Label(label)))
-        case JneInstr(label) => ListBuffer(Jne(new x86Label(label)))
+        case TestInstr(src, value, size) => ListBuffer(x86IR.Test(getOperand(src), getOperand(value), getSize(size)))
+        case CMovInstr(src, dst, size) => ListBuffer(x86IR.CMov(getOperand(src), getOperand(dst), getSize(size)))
+        case CMovNeInstr(src, dst, size) => ListBuffer(x86IR.CMovNe(getOperand(src), getOperand(dst), getSize(size)))
+        case JeInstr(label) => ListBuffer(x86IR.Je(new x86Label(label)))
+        case JneInstr(label) => ListBuffer(x86IR.Jne(new x86Label(label)))
+        case JumpInstr(label) => ListBuffer(x86IR.Jump(new x86Label(label)))
         case MoveGT(reg, size) => {
           getRegister(reg) match {
             case Left(register) => ListBuffer(Setg(register, eigthReg), MoveSX(register, register, eigthReg, getSize(size)))

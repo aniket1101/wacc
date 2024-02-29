@@ -216,6 +216,24 @@ object x86IR {
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): CMov = new CMov(src, dst, instrSize) {}
   }
 
+  sealed abstract case class CMovNe(src: x86Operand, dst: x86Operand, instrSize: InstrSize) extends x86Instruction
+
+  object CMovNe {
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Memory, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+
+    def apply(src: x86Memory, dst: x86Registers, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): CMovNe = new CMovNe(src, dst, instrSize) {}
+  }
+
   case class Call(label: x86Label) extends x86Instruction
 
   sealed abstract case class Cmp(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
@@ -234,6 +252,26 @@ object x86IR {
     def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
 
     def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Cmp = new Cmp(src, dst, instrSize) {}
+  }
+
+  sealed abstract case class Test(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
+
+  object Test {
+    def apply(src: x86Immediate, dst: x86Operand, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Operand, dst: x86Operand, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Immediate, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Memory, dst: x86Memory, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Registers, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Registers, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Registers, dst: x86Immediate, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
+
+    def apply(src: x86Immediate, dst: x86Memory, instrSize: InstrSize): Test = new Test(src, dst, instrSize) {}
   }
 
   sealed abstract case class Lea(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction

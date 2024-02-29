@@ -54,12 +54,14 @@ object IntelX86Formatter {
         case Return() => formatInstr("ret")
         case CDQ() => formatInstr("cdq")
         case Mov(src, dst, size) => formatInstr("mov", src, dst, size)
-        case MoveSX(src, dst, sizeSrc, sizeDst) => formatInstr("movsx", src, dst, sizeDst)
+        case CMov(src, dst, size) => formatInstr("cmov", src, dst, size)
+        case CMovNe(src, dst, size) => formatInstr("cmovne", src, dst, size)
+        case MoveSX(src, dst, sizeSrc, sizeDst) => formatInstr("movsx", src, dst, sizeSrc, sizeDst)
         case Call(label) => formatInstr("call", label)
         case Add(reg1, reg2, size) => formatInstr("add", reg1, reg2, size)
         case Sub(value, reg, size) => formatInstr("sub", value, reg, size)
         case Mul(value, reg, size) => formatInstr("imul", value, reg, size)
-        case IDiv(_, reg, size) => formatInstr("idiv", reg, size)
+        case IDiv(reg, _, size) => formatInstr("idiv", reg, size)
         case And(reg1, reg2, size) => formatInstr("and", reg2, reg1, size)
         case Sete(reg, size) => formatInstr("sete", reg, size)
         case Setne(reg, size) => formatInstr("setne", reg, size)
@@ -72,12 +74,17 @@ object IntelX86Formatter {
         case Jump(label) => formatInstr("jmp", label)
         case Jo() => formatInstr("jo", new x86Label("_errOverflow"))
         case Cmp(op1, op2, size) => formatInstr("cmp", op1, op2, size)
+        case Test(op1, op2, size) => formatInstr("test", op1, op2, size)
         case Lea(reg, mem, size) => formatInstr("lea", reg, mem, size)
       }
     }
 
     private def formatInstr(opcode: String, operand1: x86Operand, operand2: x86Operand, size: InstrSize): String = {
       s"$opcode ${formatOperand(operand2, size)}, ${formatOperand(operand1, size)}"
+    }
+
+    private def formatInstr(opcode: String, operand1: x86Operand, operand2: x86Operand, size1: InstrSize, size2: InstrSize): String = {
+      s"$opcode ${formatOperand(operand2, size2)}, ${formatOperand(operand1, size1)}"
     }
 
     private def formatInstr(opcode: String, operand: x86Operand, size: InstrSize): String = {
