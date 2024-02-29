@@ -327,6 +327,8 @@ object IR {
 
   case class JumpInstr(label: Label) extends Instruction
 
+  case class NotInstr(register: Register) extends Instruction
+
   case class MoveGT(reg: Register, size: Size = BIT_64) extends Instruction
 
   case class MoveGTE(reg: Register, size: Size = BIT_64) extends Instruction
@@ -541,7 +543,7 @@ object IR {
 
     def add(n: Int, str: String): Unit = data.addOne((n, formatStr(str)))
 
-    private def formatStr(str: String): String = str.replace("\n", "\\n").replace("\b", "\\b")
+    private def formatStr(str: String): String = str.replace("\n", "\\n").replace("\b", "\\b").replace("\"", "\\\"")
 
     def prevString(): Label = Label(s".L.str${data.length - 1}")
   }
