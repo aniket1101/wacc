@@ -1,10 +1,8 @@
 begin
-  int a = 13;
-  int b = 37;
-  if a < b
-  then
-    println "correct"
-  else
-    println "incorrect"
-  fi
+  int i = 1 ;
+  println "Can you count to 10?" ;
+  while i <= 10 do
+    println i ;
+    i = i + 1
+  done
 end

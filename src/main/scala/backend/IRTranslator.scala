@@ -156,6 +156,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
           // Translating else block (adds statements to end of current block)
           updateCurBlock(instructions.toList)
+          instructions = ListBuffer.empty
           updateCurBlock(evaluateExpr(cond, ReturnRegister(), BIT_64).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel))).toList)
           translateStatements(elseStat, symbolTable)
           updateCurBlock(JumpInstr(restLabel))
@@ -184,6 +185,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           val bodyBlock = new AsmBlock("", bodyLabel.name, List.empty)
           val restBlock = new AsmBlock("", restLabel.name, List.empty)
 
+          updateCurBlock(instructions.toList)
+          instructions = ListBuffer.empty
           updateCurBlock(JumpInstr(condLabel))
 
           // Translating Condition block (new block)
@@ -194,7 +197,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           // Translating Body block (new block)
           curBlock = bodyBlock
           translateStatements(doStat, symbolTable)
-          updateCurBlock(JumpInstr(restLabel))
+          updateCurBlock(JumpInstr(condLabel))
 
           // Translating Rest block (new block)
           curBlock = restBlock
@@ -224,7 +227,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         }
       })
       stmt match {
-        case Scope(_) => instructions = ListBuffer.empty
+        case Scope(_) | If(_, _, _) | While(_, _) => instructions = ListBuffer.empty
         case _ =>
       }
     }
