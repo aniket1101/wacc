@@ -12,28 +12,28 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   var inFunc = false
   var labels = 0
-  var blocks: ListBuffer[Block] = ListBuffer()
+  var blocks: ListBuffer[AsmBlock] = ListBuffer()
   var curBlock: AsmBlock = _
   val nullPos: (Int, Int) = (-1, -1)
 
   var usedRegs = 0
 
   var scratchCounter = 0
-  var varRegs: ListBuffer[varReg] = ListBuffer.empty
-  val varMap: mutable.Map[String, varReg] = mutable.Map.empty
+  var varRegs: ListBuffer[Register] = ListBuffer.empty
+  val varMap: mutable.Map[String, Register] = mutable.Map.empty
   var varCounter = 0
   var paramRegs: ListBuffer[paramReg] = ListBuffer.empty
   var paramCount = 0
   var roData: ReadOnlyData = new ReadOnlyData("")
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
-  var scratchRegs: List[Register] = List(new scratchReg("foo1"), new scratchReg("foo2"), new scratchReg("foo3"), new scratchReg("foo4"),new scratchReg("foo5"))
+//  var scratchRegs: List[Register] = List(new scratchReg("foo1"), new scratchReg("foo2"), new scratchReg("foo3"), new scratchReg("foo4"),new scratchReg("foo5"))
 
-  def translate():List[Block] = {
+  def translate():List[AsmBlock] = {
     translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
   }
 
-  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[Block], symbolTable:mutable.Map[String, Type]): ListBuffer[Block] = {
+  private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[AsmBlock], symbolTable:mutable.Map[String, Type]): ListBuffer[AsmBlock] = {
     for (fun <- funcs) {
       variableMap = mutable.Map.empty
       varCounter = 0
@@ -65,7 +65,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   }
 
 
-  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[Block] = {
+  private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[AsmBlock] = {
     blocks = ListBuffer()
     val mainBlock = new AsmBlock("text", "main", setUpScope(symbolTable, "main-").toList)
     curBlock = mainBlock
@@ -81,17 +81,17 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     usedRegs = symbolTable.keys.count(_.startsWith(scopePrefix)) - paramCount
 
     if (usedRegs == 0) {
-      val rbx = new varReg("rbx")
-      instructions.addOne(Push(rbx))
+      val rbx = BaseRegister()
+      instructions.addOne(Push(BaseRegister()))
       varRegs += rbx
     } else {
       instructions.addOne(SubInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
-      val rbx = new varReg("rbx")
+      val rbx = BaseRegister()
       varRegs += rbx
-      instructions.addOne(MovInstr(rbx, Memory(StackPointer(), 8)))
+      instructions.addOne(MovInstr(BaseRegister(), Memory(StackPointer())))
       for (regNo <- 1 to usedRegs) {
-        val newVarReg = new varReg(s"varReg${varRegs.length + 1}")
-        instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo, 8)))
+        val newVarReg = new varReg(varRegs.length)
+        instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo)))
         varRegs += newVarReg
       }
     }
@@ -107,11 +107,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
 
     if (usedRegs == 0) {
-      instructions.addOne(Pop(varRegs.head: varReg))
+      instructions.addOne(Pop(varRegs.head))
     } else {
-      instructions.addOne(MovInstr(Memory(StackPointer(), 8), varRegs.head: varReg))
+      instructions.addOne(MovInstr(Memory(StackPointer()), varRegs.head))
       for (regNo <- 1 to usedRegs) {
-        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo, 8), varRegs(regNo): varReg))
+        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), varRegs(regNo)))
       }
       instructions.addOne(AddInstr(Immediate(8 * (usedRegs + 1)), StackPointer()))
     }
@@ -264,108 +264,94 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case CharLit(chr) => ListBuffer(MovInstr(Immediate(chr.toInt), reg))
       case StrLit(str) =>
         roData.add(str)
-        ListBuffer(LeaInstr(Memory(new scratchReg("rip"), roData.prevString(), 4), reg),
+        ListBuffer(LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), reg),
           Push(reg), Pop(reg), MovInstr(reg, reg))
       case Ident(name) => ListBuffer(MovInstr(varMap(name), reg))
-      case Not(x) => x match {
-        case BoolLit(bool) => bool match {
-          case true => ListBuffer(MovInstr(Immediate(0), reg))
-          case _ => ListBuffer(MovInstr(Immediate(1), reg))
-        }
-        // case _ => evaluateExpr(x, reg).concat(evaluateExpr(new Not()))
-      }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg)
-      //case Len(x) =>
-      //case Ord(x) =>
-      case Chr(x) => {
-        addBlock(errBadCharBlock())
-        ListBuffer(
-          TestInstr(Immediate(-128), new scratchReg("rax")),
-          CMovInstr(new scratchReg("rax"), new scratchReg("rsi")),
-          JneInstr(Label("_errBadChar"))
-        )
-      }
+      case Chr(x) =>
+        addBlock(errBadChar())
+        ListBuffer()
       case Add(x, y) => {
         (x, y) match {
           case (IntLit(i), j) => evaluateExpr(j, reg).concat(List(AddInstr(Immediate(i), reg)))
           case (i, IntLit(j)) => evaluateExpr(i, reg).concat(List(AddInstr(Immediate(j), reg)))
           case _ =>
-            val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+            val yReg = new scratchReg(scratchCounter, 0)
             scratchCounter += 1
             val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(AddInstr(yReg, reg))
             scratchCounter = 0
             instrs
-          }
         }
+      }
 
       case Sub(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(SubInstr(yReg, reg))
         scratchCounter = 0
         instrs
       }
       case Mul(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(MulInstr(yReg, reg))
         scratchCounter = 0
         instrs
       }
 
-      case Div(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
-        scratchCounter += 1
-        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(
-          MovInstr(reg, new scratchReg("eax")), DivInstr(yReg, new scratchReg("eax")))
-        )
-        scratchCounter = 0
-        instrs
-      }
+//      case Div(x, y) => {
+//        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+//        scratchCounter += 1
+//        val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(List(
+//          MovInstr(reg, new scratchReg("eax")), DivInstr(yReg, new scratchReg("eax")))
+//        )
+//        scratchCounter = 0
+//        instrs
+//      }
       case Mod(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).addOne(ModInstr(reg, yReg))
         scratchCounter = 0
         instrs
       }
       case GT(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveGT(reg)))
         scratchCounter = 0
         instrs
       }
       case GTE(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveGTE(reg)))
         scratchCounter = 0
         instrs
       }
       case LT(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveLT(reg)))
         scratchCounter = 0
         instrs
       }
       case LTE(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveLTE(reg)))
         scratchCounter = 0
         instrs
       }
       case Eq(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveEq(reg)))
         scratchCounter = 0
         instrs
       }
       case NEq(x, y) => {
-        val yReg = new scratchReg(s"scratchReg${scratchCounter + 1}")
+        val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg).concat(evaluateExpr(y, yReg)).concat(ListBuffer(CmpInstr(reg, yReg), MoveNEq(reg)))
         scratchCounter = 0
@@ -403,10 +389,10 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case CharType() => {
         addBlock(CharPrintBlock())
         expr match {
-          case CharLit(chr) => 
+          case CharLit(chr) =>
             List(
-              MovInstr(Immediate(chr), new scratchReg("rax")),
-              MovInstr(new scratchReg("rax"), new scratchReg("rdi")),
+              MovInstr(Immediate(chr),  ReturnRegister()),
+              MovInstr(ReturnRegister(), DestinationRegister()),
               CallInstr(Label("_printc"))
             )
         }
@@ -415,11 +401,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case StringType() => {
         addBlock(StringPrintBlock())
         List(
-          LeaInstr(Memory(new scratchReg("rip"), roData.prevString(), 4), ReturnRegister()),
+          LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), ReturnRegister()),
           Push(ReturnRegister()),
           Pop(ReturnRegister()),
           MovInstr(ReturnRegister(), ReturnRegister()),
-          MovInstr(ReturnRegister(), new scratchReg("rdi")),
+          MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_prints"))
         )
       }
@@ -430,10 +416,10 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         addBlock(BoolPrintBlock1())
         val evalBool: List[Instruction] = expr match {
           case BoolLit(bl) =>
-            List(MovInstr(Immediate(if (bl) 1 else 0), new scratchReg("rax")))
+            List(MovInstr(Immediate(if (bl) 1 else 0), ReturnRegister()))
           case _ => evaluateExpr(expr, ReturnRegister()).toList
         }
-        evalBool.concat(List(MovInstr(new scratchReg("rax"), new scratchReg("rdi")), CallInstr(Label("_printb")))).toList
+        evalBool.concat(List(MovInstr(ReturnRegister(), DestinationRegister()), CallInstr(Label("_printb")))).toList
       }
 
       case IntType() => {
@@ -443,31 +429,31 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           case _ => evaluateExpr(expr, ReturnRegister()).toList
         }
         evalInt.concat(List(
-          MovInstr(ReturnRegister(), new scratchReg("rdi")),
+          MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_printi"))))
-        }
+      }
 
-//      case ArrayType(elementType) => {
-//        val arrayTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
-//        val printInstrs: List[Instruction] = List.empty
-//        arrayTypePrintBlock.instructions = printInstrs
-//        blocks.addOne(arrayTypePrintBlock)
-//        printInstrs
-//      }
-//
-//      case PairType(firstType, secondType) => {
-//        val pairTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
-//        val printInstrs: List[Instruction] = List.empty
-//        pairTypePrintBlock.instructions = printInstrs
-//        blocks.addOne(pairTypePrintBlock)
-//        printInstrs
-//      }
+      //      case ArrayType(elementType) => {
+      //        val arrayTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
+      //        val printInstrs: List[Instruction] = List.empty
+      //        arrayTypePrintBlock.instructions = printInstrs
+      //        blocks.addOne(arrayTypePrintBlock)
+      //        printInstrs
+      //      }
+      //
+      //      case PairType(firstType, secondType) => {
+      //        val pairTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
+      //        val printInstrs: List[Instruction] = List.empty
+      //        pairTypePrintBlock.instructions = printInstrs
+      //        blocks.addOne(pairTypePrintBlock)
+      //        printInstrs
+      //      }
     }
   }
 
   def getParamReg(): paramReg = {
     if (paramCount >= paramRegs.length) {
-      new paramReg(s"paramReg${paramRegs.length + 1}")
+      new paramReg(paramRegs.length)
     } else {
       paramRegs(paramCount)
     }

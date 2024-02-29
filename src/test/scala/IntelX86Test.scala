@@ -8,6 +8,7 @@ import java.io.File
 import scala.io.Source
 
 class IntelX86Test extends AnyFlatSpec {
+  val DEBUG_MODE: Boolean = false
   class ExecOutput(val exitCode: Int, val output: String)
   def compileAndRunAsm(filename: String): ExecOutput = {
     val osName = System.getProperty("os.name").toLowerCase
@@ -19,7 +20,7 @@ class IntelX86Test extends AnyFlatSpec {
         case 0 =>
           val outputBuffer = new StringBuilder
           val processLogger = ProcessLogger((output: String) => outputBuffer.append(output).append("\n"))
-          val exitCode = s"wsl ./$output".run(processLogger).exitValue()
+          val exitCode = s"wsl timeout 2s ./$output".run(processLogger).exitValue()
           val outputString = outputBuffer.toString()
           s"wsl rm $output".!
           new ExecOutput(exitCode, outputString)
@@ -31,7 +32,7 @@ class IntelX86Test extends AnyFlatSpec {
         case 0 =>
           val outputBuffer = new StringBuilder
           val processLogger = ProcessLogger((output: String) => outputBuffer.append(output))
-          val exitCode = s"./$output".run(processLogger).exitValue()
+          val exitCode = s"timeout 2s ./$output".run(processLogger).exitValue()
           val outputString = outputBuffer.toString()
           s"rm $output".!
           new ExecOutput(exitCode, outputString)
@@ -40,20 +41,34 @@ class IntelX86Test extends AnyFlatSpec {
     }
   }
 
+  def compileAndRunWacc(waccFile: String, testName: String, delete: Boolean): ExecOutput = {
+    val compilerOutput = compileProgram(waccFile)
+    assert(compilerOutput <= 0, s"Error: $testName did not produce assembly")
+    val outputFile = removeFileExt(new File(waccFile).getName) + ".s"
+    val output = compileAndRunAsm(outputFile)
+
+    // Delete generated files
+    if (delete)
+      deleteFile(outputFile)
+    output
+  }
+
   val src = "src/test/scala/intelX86Examples"
   new ProcessExamples(src, ".s").processFolder()
     .foreach { case (testName, testCode) =>
       val correctOutput = compileAndRunAsm(testCode.getPath)
 
       val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
-      val compilerOutput = compileProgram(waccFile)
-      assert(compilerOutput <= 0, s"Error: $testName did not produce assembly")
-
-      val outputFile = removeFileExt(new File(waccFile).getName) + ".s"
-      val output = compileAndRunAsm(outputFile)
-
-      // Delete generated files
-      deleteFile(outputFile)
+      val output = if (DEBUG_MODE) {
+        compileAndRunWacc(waccFile, testName, delete = false)
+      } else {
+        try {
+          compileAndRunWacc(waccFile, testName, delete = true)
+        } catch {
+          case e: Exception => println(s"Error compiling $testName")
+            new ExecOutput(-2, "")
+        }
+      }
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode

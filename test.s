@@ -4,65 +4,53 @@
 .text
 main:
 	push rbp
-	sub rsp, 24
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
 	mov rbp, rsp
-	mov rax, -4
+	mov rax, 1
+	mov r14, 2
+	sub rax, r14
+	add rax, 3
+	mov r14, 4
+	sub rax, r14
+	add rax, 5
+	mov r14, 6
+	sub rax, r14
+	add rax, 7
+	mov r14, 8
+	sub rax, r14
+	add rax, 9
+	mov r14, 10
+	sub rax, r14
+	add rax, 11
+	mov r14, 12
+	sub rax, r14
+	add rax, 13
+	mov r13, 14
+	sub rax, r13
+	add rax, 15
+	mov r12, 16
+	sub rax, r12
+	add rax, 17
 	mov r12, rax
-	mov rax, 2
-	mov r13, rax
 	mov rax, r12
-	mov r15, r13
-	mov eax, rax
-	cdq
-	idiv r15
+	push rdi
 	mov rdi, rax
-	call _printi
-	call _println
+	call _exit
+	pop rdi
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	add rsp, 24
+	add rsp, 16
 	pop rbp
 	ret
 
-.section .rodata
-.section .rodata
-  .int 2
-.L._printi_str0:
-  .asciz "%d"
-.text
-_printi:
+_exit:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
-	pop rbp
-	ret
-
-.section .rodata
-.section .rodata
-  .int 0
-.L._println_str0:
-  .asciz ""
-.text
-_println:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	lea rdi, [rip + .L._println_str0]
-	call puts@plt
-	mov rdi, 0
-	call fflush@plt
+	call exit@plt
 	mov rsp, rbp
 	pop rbp
 	ret
