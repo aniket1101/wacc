@@ -155,6 +155,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           val restBlock = new AsmBlock(restLabel, List.empty)
 
           // Translating else block (adds statements to end of current block)
+          updateCurBlock(instructions.toList)
           updateCurBlock(evaluateExpr(cond, ReturnRegister(), BIT_64).concat(ListBuffer(CmpInstr(Immediate(1), ReturnRegister()), JeInstr(thenLabel))).toList)
           translateStatements(elseStat, symbolTable)
           updateCurBlock(JumpInstr(restLabel))
@@ -346,42 +347,42 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case GT(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(reg, yReg).changeSize(size), MoveGT(reg)))
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveGT(reg)))
         scratchCounter = 0
         instrs
       }
       case GTE(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(reg, yReg).changeSize(size), MoveGTE(reg)))
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveGTE(reg)))
         scratchCounter = 0
         instrs
       }
       case LT(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(reg, yReg).changeSize(size), MoveLT(reg)))
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveLT(reg)))
         scratchCounter = 0
         instrs
       }
       case LTE(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(reg, yReg).changeSize(size), MoveLTE(reg)))
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveLTE(reg)))
         scratchCounter = 0
         instrs
       }
       case Eq(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(reg, yReg).changeSize(size), MoveEq(reg)))
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveEq(reg)))
         scratchCounter = 0
         instrs
       }
       case NEq(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(reg, yReg).changeSize(size), MoveNEq(reg)))
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveNEq(reg)))
         scratchCounter = 0
         instrs
       }
