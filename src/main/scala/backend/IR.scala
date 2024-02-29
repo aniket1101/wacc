@@ -495,7 +495,7 @@ object IR {
       CallInstr(Label("exit@plt"))
   ))
 
-  case class errDivZero() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero \\n"),
+  case class errDivZero() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero\\n"),
     "text", "_errDivZero", List(
       Align(StackPointer()),
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errDivZero_str0")), DestinationRegister()),

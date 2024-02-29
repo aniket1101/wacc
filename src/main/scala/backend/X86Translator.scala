@@ -96,9 +96,9 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
         case IR.SubInstr(src, dst, size) => translateSub(src, dst, size)
         case IR.MulInstr(src, dst, size) => translateMul(src, dst, size)
         case IR.DivInstr(src, dst, size) => ListBuffer(x86IR.Cmp(x86Immediate(0), getOperand(src), getSize(size)),
-          x86IR.CDQ(), x86IR.IDiv(getOperand(src), getOperand(dst), getSize(size)))
+          x86IR.Je(new x86Label(Label("_errDivZero"))), x86IR.CDQ(), x86IR.IDiv(getOperand(src), getOperand(dst), getSize(size)))
         case IR.ModInstr(src, dst, size) => ListBuffer(x86IR.Cmp(x86Immediate(0), getOperand(src), getSize(size)),
-          x86IR.CDQ(), x86IR.IDiv(getOperand(src), getOperand(dst), getSize(size)), x86IR.Mov(x86DataReg(), x86ReturnRegister(), halfReg))
+          x86IR.Je(new x86Label(Label("_errDivZero"))), x86IR.CDQ(), x86IR.IDiv(getOperand(src), getOperand(dst), getSize(size)), x86IR.Mov(x86DataReg(), x86ReturnRegister(), halfReg))
         case CallInstr(label) => ListBuffer(Call(new x86Label(label)))
         case LeaInstr(src, dst, size) => {
           getRegister(dst) match {

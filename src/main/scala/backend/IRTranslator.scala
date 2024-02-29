@@ -320,16 +320,20 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         instrs
       }
       case Div(x, y) => {
+        addBlock(errDivZero())
+        addBlock(StringPrintBlock())
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
-          DivInstr(yReg, ReturnRegister()).changeSize(BIT_32))
-        )
+          DivInstr(yReg, ReturnRegister()).changeSize(BIT_32)
+        ))
         scratchCounter = 0
         instrs
       }
 
       case Mod(x, y) => {
+        addBlock(errDivZero())
+        addBlock(StringPrintBlock())
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
