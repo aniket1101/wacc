@@ -1,0 +1,18 @@
+<<<<<<< Updated upstream
+=======
+# character array treated as a string
+
+# Output:
+# foo
+# bar
+#
+
+# Program:
+
+begin
+  char[] str = ['f','o','o'];
+  println str;
+  str = ['b','a','r'];
+  println str
+end
+>>>>>>> Stashed changes
