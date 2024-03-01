@@ -162,6 +162,20 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
             case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
           }
         }
+        case AndInstr(register, register2, size) => {
+          (getRegister(register), getRegister(register2)) match {
+            case (Left(reg), Left(reg2)) => ListBuffer(And(reg, reg2, getSize(size)))
+            case _ => ListBuffer()
+//            case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
+          }
+        }
+        case OrInstr(register, register2, size) => {
+          (getRegister(register), getRegister(register2)) match {
+            case (Left(reg), Left(reg2)) => ListBuffer(Or(reg, reg2, getSize(size)))
+            case _ => ListBuffer()
+            //            case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
+          }
+        }
         case Align(StackPointer(), size) => ListBuffer(And(x86StackPointer(), x86Immediate(stackAlignmentMask), getSize(size)))
         case Ret() => ListBuffer(Return())
       }

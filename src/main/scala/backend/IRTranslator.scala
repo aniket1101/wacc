@@ -390,26 +390,32 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         instrs
       }
       case And(x, y) => {
-        val shortCircuitLabel = getNewLabel()
-        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
-        var instrs = evaluateExpr(x, reg, size).concat(List(CmpInstr(Immediate(1), reg).changeSize(size), JneInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg, size))
-        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg).changeSize(size), JumpInstr(shortCircuitLabel)))
-        shortCircuitBlock.instructions = List(MoveEq(reg))
-        updateCurBlock(instrs.toList)
-        addBlock(shortCircuitBlock)
-        curBlock = shortCircuitBlock
-        ListBuffer.empty
+        val yReg = new scratchReg(scratchCounter, 0)
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(AndInstr(reg, yReg, BIT_8))
+        instrs
+//        val shortCircuitLabel = getNewLabel()
+//        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
+//        var instrs = evaluateExpr(x, reg, size).concat(List(CmpInstr(Immediate(1), reg).changeSize(size), JneInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg, size))
+//        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg).changeSize(size), JumpInstr(shortCircuitLabel)))
+//        shortCircuitBlock.instructions = List(MoveEq(reg))
+//        updateCurBlock(instrs.toList)
+//        addBlock(shortCircuitBlock)
+//        curBlock = shortCircuitBlock
+//        ListBuffer.empty
       }
       case Or(x, y) => {
-        val shortCircuitLabel = getNewLabel()
-        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
-        var instrs = evaluateExpr(x, reg, size).concat(List(CmpInstr(Immediate(1), reg).changeSize(size), JeInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg, size))
-        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg).changeSize(size), JumpInstr(shortCircuitLabel)))
-        shortCircuitBlock.instructions = List(MoveEq(reg))
-        updateCurBlock(instrs.toList)
-        addBlock(shortCircuitBlock)
-        curBlock = shortCircuitBlock
-        ListBuffer.empty
+        val yReg = new scratchReg(scratchCounter, 0)
+        val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(OrInstr(reg, yReg, BIT_8))
+        instrs
+//        val shortCircuitLabel = getNewLabel()
+//        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
+//        var instrs = evaluateExpr(x, reg, size).concat(List(CmpInstr(Immediate(1), reg).changeSize(size), JeInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg, size))
+//        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg).changeSize(size), JumpInstr(shortCircuitLabel)))
+//        shortCircuitBlock.instructions = List(MoveEq(reg))
+//        updateCurBlock(instrs.toList)
+//        addBlock(shortCircuitBlock)
+//        curBlock = shortCircuitBlock
+//        ListBuffer.empty
       }
       case Not(bool) => evaluateExpr(bool, reg, BIT_64).addOne(NotInstr(reg))
       case Ident(x) => ListBuffer(MovInstr(variableMap.get(x).orNull, reg))

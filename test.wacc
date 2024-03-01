@@ -1,8 +1,3 @@
 begin
-  int i = 1 ;
-  println "Can you count to 10?" ;
-  while i <= 10 do
-    println i ;
-    i = i + 1
-  done
+  bool x = true && false
 end

@@ -298,7 +298,21 @@ object x86IR {
 
   case class Pop(reg: x86Register, instrSize: InstrSize) extends x86Instruction
 
-  case class And(reg:x86Registers, value:x86Immediate, instrSize: InstrSize) extends x86Instruction
+  sealed abstract case class And(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
+
+  object And {
+    def apply(reg:x86Registers, value:x86Immediate, instrSize: InstrSize): And = new And(reg, value, instrSize) {}
+
+    def apply(reg1:x86Registers, reg2:x86Registers, instrSize: InstrSize): And = new And(reg1, reg2, instrSize) {}
+  }
+
+  sealed abstract case class Or(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
+
+  object Or {
+    def apply(reg: x86Registers, value: x86Immediate, instrSize: InstrSize): Or = new Or(reg, value, instrSize) {}
+
+    def apply(reg1: x86Registers, reg2: x86Registers, instrSize: InstrSize): Or = new Or(reg1, reg2, instrSize) {}
+  }
 
   case class Sete(reg:x86Registers, instrSize: InstrSize) extends x86Instruction
   case class Setne(reg:x86Registers, instrSize: InstrSize) extends x86Instruction

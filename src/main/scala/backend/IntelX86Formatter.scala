@@ -63,6 +63,7 @@ object IntelX86Formatter {
         case Mul(value, reg, size) => formatInstr("imul", value, reg, size)
         case IDiv(reg, _, size) => formatInstr("idiv", reg, size)
         case And(reg1, reg2, size) => formatInstr("and", reg2, reg1, size)
+        case Or(reg1, reg2, size) => formatInstr("or", reg2, reg1, size)
         case Sete(reg, size) => formatInstr("sete", reg, size)
         case Setne(reg, size) => formatInstr("setne", reg, size)
         case Setg(reg, size) => formatInstr("setg", reg, size)

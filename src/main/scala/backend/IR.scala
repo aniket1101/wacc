@@ -82,13 +82,16 @@ object IR {
     def apply(src: Immediate, dst: Memory): AddInstr = new AddInstr(src, dst) {}
   }
 
+  case class AndInstr(register: Register, register2: Register, size: Size) extends Instruction
+
+  case class OrInstr(register: Register, register2: Register, size: Size) extends Instruction
+
   sealed abstract case class SubInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): SubInstr = {
       this.size = size
       this
     }
   }
-
   object SubInstr {
     def apply(src: Register, dst: Register): SubInstr = new SubInstr(src, dst) {}
 
