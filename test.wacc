@@ -1,13 +1,13 @@
-begin
-  # w, x, y and z are stack allocated on aarch32
-  # y and z are stack allocated on x86-64
-  int f(int s, int t, int u, int v, int w, int x, int y, int z) is
-    int i = u + v ;
-    int j = w * x ;
-    int k = y - z ;
-    return i + j * k
-  end
+# basic array (reference) printing
 
-  int r = call f(0, 0, 1, 4, 2, 3, 7, 4) ;
-  println r
+# Output:
+# Printing an array variable gives an address, such as #addrs#
+#
+
+# Program:
+
+begin
+  print "Printing an array variable gives an address, such as " ;
+  int[] a = [1,2,3] ;
+  println a
 end

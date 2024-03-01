@@ -509,6 +509,21 @@ object IR {
     Ret()
   ))
 
+  case class PointerPrintBlock() extends AsmBlock(new ReadOnlyData("printp", 2, "%p"), "text", "_printp", List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    MovInstr(DestinationRegister(), SourceRegister()),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._printp_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), DestinationRegister()),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+
   case class PrintlnBlock() extends AsmBlock(new ReadOnlyData("println", 0, ""), "text", "_println", List(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),

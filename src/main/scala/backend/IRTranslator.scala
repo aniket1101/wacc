@@ -151,6 +151,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         }
         case Read(v: Ident) =>
           translateRead(checkType(v)(symbolTable), v)
+        case Free(_) => List()
         case Print(expr) =>
           expr match {
             case StrLit(str) => roData.add(str)
@@ -290,18 +291,6 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   def evaluateRValue(rValue: RValue, reg: Register, ident: String, typ: Type): ListBuffer[Instruction] = {
     rValue match {
       case expr: Expr => evaluateExpr(expr, reg, BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(ident).orNull)))
-//      case Call(name, args) => {
-//        var moveParams: ListBuffer[Instruction] = ListBuffer.empty
-//        for (arg <- args) {
-//          val paramReg = getParamReg()
-//          paramRegs += paramReg
-//          paramCount += 1
-//          moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
-//        }
-//        val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(ident).orNull))
-//        paramCount = 0
-//        instr
-//      }
       case ArrayLit(xs) => {
         addBlock(MallocBlock())
         addBlock(errOutOfMemory())
@@ -576,13 +565,22 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           CallInstr(Label("_printi"))))
       }
 
-      case ArrayType(_) => {
-        addBlock(StringPrintBlock())
-        evaluateExpr(expr, ReturnRegister(), BIT_64).concat(List(
-          MovInstr(ReturnRegister(), DestinationRegister()),
-          CallInstr(Label("_prints"))
-        )).toList
+      case ArrayType(innerType) => {
+        innerType match {
+          case CharType() => addBlock(StringPrintBlock())
+            evaluateExpr(expr, ReturnRegister(), BIT_64).concat(List(
+              MovInstr(ReturnRegister(), DestinationRegister()),
+              CallInstr(Label("_prints"))
+            )).toList
+          case _ => addBlock(PointerPrintBlock())
+            evaluateExpr(expr, ReturnRegister(), BIT_64).concat(List(
+              MovInstr(ReturnRegister(), DestinationRegister()),
+              CallInstr(Label("_printp"))
+            )).toList
+        }
       }
+
+      case _ => List()
     }
   }
 
