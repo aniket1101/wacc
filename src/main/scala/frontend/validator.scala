@@ -88,7 +88,7 @@ object validator {
 
 
   // Function to check the type of an RValue expression
-  def checkType(expr: RValue)(implicit symTable: mutable.Map[String, Type], funcTable: List[Func] = List()): Type = expr match {
+  private def checkType(expr: RValue)(implicit symTable: mutable.Map[String, Type], funcTable: List[Func]): Type = expr match {
     // If the expression is an Expr, recursively check its type
     case exp: Expr => checkType(exp)
 
