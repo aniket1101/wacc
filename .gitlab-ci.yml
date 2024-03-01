@@ -4,8 +4,8 @@ image: gumjoe/wacc-ci-scala:slim
 stages:          # List of stages for jobs and their order of execution
   - build
   - testFrontEnd
-  - testIntelX86
   - testBackEndIR
+  - testIntelX86
 
 build:
   stage: build
