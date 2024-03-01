@@ -53,7 +53,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
             case MovInstr(StackPointer(), BasePointer(), _) => true
             case _ => false
           }
-          instructions = instructions.take(7) ++ List(SubInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer())) ++ instructions.drop(indexOfMov)
+          instructions = (instructions.take(7)).concat(List(SubInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer()))).concat(instructions.drop(indexOfMov))
           block.instructions = instructions
         }
         if (block.instructions.last.equals(Ret())) {
@@ -65,7 +65,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
               case _ => false
             }
 
-            instructions = instructions.take(indexOfMov - 2) ++ List(AddInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer()), MovInstr(Immediate(0), ReturnRegister())) ++ instructions.slice(indexOfMov, indexOfMov + varRegList.length + 1) ++ List(AddInstr(Immediate((varRegList.length + 1) * byteSize), StackPointer()), IR.Pop(BasePointer()), Ret())
+            instructions = instructions.take(indexOfMov - 2).concat(List(AddInstr(Immediate(byteSize * (regsUsed - varRegList.length)), StackPointer()), MovInstr(Immediate(0), ReturnRegister()))).concat(instructions.slice(indexOfMov, indexOfMov + varRegList.length + 1)).concat(List(AddInstr(Immediate((varRegList.length + 1) * byteSize), StackPointer()), IR.Pop(BasePointer()), Ret()))
             block.instructions = instructions
           }
         }
@@ -74,7 +74,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
   }
 
   // TODO: Fix register sizes (Thought: Overload getRegister to return DestinationReg?)
-  def instrsToX86IR(instrs: List[Instruction]): List[x86Instruction] = {
+  def instrsToX86IR(instrs: ListBuffer[Instruction]): List[x86Instruction] = {
     var x86instrs: List[x86Instruction] = List.empty
     for (instr <- instrs) {
       val new_instrs:ListBuffer[x86Instruction] = instr match {

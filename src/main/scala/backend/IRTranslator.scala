@@ -40,7 +40,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       variableMap = mutable.Map.empty
       varCounter = 0
       varRegs = ListBuffer.empty
-      val funBlock = new AsmBlock(s"${fun.ident.name}", List.empty)
+      val funBlock = new AsmBlock(s"${fun.ident.name}", ListBuffer.empty)
       curBlock = funBlock
       inFunc = true
       for (arg <- fun.paramList) {
@@ -69,7 +69,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   private def translateProgram(stmts:List[Stat], symbolTable: mutable.Map[String, frontend.ast.Type]): ListBuffer[AsmBlock] = {
     blocks = ListBuffer()
-    val mainBlock = new AsmBlock("text", "main", setUpScope(symbolTable, "main-").toList)
+    val mainBlock = new AsmBlock("text", "main", setUpScope(symbolTable, "main-"))
     curBlock = mainBlock
     translateStatements(stmts, symbolTable)
     revertSetUp(curBlock)
@@ -171,8 +171,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case If(cond, thenStat, elseStat) => {
           val thenLabel = getNewLabel()
           val restLabel = getNewLabel()
-          val thenBlock = new AsmBlock(thenLabel, List.empty)
-          val restBlock = new AsmBlock(restLabel, List.empty)
+          val thenBlock = new AsmBlock(thenLabel, ListBuffer.empty)
+          val restBlock = new AsmBlock(restLabel, ListBuffer.empty)
 
           // Translating else block (adds statements to end of current block)
           updateCurBlock(instructions.toList)
@@ -201,9 +201,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           val condLabel = getNewLabel()
           val bodyLabel = getNewLabel()
           val restLabel = getNewLabel()
-          val condBlock = new AsmBlock("", condLabel, List.empty)
-          val bodyBlock = new AsmBlock("", bodyLabel.name, List.empty)
-          val restBlock = new AsmBlock("", restLabel.name, List.empty)
+          val condBlock = new AsmBlock("", condLabel, ListBuffer.empty)
+          val bodyBlock = new AsmBlock("", bodyLabel.name, ListBuffer.empty)
+          val restBlock = new AsmBlock("", restLabel.name, ListBuffer.empty)
 
           updateCurBlock(instructions.toList)
           instructions = ListBuffer.empty

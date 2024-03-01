@@ -361,29 +361,29 @@ object IR {
 
   sealed trait Block
 
-  class AsmBlock(var roData: Option[ReadOnlyData], val directive: Option[Directive], val label: Label, var instructions: List[Instruction]) extends Block {
-    def this(label: String, instructions: List[Instruction]) = this(Option.empty, Option.empty, Label(label), instructions)
+  class AsmBlock(var roData: Option[ReadOnlyData], val directive: Option[Directive], val label: Label, var instructions: ListBuffer[Instruction]) extends Block {
+    def this(label: String, instructions: ListBuffer[Instruction]) = this(Option.empty, Option.empty, Label(label), instructions)
 
-    def this(directive: String, label: String, instructions: List[Instruction]) = this(Option.empty, Option(Directive(directive)), Label(label), instructions)
+    def this(directive: String, label: String, instructions: ListBuffer[Instruction]) = this(Option.empty, Option(Directive(directive)), Label(label), instructions)
 
-    def this(roData: ReadOnlyData, label: String, instructions: List[Instruction]) = this(Option(roData), Option.empty, Label(label), instructions)
+    def this(roData: ReadOnlyData, label: String, instructions: ListBuffer[Instruction]) = this(Option(roData), Option.empty, Label(label), instructions)
 
-    def this(roData: ReadOnlyData, directive: String, label: String, instructions: List[Instruction]) = this(Option(roData), Option(Directive(directive)), Label(label), instructions)
+    def this(roData: ReadOnlyData, directive: String, label: String, instructions: ListBuffer[Instruction]) = this(Option(roData), Option(Directive(directive)), Label(label), instructions)
 
-    def this(label: Label, instructions: List[Instruction]) = this(Option.empty, Option.empty, label, instructions)
+    def this(label: Label, instructions: ListBuffer[Instruction]) = this(Option.empty, Option.empty, label, instructions)
 
-    def this(directive: String, label: Label, instructions: List[Instruction]) = this(Option.empty, Option(Directive(directive)), label, instructions)
+    def this(directive: String, label: Label, instructions: ListBuffer[Instruction]) = this(Option.empty, Option(Directive(directive)), label, instructions)
 
-    def this(roData: ReadOnlyData, label: Label, instructions: List[Instruction]) = this(Option(roData), Option.empty, label, instructions)
+    def this(roData: ReadOnlyData, label: Label, instructions: ListBuffer[Instruction]) = this(Option(roData), Option.empty, label, instructions)
 
-    def this(roData: ReadOnlyData, directive: String, label: Label, instructions: List[Instruction]) = this(Option(roData), Option(Directive(directive)), label, instructions)
+    def this(roData: ReadOnlyData, directive: String, label: Label, instructions: ListBuffer[Instruction]) = this(Option(roData), Option(Directive(directive)), label, instructions)
 
     def addROData(roData: ReadOnlyData) = {
       this.roData = Option(roData)
     }
   }
 
-  case class ExitBlock() extends AsmBlock("_exit", List(
+  case class ExitBlock() extends AsmBlock("_exit", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -394,7 +394,7 @@ object IR {
   ))
   case class MoveSXInstr(memory: Memory, register: Register, memSize: Size, regSize: Size) extends Instruction
 
-  case class ReadIntBlock() extends AsmBlock(new ReadOnlyData("readi", 2, "%d"), "text", "_readi", List(
+  case class ReadIntBlock() extends AsmBlock(new ReadOnlyData("readi", 2, "%d"), "text", "_readi", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -410,7 +410,7 @@ object IR {
     Pop(BasePointer()),
     Ret()
   ))
-  case class ReadCharBlock() extends AsmBlock(new ReadOnlyData("readc", 3, " %c"), "text", "_readc", List(
+  case class ReadCharBlock() extends AsmBlock(new ReadOnlyData("readc", 3, " %c"), "text", "_readc", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -427,7 +427,7 @@ object IR {
     Ret()
   ))
 
-  case class StringPrintBlock() extends AsmBlock(new ReadOnlyData("prints", 4, "%.*s"), "text", "_prints", List(
+  case class StringPrintBlock() extends AsmBlock(new ReadOnlyData("prints", 4, "%.*s"), "text", "_prints", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -443,7 +443,7 @@ object IR {
     Ret()
   ))
 
-  case class CharPrintBlock() extends AsmBlock(new ReadOnlyData("printc", 2, "%c"), "text", "_printc", List(
+  case class CharPrintBlock() extends AsmBlock(new ReadOnlyData("printc", 2, "%c"), "text", "_printc", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -460,7 +460,7 @@ object IR {
 
   val boolROData = new ReadOnlyData("printb", ListBuffer((5, "false"), (4, "true"), (4, "%.*s")))
 
-  case class BoolPrintBlock() extends AsmBlock(boolROData, "text", "_printb", List(
+  case class BoolPrintBlock() extends AsmBlock(boolROData, "text", "_printb", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -470,11 +470,11 @@ object IR {
     JumpInstr(Label(".L_printb1"))
   ))
 
-  case class BoolPrintBlock0() extends AsmBlock("text", ".L_printb0", List(
+  case class BoolPrintBlock0() extends AsmBlock("text", ".L_printb0", ListBuffer(
     LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str1")), DataRegister())
   ))
 
-  case class BoolPrintBlock1() extends AsmBlock("text", ".L_printb1", List(
+  case class BoolPrintBlock1() extends AsmBlock("text", ".L_printb1", ListBuffer(
     MovInstr(Memory(DataRegister(), -4), SourceRegister()).changeSize(BIT_32),
     LeaInstr(Memory(InstrPtrRegister(), Label(".L._printb_str2")), DestinationRegister()),
     MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
@@ -486,7 +486,7 @@ object IR {
     Ret()
   ))
 
-  case class IntPrintBlock() extends AsmBlock(new ReadOnlyData("printi", 2, "%d"), "text", "_printi", List(
+  case class IntPrintBlock() extends AsmBlock(new ReadOnlyData("printi", 2, "%d"), "text", "_printi", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -501,7 +501,7 @@ object IR {
     Ret()
   ))
 
-  case class PrintlnBlock() extends AsmBlock(new ReadOnlyData("println", 0, ""), "text", "_println", List(
+  case class PrintlnBlock() extends AsmBlock(new ReadOnlyData("println", 0, ""), "text", "_println", ListBuffer(
     Push(BasePointer()),
     MovInstr(StackPointer(), BasePointer()),
     Align(StackPointer()),
@@ -515,7 +515,7 @@ object IR {
   ))
 
   case class errBadChar() extends AsmBlock(new ReadOnlyData("errBadChar", 50, "fatal error: int %d is not ascii character 0-127 \\n"),
-    "text", "_errBadChar", List(
+    "text", "_errBadChar", ListBuffer(
       Align(StackPointer()),
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errBadChar_str0")), DestinationRegister()),
       MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
@@ -527,7 +527,7 @@ object IR {
   ))
 
   case class errDivZero() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero\\n"),
-    "text", "_errDivZero", List(
+    "text", "_errDivZero", ListBuffer(
       Align(StackPointer()),
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errDivZero_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
@@ -536,7 +536,7 @@ object IR {
     ))
 
   case class errOverflow() extends AsmBlock(new ReadOnlyData("errOverflow", 52, "fatal error: integer overflow or underflow occurred\\n"),
-    "text", "_errOverflow", List(
+    "text", "_errOverflow", ListBuffer(
       Align(StackPointer()),
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOverflow_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
@@ -544,7 +544,7 @@ object IR {
       CallInstr(Label("exit@plt"))
     ))
 
-    case class MallocBlock() extends AsmBlock("text", "_malloc", List(
+    case class MallocBlock() extends AsmBlock("text", "_malloc", ListBuffer(
       Push(BasePointer()),
       MovInstr(StackPointer(), BasePointer()),
       Align(StackPointer()),
@@ -557,7 +557,7 @@ object IR {
     ))
 
   case class errOutOfMemory() extends AsmBlock(new ReadOnlyData("errOutOfMemory", 27, "fatal error: out of memory\\n"),
-    "text", "_errOutOfMemory", List(
+    "text", "_errOutOfMemory", ListBuffer(
       Align(StackPointer()),
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOutOfMemory_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
