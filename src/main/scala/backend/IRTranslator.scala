@@ -134,6 +134,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case Assign(Ident(x), rValue) => rValue match {
           case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
         }
+        case Read(v: Ident) =>
+          translateRead(checkType(v)(symbolTable), v)
         case Print(expr) =>
           expr match {
             case StrLit(str) => roData.add(str)
@@ -293,7 +295,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       }
       case Ord(x) =>
         evaluateExpr(x, reg, BIT_64)
-      // case Len(x) =>
+
       case Add(x, y) => {
         addBlock(errOverflow())
         addBlock(StringPrintBlock())
@@ -419,16 +421,26 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
   }
 
-  def translateRead(typ: Type, ident: Ident): List[Instruction] = {
+  def translateRead(typ:Type, v: Ident): List[Instruction] = {
     typ match {
-      case IntType() => {
+      case IntType() =>
         addBlock(ReadIntBlock())
-        List()
-      }
-      case CharType() => {
-        // TODO: Add Char Input
-        List()
-      }
+          val vReg = variableMap(v.name)
+        List(
+          MovInstr(vReg, ReturnRegister()),
+          MovInstr(ReturnRegister(), DestinationRegister()),
+          CallInstr(Label("_readi")),
+          MovInstr(ReturnRegister(), vReg)
+        )
+      case CharType() =>
+        addBlock(ReadCharBlock())
+        val vReg = variableMap(v.name)
+        List(
+          MovInstr(vReg, ReturnRegister()),
+          MovInstr(ReturnRegister(), DestinationRegister()),
+          CallInstr(Label("_readc")),
+          MovInstr(ReturnRegister(), vReg)
+        )
     }
   }
 
