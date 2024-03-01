@@ -239,12 +239,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     curBlock.instructions = curBlock.instructions.concat(instructions)
   }
 
-  def translateDeclaration(typ: Type, ident: Ident, RValue: RValue): ListBuffer[Instruction] = {
+  def translateDeclaration(typ: Type, ident: Ident, rValue: RValue): ListBuffer[Instruction] = {
     val newReg = varRegs(varCounter + 1)
     varCounter += 1
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
-      case IntType() | BoolType() | CharType() | StringType() => RValue match {
+      case IntType() | BoolType() | CharType() | StringType() => rValue match {
         case expr: Expr => instr = evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
         case Call(name, args) => {
           var moveParams: ListBuffer[Instruction] = ListBuffer.empty
@@ -256,6 +256,35 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           }
           instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), newReg))
           paramCount = 0
+        }
+      }
+      case ArrayType(IntType()) => {
+        addBlock(MallocBlock())
+        addBlock(errOutOfMemory())
+        addBlock(errOverflow())
+        addBlock(StringPrintBlock())
+        rValue match {
+          case ArrayLit(xs) => {
+            val mallocReg = new scratchReg(scratchCounter, 0)
+            scratchCounter += 1
+            instr = ListBuffer(
+              MovInstr(Immediate((xs.length + 1) * 4), DestinationRegister()).changeSize(BIT_32),
+              CallInstr(Label("_malloc")),
+              MovInstr(ReturnRegister(), mallocReg),
+              LeaInstr(Memory(mallocReg, 4), mallocReg),
+              MovInstr(Immediate(xs.length), ReturnRegister()),
+              MovInstr(ReturnRegister(), Memory(mallocReg, -4)).changeSize(BIT_32)
+            )
+            for (i <- xs.indices) {
+              val addOffset = 4 * i
+              val x: Expr = xs(i)
+              val addElem = evaluateExpr(x, ReturnRegister(), BIT_64).concat(List(
+                MovInstr(ReturnRegister(), Memory(mallocReg, addOffset)).changeSize(BIT_32)))
+              instr = instr.concat(addElem)
+            }
+            instr = instr.concat(ListBuffer(MovInstr(mallocReg, ReturnRegister())))
+            scratchCounter = 0
+          }
         }
       }
       case _ => ListBuffer(Ret())

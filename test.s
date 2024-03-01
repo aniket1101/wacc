@@ -4,6 +4,7 @@
 .text
 main:
 	push rbp
+<<<<<<< Updated upstream
 	sub rsp, 40
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
@@ -266,10 +267,56 @@ main:
 	mov r14, qword ptr [rsp + 24]
 	mov r15, qword ptr [rsp + 32]
 	add rsp, 40
+=======
+	sub rsp, 16
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], r12
+	mov rbp, rsp
+	mov edi, 8
+	call _malloc
+	mov rbx, rax
+	lea rbx, qword ptr [rbx + 4]
+	mov rax, 1
+	mov dword ptr [rbx - 4], eax
+	mov rax, 0
+	mov dword ptr [rbx - 0], eax
+	mov rax, rbx
+	mov rax, 0
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
+	pop rbp
+	ret
+
+.text
+_malloc:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	call malloc@plt
+	cmp rax, 0
+	je _errOutOfMemory
+	mov rsp, rbp
+>>>>>>> Stashed changes
 	pop rbp
 	ret
 
 .section .rodata
+<<<<<<< Updated upstream
+=======
+	.int 27
+.L._errOutOfMemory_str0:
+	.asciz "fatal error: out of memory\n"
+.text
+_errOutOfMemory:
+	and rsp, -16
+	lea rdi, [rip + .L._errOutOfMemory_str0]
+	call _prints
+	mov dil, -1
+	call exit@plt
+
+.section .rodata
+>>>>>>> Stashed changes
 	.int 52
 .L._errOverflow_str0:
 	.asciz "fatal error: integer overflow or underflow occurred\n"
@@ -300,6 +347,7 @@ _prints:
 	mov rsp, rbp
 	pop rbp
 	ret
+<<<<<<< Updated upstream
 
 .section .rodata
 	.int 2
@@ -357,3 +405,5 @@ _exit:
 	mov rsp, rbp
 	pop rbp
 	ret
+=======
+>>>>>>> Stashed changes

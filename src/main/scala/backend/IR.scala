@@ -540,7 +540,7 @@ object IR {
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errDivZero_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
-      CallInstr(Label("exit@plt")),
+      CallInstr(Label("exit@plt"))
     ))
 
   case class errOverflow() extends AsmBlock(new ReadOnlyData("errOverflow", 52, "fatal error: integer overflow or underflow occurred\\n"),
@@ -549,20 +549,29 @@ object IR {
       LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOverflow_str0")), DestinationRegister()),
       CallInstr(Label("_prints")),
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
-      CallInstr(Label("exit@plt")),
+      CallInstr(Label("exit@plt"))
     ))
 
-  //  case class MallocBlock() extends AsmBlock("text", "_printi", List(
-  //    Push(BasePointer()),
-  //    MovInstr(StackPointer(), BasePointer()),
-  //    Align(StackPointer()),
-  //    CallInstr(Label("malloc@plt")),
-  //    CmpInstr(Immediate(0), ReturnRegister()),
-  //    JeInstr(Label("_errOutOfMemory")),
-  //    MovInstr(BasePointer(), StackPointer()),
-  //    Pop(BasePointer()),
-  //    Ret()
-  //  ))
+    case class MallocBlock() extends AsmBlock("text", "_malloc", List(
+      Push(BasePointer()),
+      MovInstr(StackPointer(), BasePointer()),
+      Align(StackPointer()),
+      CallInstr(Label("malloc@plt")),
+      CmpInstr(Immediate(0), ReturnRegister()),
+      JeInstr(Label("_errOutOfMemory")),
+      MovInstr(BasePointer(), StackPointer()),
+      Pop(BasePointer()),
+      Ret()
+    ))
+
+  case class errOutOfMemory() extends AsmBlock(new ReadOnlyData("errOutOfMemory", 27, "fatal error: out of memory\\n"),
+    "text", "_errOutOfMemory", List(
+      Align(StackPointer()),
+      LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOutOfMemory_str0")), DestinationRegister()),
+      CallInstr(Label("_prints")),
+      MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
+      CallInstr(Label("exit@plt"))
+    ))
 
   class ReadOnlyData(val labelName: String, val data: ListBuffer[(Int, String)]) extends Block {
     def this(readOnlyData: ReadOnlyData) = this(readOnlyData.labelName, readOnlyData.data)

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 begin
 
   int x = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15 + 16 + 17 ;
@@ -14,3 +15,14 @@ begin
   exit x + y + ( z / div )
 
 end
+=======
+# basic array declaration and assignment
+
+# Output:
+
+# Program:
+
+begin
+  int[] a = [0]
+end
+>>>>>>> Stashed changes
