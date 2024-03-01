@@ -1,10 +1,6 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-# length of .L.str0
-	.int 20
-.L.str0:
-	.asciz "Can you count to 10?"
 .text
 main:
 	push rbp
@@ -14,36 +10,27 @@ main:
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 1
+	mov rax, -20000
 	mov r12, rax
-	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	call _println
-	jmp .L0
-.L1:
 	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _printi
 	call _println
-	mov eax, r12d
-	add eax, 1
+	imul eax, r12d, 100000000
 	jo _errOverflow
 	movsx rax, eax
 	push rax
 	pop rax
 	mov rax, rax
 	mov r12, rax
-.L0:
-	cmp r12, 10
-	jle .L1
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r12
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _printi
+	call _println
 	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
 	# pop {rbx, r12}

@@ -2,21 +2,33 @@
 .globl main
 .section .rodata
 # length of .L.str0
-	.int 20
+	.int 2
 .L.str0:
-	.asciz "initial value of x: "
+	.asciz "Hi"
 # length of .L.str1
-	.int 3
+	.int 5
 .L.str1:
-	.asciz "(+)"
+	.asciz "Hello"
 # length of .L.str2
-	.int 0
+	.int 6
 .L.str2:
-	.asciz ""
+	.asciz "s1 is "
 # length of .L.str3
-	.int 18
+	.int 6
 .L.str3:
-	.asciz "final value of x: "
+	.asciz "s2 is "
+# length of .L.str4
+	.int 29
+.L.str4:
+	.asciz "They are not the same string."
+# length of .L.str5
+	.int 25
+.L.str5:
+	.asciz "They are the same string."
+# length of .L.str6
+	.int 16
+.L.str6:
+	.asciz "Now make s1 = s2"
 .text
 main:
 	push rbp
@@ -27,12 +39,18 @@ main:
 	mov qword ptr [rsp + 16], r13
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 3
+	lea rax, [rip + .L.str0]
+	push rax
+	pop rax
+	mov rax, rax
 	mov r12, rax
-	mov rax, 7
+	lea rax, [rip + .L.str1]
+	push rax
+	pop rax
+	mov rax, rax
 	mov r13, rax
 	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str0]
+	lea rax, [rip + .L.str2]
 	push rax
 	pop rax
 	mov rax, rax
@@ -41,44 +59,6 @@ main:
 	call _prints
 	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _printi
-	call _println
-	jmp .L0
-.L1:
-	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str1]
-	push rax
-	pop rax
-	mov rax, rax
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	mov eax, r12d
-	add eax, 1
-	jo _errOverflow
-	movsx rax, eax
-	push rax
-	pop rax
-	mov rax, rax
-	mov r12, rax
-	mov eax, r13d
-	sub eax, 1
-	jo _errOverflow
-	movsx rax, eax
-	push rax
-	pop rax
-	mov rax, rax
-	mov r13, rax
-.L0:
-	cmp r13, 0
-	jg .L1
-	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str2]
-	push rax
-	pop rax
-	mov rax, rax
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _prints
@@ -92,11 +72,96 @@ main:
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _prints
 	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r13
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	cmp r12, r13
+	je .L0
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str4]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	jmp .L1
+.L0:
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str5]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+.L1:
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str6]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	mov rax, r13
+	mov r12, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str2]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
-	call _printi
+	call _prints
 	call _println
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str3]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r13
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	cmp r12, r13
+	je .L2
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str4]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	jmp .L3
+.L2:
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str5]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+.L3:
 	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
 	# pop {rbx, r12, r13}
@@ -131,28 +196,6 @@ _prints:
 	ret
 
 .section .rodata
-# length of .L._printi_str0
-	.int 2
-.L._printi_str0:
-	.asciz "%d"
-.text
-_printi:
-	push rbp
-	mov rbp, rsp
-	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
-	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
-	# on x86, al represents the number of SIMD registers used as variadic arguments
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
-	pop rbp
-	ret
-
-.section .rodata
 # length of .L._println_str0
 	.int 0
 .L._println_str0:
@@ -170,17 +213,3 @@ _println:
 	mov rsp, rbp
 	pop rbp
 	ret
-
-.section .rodata
-# length of .L._errOverflow_str0
-	.int 52
-.L._errOverflow_str0:
-	.asciz "fatal error: integer overflow or underflow occurred\n"
-.text
-_errOverflow:
-	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
-	and rsp, -16
-	lea rdi, [rip + .L._errOverflow_str0]
-	call _prints
-	mov dil, -1
-	call exit@plt

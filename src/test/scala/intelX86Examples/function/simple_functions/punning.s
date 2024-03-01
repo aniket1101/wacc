@@ -1,57 +1,57 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-# length of .L.str0
-	.int 20
-.L.str0:
-	.asciz "Can you count to 10?"
 .text
 main:
 	push rbp
-	# push {rbx, r12}
-	sub rsp, 16
+	# push {rbx, r12, r13}
+	sub rsp, 24
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 1
+	mov rax, 0
 	mov r12, rax
 	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
+	mov rax, r12
 	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	call _println
-	jmp .L0
-.L1:
+	call wacc_inc
+	mov r11, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r11
+	mov r13, rax
 	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _printi
 	call _println
-	mov eax, r12d
+	# Stack pointer unchanged, no stack allocated variables
+	mov rax, 0
+	# pop {rbx, r12, r13}
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	mov r13, qword ptr [rsp + 16]
+	add rsp, 24
+	pop rbp
+	ret
+
+wacc_inc:
+	push rbp
+	mov rbp, rsp
+	mov eax, edi
 	add eax, 1
 	jo _errOverflow
 	movsx rax, eax
 	push rax
 	pop rax
 	mov rax, rax
-	mov r12, rax
-.L0:
-	cmp r12, 10
-	jle .L1
-	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 0
-	# pop {rbx, r12}
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	# reset the stack pointer, undoing any pushes: this is often unnecessary, but is cheap
+	mov rsp, rbp
 	pop rbp
 	ret
+	# 'ere be dragons: this is 100% dead code, functions always end in returns!
 
 .section .rodata
 # length of .L._prints_str0

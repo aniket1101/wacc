@@ -39,8 +39,10 @@ class IntelX86Test extends AnyFlatSpec {
           val processLogger = ProcessLogger((output: String) => outputBuffer.append(output))
           val exitCode = s"timeout 2s $inputCmd./$output".run(processLogger).exitValue()
           val outputString = outputBuffer.toString()
+          val parts = outputString.split("\\|")
+          val result: String = parts.headOption.map(_.trim).getOrElse("")
           s"rm $output".!
-          new ExecOutput(exitCode, outputString)
+          new ExecOutput(exitCode, result)
         case _ => new ExecOutput(-1, "")
       }
     }

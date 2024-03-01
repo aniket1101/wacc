@@ -1,10 +1,6 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-# length of .L.str0
-	.int 20
-.L.str0:
-	.asciz "Can you count to 10?"
 .text
 main:
 	push rbp
@@ -14,36 +10,32 @@ main:
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
+	# 4 element array
+	mov edi, 20
+	call _malloc
+	mov r11, rax
+	# array pointers are shifted forwards by 4 bytes (to account for size)
+	mov r11, r11
+	add r11, 4
+	mov rax, 4
+	mov dword ptr [r11 - 4], eax
+	mov rax, 43
+	mov dword ptr [r11], eax
+	mov rax, 2
+	mov dword ptr [r11 + 4], eax
+	mov rax, 18
+	mov dword ptr [r11 + 8], eax
 	mov rax, 1
+	mov dword ptr [r11 + 12], eax
+	mov rax, r11
 	mov r12, rax
 	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
+	movsx rax, dword ptr [r12 - 4]
 	mov rax, rax
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	call _println
-	jmp .L0
-.L1:
-	# Stack pointer unchanged, no stack allocated arguments
-	mov rax, r12
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _printi
 	call _println
-	mov eax, r12d
-	add eax, 1
-	jo _errOverflow
-	movsx rax, eax
-	push rax
-	pop rax
-	mov rax, rax
-	mov r12, rax
-.L0:
-	cmp r12, 10
-	jle .L1
 	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
 	# pop {rbx, r12}
@@ -72,6 +64,18 @@ _prints:
 	call printf@plt
 	mov rdi, 0
 	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
+
+_malloc:
+	push rbp
+	mov rbp, rsp
+	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
+	and rsp, -16
+	call malloc@plt
+	cmp rax, 0
+	je _errOutOfMemory
 	mov rsp, rbp
 	pop rbp
 	ret
@@ -118,15 +122,15 @@ _println:
 	ret
 
 .section .rodata
-# length of .L._errOverflow_str0
-	.int 52
-.L._errOverflow_str0:
-	.asciz "fatal error: integer overflow or underflow occurred\n"
+# length of .L._errOutOfMemory_str0
+	.int 27
+.L._errOutOfMemory_str0:
+	.asciz "fatal error: out of memory\n"
 .text
-_errOverflow:
+_errOutOfMemory:
 	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
 	and rsp, -16
-	lea rdi, [rip + .L._errOverflow_str0]
+	lea rdi, [rip + .L._errOutOfMemory_str0]
 	call _prints
 	mov dil, -1
 	call exit@plt

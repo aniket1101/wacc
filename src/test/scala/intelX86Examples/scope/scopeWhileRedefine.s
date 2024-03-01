@@ -2,31 +2,44 @@
 .globl main
 .section .rodata
 # length of .L.str0
-	.int 20
+	.int 6
 .L.str0:
-	.asciz "Can you count to 10?"
+	.asciz " Boom!"
+# length of .L.str1
+	.int 12
+.L.str1:
+	.asciz "counting... "
 .text
 main:
 	push rbp
-	# push {rbx, r12}
-	sub rsp, 16
+	# push {rbx, r12, r13, r14}
+	sub rsp, 32
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
+	mov qword ptr [rsp + 24], r14
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 1
+	mov rax, 5
 	mov r12, rax
-	# Stack pointer unchanged, no stack allocated arguments
 	lea rax, [rip + .L.str0]
 	push rax
 	pop rax
 	mov rax, rax
+	mov r13, rax
+	jmp .L0
+.L1:
+	# Stack pointer unchanged, no stack allocated variables
+	lea rax, [rip + .L.str1]
+	push rax
+	pop rax
+	mov rax, rax
+	mov r14, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r14
 	mov rdi, rax
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _prints
-	call _println
-	jmp .L0
-.L1:
 	# Stack pointer unchanged, no stack allocated arguments
 	mov rax, r12
 	mov rdi, rax
@@ -34,22 +47,36 @@ main:
 	call _printi
 	call _println
 	mov eax, r12d
-	add eax, 1
+	sub eax, 1
 	jo _errOverflow
 	movsx rax, eax
 	push rax
 	pop rax
 	mov rax, rax
 	mov r12, rax
+	# Stack pointer unchanged, no stack allocated variables
 .L0:
-	cmp r12, 10
-	jle .L1
+	cmp r12, 0
+	jg .L1
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r12
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _printi
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r13
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
 	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
-	# pop {rbx, r12}
+	# pop {rbx, r12, r13, r14}
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	mov r13, qword ptr [rsp + 16]
+	mov r14, qword ptr [rsp + 24]
+	add rsp, 32
 	pop rbp
 	ret
 

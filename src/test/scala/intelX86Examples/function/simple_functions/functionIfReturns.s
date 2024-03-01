@@ -2,9 +2,17 @@
 .globl main
 .section .rodata
 # length of .L.str0
-	.int 20
+	.int 2
 .L.str0:
-	.asciz "Can you count to 10?"
+	.asciz "go"
+# length of .L.str1
+	.int 1
+.L.str1:
+	.asciz "b"
+# length of .L.str2
+	.int 1
+.L.str2:
+	.asciz "a"
 .text
 main:
 	push rbp
@@ -14,8 +22,30 @@ main:
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 1
+	# Stack pointer unchanged, no stack allocated arguments
+	call wacc_f
+	mov r11, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r11
 	mov r12, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	mov rax, r12
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _printi
+	call _println
+	# Stack pointer unchanged, no stack allocated variables
+	mov rax, 0
+	# pop {rbx, r12}
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
+	pop rbp
+	ret
+
+wacc_f:
+	push rbp
+	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated arguments
 	lea rax, [rip + .L.str0]
 	push rax
@@ -25,33 +55,46 @@ main:
 	# statement primitives do not return results (but will clobber r0/rax)
 	call _prints
 	call _println
-	jmp .L0
-.L1:
+	mov rax, 1
+	# reset the stack pointer, undoing any pushes: this is often unnecessary, but is cheap
+	mov rsp, rbp
+	pop rbp
+	ret
+	mov rax, 1
+	cmp rax, 1
+	je .L0
 	# Stack pointer unchanged, no stack allocated arguments
-	mov rax, r12
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _printi
-	call _println
-	mov eax, r12d
-	add eax, 1
-	jo _errOverflow
-	movsx rax, eax
+	lea rax, [rip + .L.str1]
 	push rax
 	pop rax
 	mov rax, rax
-	mov r12, rax
-.L0:
-	cmp r12, 10
-	jle .L1
-	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 0
-	# pop {rbx, r12}
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	mov rax, 3
+	# reset the stack pointer, undoing any pushes: this is often unnecessary, but is cheap
+	mov rsp, rbp
 	pop rbp
 	ret
+	jmp .L1
+.L0:
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str2]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	call _println
+	mov rax, 2
+	# reset the stack pointer, undoing any pushes: this is often unnecessary, but is cheap
+	mov rsp, rbp
+	pop rbp
+	ret
+.L1:
+	# 'ere be dragons: this is 100% dead code, functions always end in returns!
 
 .section .rodata
 # length of .L._prints_str0
@@ -116,17 +159,3 @@ _println:
 	mov rsp, rbp
 	pop rbp
 	ret
-
-.section .rodata
-# length of .L._errOverflow_str0
-	.int 52
-.L._errOverflow_str0:
-	.asciz "fatal error: integer overflow or underflow occurred\n"
-.text
-_errOverflow:
-	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
-	and rsp, -16
-	lea rdi, [rip + .L._errOverflow_str0]
-	call _prints
-	mov dil, -1
-	call exit@plt

@@ -2,20 +2,28 @@
 .globl main
 .section .rodata
 # length of .L.str0
-	.int 20
+	.int 24
 .L.str0:
-	.asciz "initial value of x: "
+	.asciz "Enter the first number: "
 # length of .L.str1
-	.int 3
+	.int 25
 .L.str1:
-	.asciz "(+)"
+	.asciz "Enter the second number: "
 # length of .L.str2
-	.int 0
+	.int 20
 .L.str2:
-	.asciz ""
+	.asciz "Initial value of x: "
 # length of .L.str3
-	.int 18
+	.int 3
 .L.str3:
+	.asciz "(+)"
+# length of .L.str4
+	.int 0
+.L.str4:
+	.asciz ""
+# length of .L.str5
+	.int 18
+.L.str5:
 	.asciz "final value of x: "
 .text
 main:
@@ -27,12 +35,44 @@ main:
 	mov qword ptr [rsp + 16], r13
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 3
+	mov rax, 0
 	mov r12, rax
-	mov rax, 7
+	mov rax, 0
 	mov r13, rax
 	# Stack pointer unchanged, no stack allocated arguments
 	lea rax, [rip + .L.str0]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	# Stack pointer unchanged, no stack allocated arguments
+	# load the current value in the destination of the read so it supports defaults
+	mov rax, r12
+	mov rdi, rax
+	call _readi
+	mov r11, rax
+	mov rax, r11
+	mov r12, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str1]
+	push rax
+	pop rax
+	mov rax, rax
+	mov rdi, rax
+	# statement primitives do not return results (but will clobber r0/rax)
+	call _prints
+	# Stack pointer unchanged, no stack allocated arguments
+	# load the current value in the destination of the read so it supports defaults
+	mov rax, r13
+	mov rdi, rax
+	call _readi
+	mov r11, rax
+	mov rax, r11
+	mov r13, rax
+	# Stack pointer unchanged, no stack allocated arguments
+	lea rax, [rip + .L.str2]
 	push rax
 	pop rax
 	mov rax, rax
@@ -48,7 +88,7 @@ main:
 	jmp .L0
 .L1:
 	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str1]
+	lea rax, [rip + .L.str3]
 	push rax
 	pop rax
 	mov rax, rax
@@ -75,7 +115,7 @@ main:
 	cmp r13, 0
 	jg .L1
 	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str2]
+	lea rax, [rip + .L.str4]
 	push rax
 	pop rax
 	mov rax, rax
@@ -84,7 +124,7 @@ main:
 	call _prints
 	call _println
 	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str3]
+	lea rax, [rip + .L.str5]
 	push rax
 	pop rax
 	mov rax, rax
@@ -126,6 +166,33 @@ _prints:
 	call printf@plt
 	mov rdi, 0
 	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
+
+.section .rodata
+# length of .L._readi_str0
+	.int 2
+.L._readi_str0:
+	.asciz "%d"
+.text
+_readi:
+	push rbp
+	mov rbp, rsp
+	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
+	and rsp, -16
+	# RDI contains the "original" value of the destination of the read
+	# allocate space on the stack to store the read: preserve alignment!
+	# the passed default argument should be stored in case of EOF
+	sub rsp, 16
+	mov dword ptr [rsp], edi
+	lea rsi, qword ptr [rsp]
+	lea rdi, [rip + .L._readi_str0]
+	# on x86, al represents the number of SIMD registers used as variadic arguments
+	mov al, 0
+	call scanf@plt
+	movsx rax, dword ptr [rsp]
+	add rsp, 16
 	mov rsp, rbp
 	pop rbp
 	ret
