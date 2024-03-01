@@ -282,7 +282,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
                 MovInstr(ReturnRegister(), Memory(mallocReg, addOffset)).changeSize(BIT_32)))
               instr = instr.concat(addElem)
             }
-            instr = instr.concat(ListBuffer(MovInstr(mallocReg, ReturnRegister())))
+            instr = instr.concat(ListBuffer(MovInstr(mallocReg, newReg)))
             scratchCounter = 0
           }
         }
@@ -324,7 +324,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       }
       case Ord(x) =>
         evaluateExpr(x, reg, BIT_64)
-
+      case Len(x) =>
+        evaluateExpr(x, reg, BIT_64).concat(List(MoveSXInstr(Memory(reg, -4), reg, BIT_32, BIT_64)))
       case Add(x, y) => {
         addBlock(errOverflow())
         addBlock(StringPrintBlock())

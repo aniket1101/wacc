@@ -1,28 +1,12 @@
-<<<<<<< Updated upstream
-begin
-
-  int x = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15 + 16 + 17 ;
-  int y = -1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 - 9 - 10 - 11 - 12 - 13 - 14 - 15 - 16 - 17 ;
-  int z = 1 * 2 * 3 * 4 * 5 * 6 * 7 * 8 * 9 * 10 ;
-  println x;
-  println y;
-  println z;
-  println x + y;
-  int div = 10 ;
-  println z / div;
-  println x + y + ( z / div ) ;
-  println (x + y + ( z / div )) % 256 ;
-  exit x + y + ( z / div )
-
-end
-=======
-# basic array declaration and assignment
+# check length of array
 
 # Output:
+# 4
+#
 
 # Program:
 
 begin
-  int[] a = [0]
+  int[] a = [43, 2, 18, 1] ;
+  println len a
 end
->>>>>>> Stashed changes
