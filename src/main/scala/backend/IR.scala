@@ -131,7 +131,7 @@ object IR {
     def apply(src: Immediate, dst: Memory): MulInstr = new MulInstr(src, dst) {}
   }
 
-  sealed abstract case class DivInstr(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+  sealed abstract case class DivInstr(src: Register, dst: Operand, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): DivInstr = {
       this.size = size
       this
@@ -146,13 +146,13 @@ object IR {
 
     def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
 
-    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
-
-    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+//    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
+//
+//    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+//
+//    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
+//
+//    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
   }
 
   // Mod Instruction
@@ -592,5 +592,7 @@ object IR {
     private def formatStr(str: String): String = str.replace("\n", "\\n").replace("\b", "\\b").replace("\"", "\\\"")
 
     def prevString(): Label = Label(s".L.str${data.length - 1}")
+
+    def get(n:Int): Label = Label(s".L.str${n}")
   }
 }

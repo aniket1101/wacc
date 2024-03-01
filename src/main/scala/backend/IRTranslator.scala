@@ -1,6 +1,6 @@
 package backend
 
-import backend.IR._
+import backend.IR.{LeaInstr, _}
 import frontend.ast._
 import backend.IRRegisters._
 import backend.Size._
@@ -18,6 +18,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   val nullPos: (Int, Int) = (-1, -1)
   val CHAR_RANGE_MASK = -128
 
+  var strCounter = 0
+  var strMap:mutable.Map[String, Int] = mutable.Map.empty
   var usedRegs = 0
 
   var scratchCounter = 0
@@ -289,6 +291,13 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       }
       case _ => ListBuffer(Ret())
     }
+    typ match {
+      case StringType() => {
+        strMap = strMap.addOne(ident.name, strCounter)
+        strCounter += 1
+      }
+      case _ =>
+    }
     variableMap.addOne((ident.name, newReg))
     instr
   }
@@ -390,42 +399,42 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveGT(reg)))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case GTE(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveGTE(reg)))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case LT(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveLT(reg)))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case LTE(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveLTE(reg)))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case Eq(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveEq(reg)))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case NEq(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).concat(ListBuffer(CmpInstr(yReg, reg).changeSize(size), MoveNEq(reg)))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case And(x, y) => {
@@ -502,14 +511,15 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
       case StringType() => {
         addBlock(StringPrintBlock())
-        List(
-          LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), ReturnRegister()),
-          Push(ReturnRegister()),
-          Pop(ReturnRegister()),
-          MovInstr(ReturnRegister(), ReturnRegister()),
+        val evalStr: List[Instruction] = expr match {
+          case Ident(name) =>
+            List(MovInstr(variableMap.getOrElse(name, ReturnRegister()), ReturnRegister()), LeaInstr(Memory(InstrPtrRegister(), roData.get(strMap(name))), ReturnRegister()))
+          case _ => List(LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), ReturnRegister()))
+        }
+        evalStr.concat(List(
           MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_prints"))
-        )
+        ))
       }
 
       case BoolType() => {
