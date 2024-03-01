@@ -175,15 +175,17 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
         case AndInstr(register, register2, size) => {
           (getRegister(register), getRegister(register2)) match {
             case (Left(reg), Left(reg2)) => ListBuffer(And(reg, reg2, getSize(size)))
-            case _ => ListBuffer()
-//            case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
+            case (Right(mem), Left(reg)) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), And(reg, x86ReturnRegister(), getSize(size)), Mov(x86ReturnRegister(), mem, fullReg))
+            case (Left(reg), Right(mem)) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), And(x86ReturnRegister(), reg, getSize(size)), Mov(x86ReturnRegister(), mem, fullReg))
+            case (Left(mem1), Left(mem2)) => ListBuffer(Mov(mem1, x86ReturnRegister(), fullReg), Mov(mem2, x86Reg11(), fullReg), And(x86ReturnRegister(), x86Reg11(), getSize(size)), Mov(x86ReturnRegister(), mem1, fullReg), Mov(x86Reg11(), mem2, fullReg))
           }
         }
         case OrInstr(register, register2, size) => {
           (getRegister(register), getRegister(register2)) match {
             case (Left(reg), Left(reg2)) => ListBuffer(Or(reg, reg2, getSize(size)))
-            case _ => ListBuffer()
-            //            case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
+            case (Right(mem), Left(reg)) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Or(reg, x86ReturnRegister(), getSize(size)), Mov(x86ReturnRegister(), mem, fullReg))
+            case (Left(reg), Right(mem)) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Or(x86ReturnRegister(), reg, getSize(size)), Mov(x86ReturnRegister(), mem, fullReg))
+            case (Left(mem1), Left(mem2)) => ListBuffer(Mov(mem1, x86ReturnRegister(), fullReg), Mov(mem2, x86Reg11(), fullReg), Or(x86ReturnRegister(), x86Reg11(), getSize(size)), Mov(x86ReturnRegister(), mem1, fullReg), Mov(x86Reg11(), mem2, fullReg))
           }
         }
         case Align(StackPointer(), size) => ListBuffer(And(x86StackPointer(), x86Immediate(stackAlignmentMask), getSize(size)))
