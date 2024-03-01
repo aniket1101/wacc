@@ -306,7 +306,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             val yReg = new scratchReg(scratchCounter, 0)
             scratchCounter += 1
             val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(AddInstr(yReg, reg).changeSize(size))
-            scratchCounter = 0
+            scratchCounter = 1
             instrs
         }
       }
@@ -317,7 +317,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(SubInstr(yReg, reg).changeSize(size))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case Mul(x, y) => {
@@ -326,7 +326,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(MulInstr(yReg, reg).changeSize(size))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case Div(x, y) => {
@@ -337,7 +337,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
           DivInstr(yReg, ReturnRegister()).changeSize(BIT_32)
         ))
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
 
@@ -349,7 +349,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
           ModInstr(yReg, ReturnRegister()).changeSize(BIT_32))
         )
-        scratchCounter = 0
+        scratchCounter = 1
         instrs
       }
       case GT(x, y) => {
