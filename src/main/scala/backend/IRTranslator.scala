@@ -135,6 +135,18 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
         case Assign(Ident(x), rValue) => rValue match {
           case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
+          case Call(name, args) => {
+            var moveParams: ListBuffer[Instruction] = ListBuffer.empty
+            for (arg <- args) {
+              val paramReg = getParamReg()
+              paramRegs += paramReg
+              paramCount += 1
+              moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
+            }
+            val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(x).orNull))
+            paramCount = 0
+            instr
+          }
         }
         case Read(v: Ident) =>
           translateRead(checkType(v)(symbolTable), v)
@@ -316,6 +328,21 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         ListBuffer(LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), reg).changeSize(size),
           Push(reg), Pop(reg), MovInstr(reg, reg))
       case Ident(name) => ListBuffer(MovInstr(variableMap(name), reg).changeSize(size))
+//      case x:RValue => x match {
+//        case Call(name, args) => {
+//          var moveParams: ListBuffer[Instruction] = ListBuffer.empty
+//          for (arg <- args) {
+//            val paramReg = getParamReg()
+//            paramRegs += paramReg
+//            paramCount += 1
+//            moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
+//          }
+//          val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), reg))
+//          updateCurBlock(instr.toList)
+//          paramCount = 0
+//          ListBuffer.empty
+//        }
+//      }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg, size)
       case Chr(x) => {
         addBlock(errBadChar())
