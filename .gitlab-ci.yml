@@ -5,6 +5,7 @@ stages:          # List of stages for jobs and their order of execution
   - build
   - testFrontEnd
   - testIntelX86
+  - testBackEndIR
 
 build:
   stage: build
@@ -19,6 +20,14 @@ testFrontEnd:
     - echo "Testing front-end..."
     - sbt "testOnly *FrontEndTests"
     - echo "Running front-end tests finished"
+  environment: production
+
+testBackEndIR:
+  stage: testBackEndIR
+  script:
+    - echo "Testing back-end unit tests..."
+    - sbt "testOnly *BackendIRTests"
+    - echo "Running back-end unit tests finished"
   environment: production
 
 testIntelX86:
