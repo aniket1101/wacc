@@ -147,6 +147,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             paramCount = 0
             instr
           }
+          case _ => evaluateRValue(rValue, variableMap(x), x, checkType(rValue)(symbolTable, List()))
         }
         case Read(v: Ident) =>
           translateRead(checkType(v)(symbolTable), v)
@@ -272,35 +273,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           paramCount = 0
         }
       }
-      case ArrayType(IntType()) => {
-        addBlock(MallocBlock())
-        addBlock(errOutOfMemory())
-        addBlock(errOverflow())
-        addBlock(StringPrintBlock())
-        rValue match {
-          case ArrayLit(xs) => {
-            val mallocReg = new scratchReg(scratchCounter, 0)
-            scratchCounter += 1
-            instr = ListBuffer(
-              MovInstr(Immediate((xs.length + 1) * 4), DestinationRegister()).changeSize(BIT_32),
-              CallInstr(Label("_malloc")),
-              MovInstr(ReturnRegister(), mallocReg),
-              LeaInstr(Memory(mallocReg, 4), mallocReg),
-              MovInstr(Immediate(xs.length), ReturnRegister()),
-              MovInstr(ReturnRegister(), Memory(mallocReg, -4)).changeSize(BIT_32)
-            )
-            for (i <- xs.indices) {
-              val addOffset = 4 * i
-              val x: Expr = xs(i)
-              val addElem = evaluateExpr(x, ReturnRegister(), BIT_64).concat(List(
-                MovInstr(ReturnRegister(), Memory(mallocReg, addOffset)).changeSize(BIT_32)))
-              instr = instr.concat(addElem)
-            }
-            instr = instr.concat(ListBuffer(MovInstr(mallocReg, newReg)))
-            scratchCounter = 0
-          }
-        }
-      }
+      case ArrayType(_) => instr = evaluateRValue(rValue, newReg, ident.name, typ)
       case _ => ListBuffer(Ret())
     }
     typ match {
@@ -312,6 +285,70 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
     variableMap.addOne((ident.name, newReg))
     instr
+  }
+
+  def evaluateRValue(rValue: RValue, reg: Register, ident: String, typ: Type): ListBuffer[Instruction] = {
+    rValue match {
+      case expr: Expr => evaluateExpr(expr, reg, BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(ident).orNull)))
+//      case Call(name, args) => {
+//        var moveParams: ListBuffer[Instruction] = ListBuffer.empty
+//        for (arg <- args) {
+//          val paramReg = getParamReg()
+//          paramRegs += paramReg
+//          paramCount += 1
+//          moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
+//        }
+//        val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(ident).orNull))
+//        paramCount = 0
+//        instr
+//      }
+      case ArrayLit(xs) => {
+        addBlock(MallocBlock())
+        addBlock(errOutOfMemory())
+        addBlock(errOverflow())
+        addBlock(StringPrintBlock())
+
+        val typSize = typ match {
+          case ArrayType(innerType) => innerType match {
+            case IntType() => 4
+            case CharType() => 1
+            case _ => 4
+          }
+          case IntType() => 4
+          case CharType() => 1
+          case _ => 4
+        }
+
+        val wordType = typSize match {
+          case 8 => BIT_64
+          case 4 => BIT_32
+          case 2 => BIT_16
+          case 1 => BIT_8
+        }
+
+        val mallocReg = new scratchReg(scratchCounter, 0)
+        scratchCounter += 1
+        var instr: ListBuffer[Instruction] = ListBuffer(
+          MovInstr(Immediate((xs.length) * typSize + 4), DestinationRegister()).changeSize(BIT_32),
+          CallInstr(Label("_malloc")),
+          MovInstr(ReturnRegister(), mallocReg),
+          LeaInstr(Memory(mallocReg, 4), mallocReg),
+          MovInstr(Immediate(xs.length), ReturnRegister()),
+          MovInstr(ReturnRegister(), Memory(mallocReg, -4)).changeSize(BIT_32)
+        )
+        for (i <- xs.indices) {
+          val addOffset = typSize * i
+          val x: Expr = xs(i)
+          val movInstr = if (addOffset == 0) MovInstr(ReturnRegister(), Memory(mallocReg)).changeSize(wordType)
+          else MovInstr(ReturnRegister(), Memory(mallocReg, addOffset)).changeSize(wordType)
+          val addElem = evaluateExpr(x, ReturnRegister(), BIT_64).concat(List(movInstr))
+          instr = instr.concat(addElem)
+        }
+        instr = instr.concat(ListBuffer(MovInstr(mallocReg, reg)))
+        scratchCounter = 0
+        instr
+      }
+    }
   }
 
   // Outputs code to evaluate an expression and put the result in the given register
@@ -328,21 +365,6 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         ListBuffer(LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), reg).changeSize(size),
           Push(reg), Pop(reg), MovInstr(reg, reg))
       case Ident(name) => ListBuffer(MovInstr(variableMap(name), reg).changeSize(size))
-//      case x:RValue => x match {
-//        case Call(name, args) => {
-//          var moveParams: ListBuffer[Instruction] = ListBuffer.empty
-//          for (arg <- args) {
-//            val paramReg = getParamReg()
-//            paramRegs += paramReg
-//            paramCount += 1
-//            moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
-//          }
-//          val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), reg))
-//          updateCurBlock(instr.toList)
-//          paramCount = 0
-//          ListBuffer.empty
-//        }
-//      }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg, size)
       case Chr(x) => {
         addBlock(errBadChar())
@@ -468,29 +490,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         val yReg = new scratchReg(scratchCounter, 0)
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(AndInstr(reg, yReg, BIT_8))
         instrs
-//        val shortCircuitLabel = getNewLabel()
-//        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
-//        var instrs = evaluateExpr(x, reg, size).concat(List(CmpInstr(Immediate(1), reg).changeSize(size), JneInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg, size))
-//        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg).changeSize(size), JumpInstr(shortCircuitLabel)))
-//        shortCircuitBlock.instructions = List(MoveEq(reg))
-//        updateCurBlock(instrs.toList)
-//        addBlock(shortCircuitBlock)
-//        curBlock = shortCircuitBlock
-//        ListBuffer.empty
       }
       case Or(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)
         val instrs = evaluateExpr(x, reg, size).concat(evaluateExpr(y, yReg, size)).addOne(OrInstr(reg, yReg, BIT_8))
         instrs
-//        val shortCircuitLabel = getNewLabel()
-//        val shortCircuitBlock = new AsmBlock(shortCircuitLabel, List.empty)
-//        var instrs = evaluateExpr(x, reg, size).concat(List(CmpInstr(Immediate(1), reg).changeSize(size), JeInstr(shortCircuitLabel))).concat(evaluateExpr(y, reg, size))
-//        instrs = instrs.concat(ListBuffer(CmpInstr(Immediate(1), reg).changeSize(size), JumpInstr(shortCircuitLabel)))
-//        shortCircuitBlock.instructions = List(MoveEq(reg))
-//        updateCurBlock(instrs.toList)
-//        addBlock(shortCircuitBlock)
-//        curBlock = shortCircuitBlock
-//        ListBuffer.empty
       }
       case Not(bool) => evaluateExpr(bool, reg, BIT_64).addOne(NotInstr(reg))
       case Ident(x) => ListBuffer(MovInstr(variableMap.get(x).orNull, reg))
@@ -527,14 +531,14 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         addBlock(CharPrintBlock())
         val evalChar: List[Instruction] = expr match {
           case CharLit(chr) =>
-            List(MovInstr(Immediate(chr),  ReturnRegister()))
+            List(MovInstr(Immediate(chr), ReturnRegister()))
           case _ => evaluateExpr(expr, ReturnRegister(), BIT_64).toList
         }
         evalChar.concat(List(
           MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_printc"))
         ))
-        }
+      }
 
       case StringType() => {
         addBlock(StringPrintBlock())
@@ -572,21 +576,13 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           CallInstr(Label("_printi"))))
       }
 
-      //      case ArrayType(elementType) => {
-      //        val arrayTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
-      //        val printInstrs: List[Instruction] = List.empty
-      //        arrayTypePrintBlock.instructions = printInstrs
-      //        blocks.addOne(arrayTypePrintBlock)
-      //        printInstrs
-      //      }
-      //
-      //      case PairType(firstType, secondType) => {
-      //        val pairTypePrintBlock = new AsmBlock(Directive(""), Label("PLACEHOLDER"), List.empty)
-      //        val printInstrs: List[Instruction] = List.empty
-      //        pairTypePrintBlock.instructions = printInstrs
-      //        blocks.addOne(pairTypePrintBlock)
-      //        printInstrs
-      //      }
+      case ArrayType(_) => {
+        addBlock(StringPrintBlock())
+        evaluateExpr(expr, ReturnRegister(), BIT_64).concat(List(
+          MovInstr(ReturnRegister(), DestinationRegister()),
+          CallInstr(Label("_prints"))
+        )).toList
+      }
     }
   }
 
