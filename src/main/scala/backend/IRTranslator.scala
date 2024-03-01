@@ -351,6 +351,23 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
   }
 
+  def evalDivMod(x: Expr, y:Expr, reg: Register, isDiv: Boolean) = {
+    addBlock(errDivZero())
+    addBlock(StringPrintBlock())
+    val tempReg = new scratchReg(scratchCounter, 0)
+    scratchCounter += 1
+    val yReg = new scratchReg(scratchCounter, 0)
+    scratchCounter += 1
+    var instrs = ListBuffer(MovInstr(ReturnRegister(), tempReg)).concat(evaluateExpr(x, ReturnRegister(), BIT_32)).concat(evaluateExpr(y, yReg, BIT_32))
+    if (isDiv) {
+      instrs.concat(List(DivInstr(yReg, reg).changeSize(BIT_32)))
+    } else {
+      instrs.concat(List(ModInstr(yReg, reg).changeSize(BIT_32)))
+    }
+    scratchCounter = 1
+    instrs
+  }
+
   // Outputs code to evaluate an expression and put the result in the given register
   def evaluateExpr(expr: Expr, reg:Register, size: Size): ListBuffer[Instruction] = {
     expr match {
@@ -418,31 +435,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         instrs
       }
       case Div(x, y) => {
-        addBlock(errDivZero())
-        addBlock(StringPrintBlock())
-        val tempReg = new scratchReg(scratchCounter, 0)
-        scratchCounter += 1
-        val yReg = new scratchReg(scratchCounter, 0)
-        scratchCounter += 1
-        val instrs = ListBuffer(MovInstr(ReturnRegister(), tempReg)).concat(evaluateExpr(x, ReturnRegister(), BIT_32)).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
-          DivInstr(yReg, reg).changeSize(BIT_32)
-        ))//.concat(ListBuffer(MovInstr(ReturnRegister(), reg)))
-        scratchCounter = 1
-        instrs
+        evalDivMod(x, y, reg, true)
       }
 
       case Mod(x, y) => {
-        addBlock(errDivZero())
-        addBlock(StringPrintBlock())
-        val tempReg = new scratchReg(scratchCounter, 0)
-        scratchCounter += 1
-        val yReg = new scratchReg(scratchCounter, 0)
-        scratchCounter += 1
-        val instrs = ListBuffer(MovInstr(ReturnRegister(), tempReg)).concat(evaluateExpr(x, ReturnRegister(), BIT_32)).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
-          ModInstr(yReg, reg).changeSize(BIT_32)
-        )) //.concat(ListBuffer(MovInstr(ReturnRegister(), reg)))
-        scratchCounter = 1
-        instrs
+        evalDivMod(x, y, reg, false)
       }
       case GT(x, y) => {
         val yReg = new scratchReg(scratchCounter, 0)

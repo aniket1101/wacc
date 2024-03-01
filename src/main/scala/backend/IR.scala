@@ -145,14 +145,6 @@ object IR {
     def apply(src: Register, dst: Memory): DivInstr = new DivInstr(src, dst) {}
 
     def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-
-//    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
   }
 
   // Mod Instruction
