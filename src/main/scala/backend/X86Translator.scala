@@ -156,6 +156,10 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
               Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, getSize(size)))
           }
         }
+        case MoveSXInstr(mem, reg, memSize, regSize) =>
+          getRegister(reg) match {
+            case Left(register) => ListBuffer(MoveSX(getMemory(mem), register, getSize(memSize), getSize(regSize)))
+          }
         case NotInstr(reg) => {
           getRegister(reg) match {
             case Left(register) => ListBuffer(Cmp(x86Immediate(1), register, fullReg), Setne(register, eigthReg), MoveSX(register, register, eigthReg, fullReg))

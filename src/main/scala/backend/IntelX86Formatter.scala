@@ -109,12 +109,12 @@ object IntelX86Formatter {
         case registers: x86Registers => registers.get(size).reg
         case memory: x86Memory =>
           val wordPrefix: String = size match {
-            case InstrSize.fullReg => "q"
-            case InstrSize.halfReg => "d"
-            case InstrSize.quarterReg => ""
-            case InstrSize.eigthReg => ""
+            case InstrSize.fullReg => "qword"
+            case InstrSize.halfReg => "dword"
+            case InstrSize.quarterReg => "word"
+            case InstrSize.eigthReg => "byte"
           }
-          var wordSize: String = s"${wordPrefix}word ptr "
+          var wordSize: String = s"${wordPrefix} ptr "
           val expr = memory.offset match {
             case None => ""
             case Some(x86OffsetInt(x)) => s" ${if (x > 0) "+" else "-"} ${Math.abs(x)}"

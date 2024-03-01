@@ -2,15 +2,9 @@
 .globl main
 .section .rodata
 # length of .L.str0
-<<<<<<<< HEAD:src/test/scala/intelX86Examples/while/whileCount.s
-	.int 20
+	.int 31
 .L.str0:
-	.asciz "Can you count to 10?"
-========
-	.int 24
-.L.str0:
-	.asciz "enter an integer to echo"
->>>>>>>> 2353e0df6031e3cbb1c9e2b0575c6de5588958a0:src/test/scala/intelX86Examples/IO/read/echoBigInt.s
+	.asciz "input an integer to continue..."
 .text
 main:
 	push rbp
@@ -20,9 +14,7 @@ main:
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
 	# Stack pointer unchanged, no stack allocated variables
-	mov rax, 1
-<<<<<<<< HEAD:src/test/scala/intelX86Examples/while/whileCount.s
-========
+	mov rax, 10
 	mov r12, rax
 	# Stack pointer unchanged, no stack allocated arguments
 	lea rax, [rip + .L.str0]
@@ -40,39 +32,7 @@ main:
 	call _readi
 	mov r11, rax
 	mov rax, r11
->>>>>>>> 2353e0df6031e3cbb1c9e2b0575c6de5588958a0:src/test/scala/intelX86Examples/IO/read/echoBigInt.s
 	mov r12, rax
-	# Stack pointer unchanged, no stack allocated arguments
-	lea rax, [rip + .L.str0]
-	push rax
-	pop rax
-	mov rax, rax
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _prints
-	call _println
-	jmp .L0
-.L1:
-	# Stack pointer unchanged, no stack allocated arguments
-	mov rax, r12
-	mov rdi, rax
-	# statement primitives do not return results (but will clobber r0/rax)
-	call _printi
-	call _println
-<<<<<<<< HEAD:src/test/scala/intelX86Examples/while/whileCount.s
-	mov eax, r12d
-	add eax, 1
-	jo _errOverflow
-	movsx rax, eax
-	push rax
-	pop rax
-	mov rax, rax
-	mov r12, rax
-.L0:
-	cmp r12, 10
-	jle .L1
-========
->>>>>>>> 2353e0df6031e3cbb1c9e2b0575c6de5588958a0:src/test/scala/intelX86Examples/IO/read/echoBigInt.s
 	# Stack pointer unchanged, no stack allocated variables
 	mov rax, 0
 	# pop {rbx, r12}
@@ -128,28 +88,6 @@ _readi:
 	call scanf@plt
 	movsx rax, dword ptr [rsp]
 	add rsp, 16
-	mov rsp, rbp
-	pop rbp
-	ret
-
-.section .rodata
-# length of .L._printi_str0
-	.int 2
-.L._printi_str0:
-	.asciz "%d"
-.text
-_printi:
-	push rbp
-	mov rbp, rsp
-	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
-	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
-	# on x86, al represents the number of SIMD registers used as variadic arguments
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
 	mov rsp, rbp
 	pop rbp
 	ret

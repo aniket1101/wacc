@@ -10,8 +10,13 @@ import scala.io.Source
 class IntelX86Test extends AnyFlatSpec {
   val DEBUG_MODE: Boolean = false
   class ExecOutput(val exitCode: Int, val output: String)
-  def compileAndRunAsm(filename: String): ExecOutput = {
+  def compileAndRunAsm(filename: String, inputs: List[String]): ExecOutput = {
     val osName = System.getProperty("os.name").toLowerCase
+
+    val inputCmd = if (inputs.isEmpty) "" else {
+      s"""echo '${inputs.mkString(" ")}' | """
+    }
+
     if (osName.contains("windows")) {
       // Windows device - Use WSL
       val linuxFilename = filename.replace("\\", "/")
@@ -20,7 +25,7 @@ class IntelX86Test extends AnyFlatSpec {
         case 0 =>
           val outputBuffer = new StringBuilder
           val processLogger = ProcessLogger((output: String) => outputBuffer.append(output).append("\n"))
-          val exitCode = s"wsl timeout 2s ./$output".run(processLogger).exitValue()
+          val exitCode = s"""wsl sh -c "timeout 2s $inputCmd./$output"""".run(processLogger).exitValue()
           val outputString = outputBuffer.toString()
           s"wsl rm $output".!
           new ExecOutput(exitCode, outputString)
@@ -32,7 +37,7 @@ class IntelX86Test extends AnyFlatSpec {
         case 0 =>
           val outputBuffer = new StringBuilder
           val processLogger = ProcessLogger((output: String) => outputBuffer.append(output))
-          val exitCode = s"timeout 2s ./$output".run(processLogger).exitValue()
+          val exitCode = s"timeout 2s $inputCmd./$output".run(processLogger).exitValue()
           val outputString = outputBuffer.toString()
           s"rm $output".!
           new ExecOutput(exitCode, outputString)
@@ -41,11 +46,11 @@ class IntelX86Test extends AnyFlatSpec {
     }
   }
 
-  def compileAndRunWacc(waccFile: String, testName: String, delete: Boolean): ExecOutput = {
+  def compileAndRunWacc(waccFile: String, testName: String, inputs: List[String], delete: Boolean): ExecOutput = {
     val compilerOutput = compileProgram(waccFile)
     assert(compilerOutput <= 0, s"Error: $testName did not produce assembly")
     val outputFile = removeFileExt(new File(waccFile).getName) + ".s"
-    val output = compileAndRunAsm(outputFile)
+    val output = compileAndRunAsm(outputFile, inputs)
 
     // Delete generated files
     if (delete)
@@ -53,17 +58,18 @@ class IntelX86Test extends AnyFlatSpec {
     output
   }
 
-  val src = "src/test/scala/allIntelX86Compiled"
+  val src = "src/test/scala/intelX86Examples"
+
   new ProcessExamples(src, ".s").processFolder()
     .foreach { case (testName, testCode) =>
-      val correctOutput = compileAndRunAsm(testCode.getPath)
-
       val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
+      val inputs: List[String] = findWaccInputs(waccFile)
+      val correctOutput = compileAndRunAsm(testCode.getPath, inputs)
       val output = if (DEBUG_MODE) {
-        compileAndRunWacc(waccFile, testName, delete = false)
+        compileAndRunWacc(waccFile, testName, inputs, delete = false)
       } else {
         try {
-          compileAndRunWacc(waccFile, testName, delete = true)
+          compileAndRunWacc(waccFile, testName, inputs, delete = true)
         } catch {
           case e: Exception => println(s"Error compiling $testName")
             new ExecOutput(-2, "")
@@ -92,5 +98,12 @@ class IntelX86Test extends AnyFlatSpec {
     } finally {
       source.close()
     }
+  }
+
+  def findWaccInputs(waccFile: String): List[String] = {
+    val waccCode = readFileToString(waccFile)
+    val inputLine = waccCode.split("\n").map(_.toUpperCase).find(_.contains("INPUT:"))
+    val inputs = inputLine.map(_.split("\\s+").drop(2).toList).getOrElse(List.empty)
+    inputs
   }
 }

@@ -400,6 +400,40 @@ object IR {
     Pop(BasePointer()),
     Ret()
   ))
+  case class MoveSXInstr(memory: Memory, register: Register, memSize: Size, regSize: Size) extends Instruction
+
+  case class ReadIntBlock() extends AsmBlock(new ReadOnlyData("readi", 2, "%d"), "text", "_readi", List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    SubInstr(Immediate(16), StackPointer()),
+    MovInstr(DestinationRegister(), Memory(StackPointer())).changeSize(BIT_32),
+    LeaInstr(Memory(StackPointer()), SourceRegister()),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._readi_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
+    CallInstr(Label("scanf@plt")),
+    MoveSXInstr(Memory(StackPointer()), ReturnRegister(), BIT_32, BIT_64),
+    AddInstr(Immediate(16), StackPointer()),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
+  case class ReadCharBlock() extends AsmBlock(new ReadOnlyData("readc", 3, " %c"), "text", "_readc", List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    SubInstr(Immediate(16), StackPointer()),
+    MovInstr(DestinationRegister(), Memory(StackPointer())).changeSize(BIT_8),
+    LeaInstr(Memory(StackPointer()), SourceRegister()),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._readc_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
+    CallInstr(Label("scanf@plt")),
+    MoveSXInstr(Memory(StackPointer()), ReturnRegister(), BIT_8, BIT_64),
+    AddInstr(Immediate(16), StackPointer()),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
 
   case class StringPrintBlock() extends AsmBlock(new ReadOnlyData("prints", 4, "%.*s"), "text", "_prints", List(
     Push(BasePointer()),
@@ -517,6 +551,27 @@ object IR {
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt")),
     ))
+
+  /*
+  _readi:
+    push rbp
+    mov rbp, rsp
+    and rsp, -16
+    sub rsp, 16
+    mov dword ptr [rsp], edi
+    lea rsi, qword ptr [rsp]
+    lea rdi, [rip + .L._readi_str0]
+    mov al, 0
+    call scanf@plt
+    movsx rax, dword ptr [rsp]
+    add rsp, 16
+    mov rsp, rbp
+    pop rbp
+    ret
+  */
+  case class ReadIntBlock() extends AsmBlock(new ReadOnlyData("readi", 2, "%d"), "text", "_readi", List(
+
+  ))
 
   //  case class MallocBlock() extends AsmBlock("text", "_printi", List(
   //    Push(BasePointer()),
