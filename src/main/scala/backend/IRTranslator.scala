@@ -332,11 +332,13 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case Div(x, y) => {
         addBlock(errDivZero())
         addBlock(StringPrintBlock())
+        val tempReg = new scratchReg(scratchCounter, 0)
+        scratchCounter += 1
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
-          DivInstr(yReg, ReturnRegister()).changeSize(BIT_32)
-        ))
+        val instrs = ListBuffer(MovInstr(ReturnRegister(), tempReg)).concat(evaluateExpr(x, ReturnRegister(), BIT_32)).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
+          DivInstr(yReg, reg).changeSize(BIT_32)
+        ))//.concat(ListBuffer(MovInstr(ReturnRegister(), reg)))
         scratchCounter = 1
         instrs
       }
@@ -344,11 +346,13 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case Mod(x, y) => {
         addBlock(errDivZero())
         addBlock(StringPrintBlock())
+        val tempReg = new scratchReg(scratchCounter, 0)
+        scratchCounter += 1
         val yReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
-        val instrs = evaluateExpr(x, reg, BIT_32).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
-          ModInstr(yReg, ReturnRegister()).changeSize(BIT_32))
-        )
+        val instrs = ListBuffer(MovInstr(ReturnRegister(), tempReg)).concat(evaluateExpr(x, ReturnRegister(), BIT_32)).concat(evaluateExpr(y, yReg, BIT_32)).concat(List(
+          ModInstr(yReg, reg).changeSize(BIT_32)
+        )) //.concat(ListBuffer(MovInstr(ReturnRegister(), reg)))
         scratchCounter = 1
         instrs
       }
