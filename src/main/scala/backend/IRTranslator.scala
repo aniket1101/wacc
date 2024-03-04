@@ -360,9 +360,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     scratchCounter += 1
     var instrs = ListBuffer(MovInstr(ReturnRegister(), tempReg)).concat(evaluateExpr(x, ReturnRegister(), BIT_32)).concat(evaluateExpr(y, yReg, BIT_32))
     if (isDiv) {
-      instrs.concat(List(DivInstr(yReg, reg).changeSize(BIT_32)))
+      instrs = instrs.concat(List(DivInstr(yReg, reg).changeSize(BIT_32)))
     } else {
-      instrs.concat(List(ModInstr(yReg, reg).changeSize(BIT_32)))
+      instrs = instrs.concat(List(ModInstr(yReg, reg).changeSize(BIT_32)))
     }
     scratchCounter = 1
     instrs
