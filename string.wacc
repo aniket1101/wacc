@@ -1,0 +1,7 @@
+begin
+  string getMsg() is
+    return "Hello World"
+  end
+  
+  skip
+end

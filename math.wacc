@@ -1,0 +1,9 @@
+begin
+  import "number.wacc", "string.wacc"
+
+  int toRadians(int degrees) is
+    return degrees * pi() / 180
+  end
+
+  string msg = call getMsg()
+end

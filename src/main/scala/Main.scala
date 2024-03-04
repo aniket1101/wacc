@@ -7,6 +7,7 @@ import frontend.validator.checkSemantics
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.sys.exit
 import scala.util.{Failure, Success}
 
@@ -17,6 +18,7 @@ object Main {
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
   private val FAIL: Int = -1
+  private val nullPos: (Int, Int) = (-1, -1)
 
   // Main function of the program
   def main(args: Array[String]): Unit = {
@@ -64,23 +66,59 @@ object Main {
     }
   }
 
+  def generateAsm(prog: Prog, symbolTable: mutable.Map[String, Type]): String = {
+    val irTranslator = new IRTranslator(prog, symbolTable)
+    val asmInstr = irTranslator.translate()
+    val totalRegsUsed = irTranslator.getRegsUsed()
+    val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
+    IntelX86Formatter.translate(x86Code)
+  }
+
   def compileProgram(source: String): Int = {
-    val file = new File(source)
-    parseProgram(file) match {
-      case Left(exitCode) => exitCode
-      case Right((prog, symbolTable)) =>
-        val irTranslator = new IRTranslator(prog, symbolTable)
-        val asmInstr = irTranslator.translate()
-        val totalRegsUsed = irTranslator.getRegsUsed()
-        val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
-        val asmCode = IntelX86Formatter.translate(x86Code)
-        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
+    val importGraph = mutable.Map[File, (Set[File], Prog, mutable.Map[String, Type])]()
+    val visited = mutable.Set[File]()
+    var exitCode = VALID_EXIT_STATUS
+
+    def processFile(file: File): Unit = {
+      if (!visited.contains(file)) {
+        parseProgram(file) match {
+          case Right((prog, symbolTable)) =>
+            visited.add(file)
+            val imports = extractFiles(prog.imports)
+            importGraph(file) = (imports, prog, symbolTable)
+            imports.foreach(processFile)
+          case Left(code) => exitCode = code
+        }
+      }
+    }
+
+    val initialFile = new File(source)
+    processFile(initialFile)
+
+    exitCode match {
+      case VALID_EXIT_STATUS =>
+        // Source file parsed successfully
+        val mainAST = importGraph(initialFile)
+        var outputFunc: List[Func] = List()
+        var outputSym: mutable.Map[String, Type] = mutable.Map.empty
+
+        // Combine other ASTs
+        importGraph.foreach { case (_, (_, prog, sym)) =>
+          outputFunc = outputFunc.concat(prog.funcs)
+          outputSym = outputSym.concat(sym)
+        }
+
+        val outputProg = new Prog(Option.empty, outputFunc, mainAST._2.stats)(nullPos)
+        val asmCode = generateAsm(outputProg, outputSym)
+        writeToFile(asmCode, removeFileExt(initialFile.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>
             println("Failed to write to output file")
             err
         }
+      case _ => exitCode
     }
+
   }
 
   private def writeToFile(contents: String, filename: String): Int = {
@@ -99,5 +137,12 @@ object Main {
     val index = file.lastIndexOf('.')
     if (index > 0) file.substring(0, index)
     else file
+  }
+
+  private def extractFiles(files: Option[List[StrLit]]): Set[File] = {
+    files match {
+      case Some(imports) => imports.map({x => new File(x.s)}).toSet
+      case None => Set.empty
+    }
   }
 }

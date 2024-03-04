@@ -1,0 +1,4 @@
+begin
+  int pi() is return 314159 end
+  println "This library returns numbers"
+end

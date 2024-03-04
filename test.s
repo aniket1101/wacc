@@ -7,9 +7,10 @@
 .text
 main:
 	push rbp
-	sub rsp, 16
+	sub rsp, 24
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
 	mov rbp, rsp
 	lea rax, [rip + .L.str0]
 	mov rdi, rax
@@ -29,12 +30,13 @@ main:
 	mov r12, rbx
 	mov rax, r12
 	mov rdi, rax
-	call _printp
+	call _printi
 	call _println
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	mov r13, qword ptr [rsp + 16]
+	add rsp, 24
 	pop rbp
 	ret
 
@@ -96,15 +98,15 @@ _errOverflow:
 
 .section .rodata
 	.int 2
-.L._printp_str0:
-	.asciz "%p"
+.L._printi_str0:
+	.asciz "%d"
 .text
-_printp:
+_printi:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	mov rsi, rdi
-	lea rdi, [rip + .L._printp_str0]
+	mov esi, edi
+	lea rdi, [rip + .L._printi_str0]
 	mov al, 0
 	call printf@plt
 	mov rdi, 0
