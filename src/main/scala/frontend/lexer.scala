@@ -12,7 +12,7 @@ import parsley.{Parsley, character}
 // Object containing lexer-related functionality
 object lexer {
     // Set of keywords recognized by the lexer
-    private final val keywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print",
+    private final val keywords = Set("begin", "end", "import", "is", "skip", "read", "free", "return", "exit", "print",
         "println", "if", "then", "else", "fi", "while", "do", "done", "newpair", "call", "fst",
         "snd", "int", "bool", "char", "string", "pair", "true", "false", "null", "len", "ord", "chr")
 

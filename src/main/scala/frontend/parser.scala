@@ -6,7 +6,7 @@ import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.{sepBy, sepBy1}
+import parsley.combinator.{option, sepBy, sepBy1}
 import parsley.errors.combinator._
 import parsley.expr._
 import parsley.{Parsley, Result}
@@ -27,7 +27,7 @@ object parser {
     // Lazy initialization of the main program parser
     private lazy val prog: Parsley[Prog] =
     // Parsing a complete program
-        fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
+        fully("begin" ~> Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), many(func), sepBy1(singleStat, ";")) <~ "end")
 
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(
