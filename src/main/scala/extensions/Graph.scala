@@ -13,11 +13,14 @@ class Graph {
       }
     }
 
-    def addEdge(source: String, destination: String): Unit = {
-      addVertex(source)
-      addVertex(destination)
-      adjacencyList(source).append(destination)
+  def addEdge(source: String, destination: String): Unit = {
+    addVertex(source)
+    addVertex(destination)
+    val neighbors = adjacencyList(source)
+    if (!neighbors.contains(destination)) {
+      neighbors.append(destination)
     }
+  }
 
     def getVertices: Iterable[String] = {
       adjacencyList.keys
@@ -41,11 +44,14 @@ class Graph {
         visitedSet.add(start)
         for (neighbor <- getNeighbors(start)) {
           if (visitedSet.contains(neighbor)) {
-            None
+            return None
           }
-          dfsUtil(neighbor, Some(visitedSet))
+          dfsUtil(neighbor, Some(visitedSet)) match {
+            case None => return None
+            case _ =>
+          }
         }
-        None
+        Some(visitedSet)
       case None => None
     }
   }
