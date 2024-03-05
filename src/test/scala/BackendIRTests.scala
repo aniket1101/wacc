@@ -40,7 +40,7 @@ class BackendIRTests extends AnyFlatSpec {
   }
 
   "IRTranslator" should "correctly translate function declarations" in {
-    val funcDecl = Func(IntType()(nullPos), Ident("myFunction")(nullPos), List.empty, List.empty)(nullPos)
+    val funcDecl = Func(Option(IntType()(nullPos)), Ident("myFunction")(nullPos), List.empty, List.empty)(nullPos)
     val prog = Prog(List(funcDecl), List.empty)(nullPos)
 
     val irTranslator = new IRTranslator(prog, mutable.Map.empty)
@@ -107,7 +107,7 @@ class BackendIRTests extends AnyFlatSpec {
   }
 
   "IRTranslator" should "correctly translate function calls" in {
-    val funcDecl = Func(IntType()(nullPos), Ident("myFunction")(nullPos), List.empty, List.empty)(nullPos)
+    val funcDecl = Func(Option(IntType()(nullPos)), Ident("myFunction")(nullPos), List.empty, List.empty)(nullPos)
     val prog = Prog(List(funcDecl), List.empty)(nullPos)
 
     val irTranslator = new IRTranslator(prog, mutable.Map.empty)

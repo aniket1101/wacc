@@ -98,7 +98,7 @@ object validator {
 
     // If the expression is a Call, find the corresponding function in the function table and return its type
     case Call(ident, _) => funcTable.find(x => x.ident.name == ident.name) match {
-      case Some(value) => value.typ
+      case Some(value) => value.typ.getOrElse(AnyType)
       case None => NoTypeExists
     }
 
@@ -733,6 +733,56 @@ object validator {
     newStats.toList // Return the list of checked statements
   }
 
+  // Helper function to infer return type of a function
+  def inferReturnType(stats: List[Stat], file: String): Type = {
+    // Initialize inferred return type as NoTypeExists
+    var returnType: Type = NoTypeExists
+
+    implicit val fileName: String = file
+
+    // Read file contents
+    val fileSource = Source.fromFile(new File(file))
+    implicit val fileContents: Array[String] = fileSource.getLines().toArray
+    fileSource.close()
+
+    // Initialize symbol table and error buffer
+    implicit val symTable: mutable.Map[String, Type] = mutable.LinkedHashMap[String, Type]()
+    implicit val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty[WaccError]
+    implicit val funcTable: List[Func] = List.empty
+    implicit val funcName: Option[String] = None
+
+    // Traverse the statements in reverse order to find the last return statement
+    for (stat <- stats.reverse) {
+      stat match {
+        case Return(expr) =>
+          // If a return statement is found, infer the type of the expression
+          returnType = checkType(checkExpr(expr, mutable.Map.empty))
+          // Exit the loop once return statement is found
+          return returnType
+        case If(_, thenStats, elseStats) =>
+          // If statement: recursively infer return type from both branches
+          val thenReturnType = inferReturnType(thenStats, file)
+          val elseReturnType = inferReturnType(elseStats, file)
+          // Update inferred return type based on the most specific common type
+          returnType = findCommonType(thenReturnType, elseReturnType)
+        case While(_, whileStats) =>
+          // While loop: recursively infer return type from the loop body
+          returnType = inferReturnType(whileStats, file)
+        case _ => // For other statements, continue traversing
+      }
+    }
+
+    // If no return statement is found, return NoTypeExists
+    returnType
+  }
+
+  // Helper function to find the most specific common type between two types
+  def findCommonType(type1: Type, type2: Type): Type = {
+    // Logic to determine the most specific common type
+    // For simplicity, let's assume the types are compatible
+    type1
+  }
+
 
   // Checks the semantics of a WACC program, including syntax correctness, type checking, and scoping rules.
   def checkSemantics(inProg: Prog, file: String): (List[WaccError], Prog, mutable.Map[String, Type]) = {
@@ -778,7 +828,7 @@ object validator {
 
       // Check statements within the function scope
       new Func(x.typ, x.ident, x.paramList,
-        checkStatements(x.stats, m, x.typ, funcScopePrefix))(x.pos)
+        checkStatements(x.stats, m, x.typ.getOrElse(inferReturnType(x.stats, file)), funcScopePrefix))(x.pos)
     })
 
     // Check statements within the main scope

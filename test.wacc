@@ -7,7 +7,11 @@
 # Program:
 
 begin
-  print "Printing an array variable gives an address, such as " ;
-  int[] a = [1,2,3] ;
+  addTwo(int x, int y) is
+    return x + y
+  end
+  int x = 2;
+  int y = 3;
+  int a = call addTwo(x, y);
   println a
 end

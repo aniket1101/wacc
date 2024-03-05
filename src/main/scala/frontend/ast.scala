@@ -67,7 +67,7 @@ object ast {
   }
 
   case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Func(typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
 
   // Statements
@@ -180,8 +180,8 @@ object ast {
 
   /* Core */
   object Prog extends ParserBridgePos2[List[Func], List[Stat], Prog]
-  object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func] {
-    override def from(op: Parsley[_]): Parsley[(Type, Ident, List[Param], List[Stat]) => Func] =
+  object Func extends ParserBridgePos4[Option[Type], Ident, List[Param], List[Stat], Func] {
+    override def from(op: Parsley[_]): Parsley[(Option[Type], Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")
   }
   object Param extends ParserBridgePos2[Type, Ident, Param] {
