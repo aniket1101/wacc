@@ -1,5 +1,5 @@
 begin
   import "math.wacc"
-  int result = call add(9, 10);
+  int result = call absDiff(5, -3);
   println result
 end

@@ -8,11 +8,11 @@ main:
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
-	mov rax, 9
+	mov rax, -3
 	mov rdi, rax
-	mov rax, 10
+	mov rax, 5
 	mov rsi, rax
-	call wacc_add
+	call wacc_absDiff
 	mov r12, rax
 	mov rax, r12
 	mov rdi, rax
@@ -93,13 +93,49 @@ _prints:
 	pop rbp
 	ret
 
-wacc_add:
+.L0:
+	mov rax, r12
+	jmp .L1
+
+.L1:
+wacc_absDiff:
+	push rbp
+	sub rsp, 16
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], r12
+	mov rbp, rsp
+	mov rax, rdi
+	mov rdi, rax
+	mov rax, rsi
+	mov rsi, rax
+	call wacc_diff
+	mov r12, rax
+	mov rax, r12
+	mov rbx, 0
+	cmp rax, rbx
+	setge al
+	movsx rax, al
+	cmp rax, 1
+	je .L0
+	mov rax, r12
+	mov r10, -1
+	imul eax, r10d
+	jo _errOverflow
+	movsx rax, eax
+	jmp .L1
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
+	pop rbp
+	ret
+
+wacc_diff:
 	push rbp
 	push rbx
 	mov rbp, rsp
 	mov rax, rdi
-	mov rbx, rsi
-	add eax, ebx
+	mov r10, rsi
+	sub eax, r10d
 	jo _errOverflow
 	movsx rax, eax
 	pop rbx

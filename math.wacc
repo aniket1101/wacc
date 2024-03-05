@@ -1,6 +1,12 @@
 begin
-  int add(int a, int b) is
-    return a + b
+  import "moreMath.wacc"
+  int absDiff(int a, int b) is
+    int d = call diff(a, b);
+    if d >= 0 then
+      return d
+     else
+      return d * -1
+     fi
   end
 
   skip

@@ -1,6 +1,7 @@
 // Import necessary packages and modules
 import backend.X86Translator
 import backend._
+import extensions.dfs.getTopologicalSorting
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.checkSemantics
@@ -133,7 +134,7 @@ object Main {
         var outputFunc: List[Func] = List()
 
         // Combine other ASTs
-        importGraph.foreach { case (_, (_, prog)) =>
+        getTopologicalSorting(importGraph).foreach { case (_, (_, prog)) =>
           outputFunc = outputFunc.concat(prog.funcs)
         }
 
@@ -146,15 +147,15 @@ object Main {
               // Compile program
               val asmCode = generateAsm(outputProg, symbolTable)
               writeToFile(asmCode, removeFileExt(mainFile.getName) + ".s") match {
-                case VALID_EXIT_STATUS => return VALID_EXIT_STATUS
+                case VALID_EXIT_STATUS => VALID_EXIT_STATUS
                 case err =>
                   println("Failed to write to output file")
-                  return err
+                  err
               }
             } else {
               // Print semantic errors and exit with semantic error status
               println(errors.map(err => err.display).mkString("\n"))
-              return SEMANTIC_ERROR_EXIT_STATUS
+              SEMANTIC_ERROR_EXIT_STATUS
             }
         }
 
