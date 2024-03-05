@@ -1,15 +1,5 @@
-# basic array (reference) printing
-
-# Output:
-# Printing an array variable gives an address, such as #addrs#
-#
-
-# Program:
-
 begin
-  import "math.wacc", "string.wacc"
-  string msg = call getMsg();
-  println msg
-
-  int radians = call toRadians(0)
+  import "math.wacc"
+  int result = call add(9, 10);
+  println result
 end

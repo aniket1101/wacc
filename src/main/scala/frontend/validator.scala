@@ -798,7 +798,7 @@ object validator {
     })
 
     // Check statements within the main scope
-    val newProg = new Prog(inProg.imports, newFuncs, checkStatements(inProg.stats, mutable.Map.empty, null, "main-"))(inProg.pos)
+    val newProg = new Prog(Option.empty, newFuncs, checkStatements(inProg.stats, mutable.Map.empty, null, "main-"))(inProg.pos)
     (errors.toList, newProg, symTable)
   }
 

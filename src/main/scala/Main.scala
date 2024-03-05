@@ -55,7 +55,7 @@ object Main {
           // If parsing fails according to the Parsley parser
           case parsley.Failure(err) =>
             // Print syntax error and exit with syntax error status
-            println(err)
+            println(err.display)
             Left(SYNTAX_ERROR_EXIT_STATUS)
         }
       // If parsing fails
@@ -64,6 +64,56 @@ object Main {
         println(err)
         Left(FAIL)
     }
+  }
+
+  def parseProgramToAST(source: File): Either[Int, Prog] = {
+    val result = parse(source)
+    result match {
+      // If parsing is successful
+      case Success(value) =>
+        value match {
+          // If parsing is successful according to the Parsley parser
+          case parsley.Success(newValue) =>
+            Right(newValue)
+          // If parsing fails according to the Parsley parser
+          case parsley.Failure(err) =>
+            // Print syntax error and exit with syntax error status
+            println(err.display)
+            Left(SYNTAX_ERROR_EXIT_STATUS)
+        }
+      // If parsing fails
+      case Failure(err) =>
+        // Print parsing failure error and exit with general failure status
+        println(err)
+        Left(FAIL)
+    }
+  }
+
+  def parseImports(initialFile: File): Either[Int, mutable.Map[File, (Set[File], Prog)]] = {
+    val importGraph = mutable.Map[File, (Set[File], Prog)]()
+    val visited = mutable.Set[File]()
+    var exitCode = VALID_EXIT_STATUS
+
+    def processFile(file: File): Unit = {
+      if (!visited.contains(file)) {
+        parseProgramToAST(file) match {
+          case Right(prog) =>
+            visited.add(file)
+            val imports = extractFiles(prog.imports)
+            importGraph(file) = (imports, prog)
+            imports.foreach(processFile)
+          case Left(code) => exitCode = code
+        }
+      }
+    }
+
+    processFile(initialFile)
+
+    exitCode match {
+      case VALID_EXIT_STATUS => Right(importGraph)
+      case _ => Left(exitCode)
+    }
+
   }
 
   def generateAsm(prog: Prog, symbolTable: mutable.Map[String, Type]): String = {
@@ -75,50 +125,41 @@ object Main {
   }
 
   def compileProgram(source: String): Int = {
-    val importGraph = mutable.Map[File, (Set[File], Prog, mutable.Map[String, Type])]()
-    val visited = mutable.Set[File]()
-    var exitCode = VALID_EXIT_STATUS
+    val mainFile = new File(source)
 
-    def processFile(file: File): Unit = {
-      if (!visited.contains(file)) {
-        parseProgram(file) match {
-          case Right((prog, symbolTable)) =>
-            visited.add(file)
-            val imports = extractFiles(prog.imports)
-            importGraph(file) = (imports, prog, symbolTable)
-            imports.foreach(processFile)
-          case Left(code) => exitCode = code
-        }
-      }
-    }
-
-    val initialFile = new File(source)
-    processFile(initialFile)
-
-    exitCode match {
-      case VALID_EXIT_STATUS =>
-        // Source file parsed successfully
-        val mainAST = importGraph(initialFile)
+    // Combines multiple wacc programs into a map of file to its ast
+    parseImports(mainFile) match {
+      case Right(importGraph) =>
         var outputFunc: List[Func] = List()
-        var outputSym: mutable.Map[String, Type] = mutable.Map.empty
 
         // Combine other ASTs
-        importGraph.foreach { case (_, (_, prog, sym)) =>
+        importGraph.foreach { case (_, (_, prog)) =>
           outputFunc = outputFunc.concat(prog.funcs)
-          outputSym = outputSym.concat(sym)
         }
 
-        val outputProg = new Prog(Option.empty, outputFunc, mainAST._2.stats)(nullPos)
-        val asmCode = generateAsm(outputProg, outputSym)
-        writeToFile(asmCode, removeFileExt(initialFile.getName) + ".s") match {
-          case VALID_EXIT_STATUS => VALID_EXIT_STATUS
-          case err =>
-            println("Failed to write to output file")
-            err
+        // Perform semantic check
+        val combinedProg = new Prog(Option.empty, outputFunc, importGraph(mainFile)._2.stats)(nullPos)
+        checkSemantics(combinedProg, mainFile.toString) match {
+          // If there are no semantic errors
+          case (errors, outputProg, symbolTable) =>
+            if (errors.isEmpty) {
+              // Compile program
+              val asmCode = generateAsm(outputProg, symbolTable)
+              writeToFile(asmCode, removeFileExt(mainFile.getName) + ".s") match {
+                case VALID_EXIT_STATUS => return VALID_EXIT_STATUS
+                case err =>
+                  println("Failed to write to output file")
+                  return err
+              }
+            } else {
+              // Print semantic errors and exit with semantic error status
+              println(errors.map(err => err.display).mkString("\n"))
+              return SEMANTIC_ERROR_EXIT_STATUS
+            }
         }
-      case _ => exitCode
+
+      case Left(exitCode) => exitCode
     }
-
   }
 
   private def writeToFile(contents: String, filename: String): Int = {
