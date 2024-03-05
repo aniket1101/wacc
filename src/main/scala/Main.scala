@@ -134,8 +134,9 @@ object Main {
         var outputFunc: List[Func] = List()
 
         // Combine other ASTs
-        getTopologicalSorting(importGraph).foreach { case (_, (_, prog)) =>
-          outputFunc = outputFunc.concat(prog.funcs)
+        getTopologicalSorting(importGraph).foreach { case (filename, (_, prog)) =>
+          val renamedFuncs = prog.funcs.map(_.addLibraryPrefix(removeFileExt(filename.getName)))
+          outputFunc = outputFunc.concat(renamedFuncs)
         }
 
         // Perform semantic check

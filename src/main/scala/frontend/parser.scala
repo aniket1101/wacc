@@ -33,7 +33,7 @@ object parser {
     private lazy val func: Parsley[Func] = atomic(
         Func(
             typ, // Function return type
-            ident, // Function identifier
+            funcIdent, // Function identifier
             "(" ~> sepBy(param, ",") <~ ")", // Function parameters
             "is" ~> sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"
         )
@@ -64,7 +64,8 @@ object parser {
     private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue)
 
     // Parser for identifier
-    private lazy val ident: Parsley[Ident] = Ident(identifier)
+    private lazy val ident: Parsley[Ident] = Ident(identifier).filter(i => !i.name.contains("."))
+    private lazy val funcIdent: Parsley[Ident] = Ident(identifier)
 
     // Parser for type
     private lazy val typ: Parsley[Type] =
@@ -131,7 +132,7 @@ object parser {
 
     // Parser for rvalues
     private lazy val rvalue: Parsley[RValue] =
-        atomic(expr) | Call("call" ~> ident, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
+        atomic(expr) | Call("call" ~> funcIdent, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
           NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")") | pairElem
 
     // Parser for array literals

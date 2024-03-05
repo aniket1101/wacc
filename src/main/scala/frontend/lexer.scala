@@ -23,9 +23,9 @@ object lexer {
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(
             // Predicate for first character of an identifier
-            identifierStart = Basic((c: Char) => c.isLetter || c == '_'),
+            identifierStart = Basic((c: Char) => c.isLetter || c == '_' || c == '.'),
             // Predicate for rest of characters of an identifier
-            identifierLetter = Basic((c: Char) => c.isLetterOrDigit || c == '_'),
+            identifierLetter = Basic((c: Char) => c.isLetterOrDigit || c == '_' || c == '.'),
         ),
         symbolDesc = SymbolDesc.plain.copy(
             hardKeywords = keywords,

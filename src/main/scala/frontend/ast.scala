@@ -67,7 +67,12 @@ object ast {
   }
 
   case class Prog(imports: Option[List[StrLit]], funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position {
+    def addLibraryPrefix(str: String): Func = {
+      ident.name = s"$str.${ident.name}"
+      this
+    }
+  }
   case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
 
   // Statements
@@ -92,7 +97,7 @@ object ast {
   sealed class Atom(val pos:(Int,Int)) extends Expr
 
   sealed trait IdentArray extends LValue with Expr
-  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray {
+  case class Ident(var name: String)(override val pos: (Int, Int)) extends IdentArray {
     override def toString: String = name
   }
   case class ArrayElem(ident: IdentArray, exprs: List[Expr])(override val pos: (Int, Int)) extends IdentArray
