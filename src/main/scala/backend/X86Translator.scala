@@ -9,6 +9,10 @@ import backend.x86Registers._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import cats.implicits._
+
 class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
   private val byteSize = 8
   private val regsUsed = totalRegsUsed - 1
@@ -20,15 +24,20 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
   private var varRegMap: mutable.Map[IR.Register, x86Memory] = mutable.Map.empty
   private var regCounter = 0
 
-  def translate(): List[x86Block] = {
+  def translate(): Future[List[x86Block]] = {
     allocateKnownRegs()
-    asmInstr.map(blockToX86IR)
+    asmInstr.map(blockToX86IR).sequence[Future, x86Block]
   }
 
-  def blockToX86IR(block: AsmBlock): x86Block = {
-    new x86Block(block.roData.map(new x86ReadOnlyData(_)), block.directive.map(new x86Directive(_)),
-      new x86Label(block.label)
-      , instrsToX86IR(block.instructions))
+  def blockToX86IR(block: AsmBlock): Future[x86Block] = {
+    Future.successful(
+      new x86Block(
+        block.roData.map(new x86ReadOnlyData(_)),
+        block.directive.map(new x86Directive(_)),
+        new x86Label(block.label),
+        instrsToX86IR(block.instructions)
+      )
+    )
   }
 
   def getOperand(src: Operand): x86Operand = {

@@ -1,13 +1,9 @@
-# basic array (reference) printing
-
-# Output:
-# Printing an array variable gives an address, such as #addrs#
-#
-
-# Program:
-
 begin
-  print "Printing an array variable gives an address, such as " ;
-  int[] a = [1,2,3] ;
-  println a
+  int a = ( 10 * 1 + 2 * 15 );
+  println a;
+  if a == 40 then
+    println "Correct"
+  else
+    println "Wrong"
+  fi
 end

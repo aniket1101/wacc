@@ -7,6 +7,9 @@ import frontend.validator.checkSemantics
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
+import scala.concurrent.duration._
 import scala.sys.exit
 import scala.util.{Failure, Success}
 
@@ -73,8 +76,11 @@ object Main {
         val asmInstr = irTranslator.translate()
         val totalRegsUsed = irTranslator.getRegsUsed()
         val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
-        val asmCode = IntelX86Formatter.translate(x86Code)
-        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
+        val startTime = System.nanoTime()
+        val asmCode = x86Code.map(IntelX86Formatter.translate)
+        val endTime = System.nanoTime()
+        println(endTime - startTime)
+        writeToFile(Await.result(asmCode, Duration.Inf), removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>
             println("Failed to write to output file")
