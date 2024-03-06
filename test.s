@@ -4,23 +4,26 @@
 .text
 main:
 	push rbp
-	sub rsp, 32
+	sub rsp, 40
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
 	mov qword ptr [rsp + 16], r13
 	mov qword ptr [rsp + 24], r14
+	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 2
+	mov rax, 1
 	mov r12, rax
-	mov rax, 3
+	mov rax, 2
 	mov r13, rax
-	mov rax, r12
-	mov rdi, rax
+	mov rax, 3
+	mov r14, rax
 	mov rax, r13
+	mov rdi, rax
+	mov rax, r14
 	mov rsi, rax
 	call wacc_addTwo
-	mov r14, rax
-	mov rax, r14
+	mov r15, rax
+	mov rax, r15
 	mov rdi, rax
 	call _printi
 	call _println
@@ -29,7 +32,8 @@ main:
 	mov r12, qword ptr [rsp + 8]
 	mov r13, qword ptr [rsp + 16]
 	mov r14, qword ptr [rsp + 24]
-	add rsp, 32
+	mov r15, qword ptr [rsp + 32]
+	add rsp, 40
 	pop rbp
 	ret
 
