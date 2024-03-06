@@ -66,9 +66,7 @@ object ast {
     val pos: (Int, Int)
   }
 
-  case class Import(filename: StrLit, funcs: Option[List[Ident]])
-
-  case class Prog(imports: List[Import], funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Prog(imports: Option[List[StrLit]], funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position {
     def addLibraryPrefix(str: String): Func = {
       ident.name = s"$str.${ident.name}"
@@ -136,6 +134,10 @@ object ast {
   case class IntType()(val pos: (Int, Int)) extends BaseType {
     override def toString: String = "<int>"
   }
+
+  case class DoubleType()(val pos: (Int, Int)) extends BaseType {
+    override def toString: String = "<double>"
+  }
   case class BoolType()(val pos: (Int, Int)) extends BaseType {
     override def toString: String = "<bool>"
   }
@@ -182,11 +184,12 @@ object ast {
   case class CharLit(c: Char)(override val pos: (Int, Int)) extends Atom(pos)
   case class StrLit(s: String)(override val pos: (Int, Int)) extends Atom(pos)
   case class PairLiter()(override val pos: (Int, Int)) extends Atom(pos)
+  case class DoubleLit(d: Double)(override val pos: (Int, Int)) extends Atom(pos)
 
   /* PARSER BRIDGE CONNECTIONS */
 
   /* Core */
-  object Prog extends ParserBridgePos3[List[Import], List[Func], List[Stat], Prog]
+  object Prog extends ParserBridgePos3[Option[List[StrLit]], List[Func], List[Stat], Prog]
   object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func] {
     override def from(op: Parsley[_]): Parsley[(Type, Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")
@@ -216,6 +219,7 @@ object ast {
 
   /* Base Types */
   object IntType extends ParserBridgePos0[IntType]
+  object DoubleType extends ParserBridgePos0[DoubleType]
   object BoolType extends ParserBridgePos0[BoolType]
   object CharType extends ParserBridgePos0[CharType]
   object StringType extends ParserBridgePos0[StringType]
@@ -254,6 +258,7 @@ object ast {
   object CharLit extends ParserBridgePos1[Char, CharLit]
   object StrLit extends ParserBridgePos1[String, StrLit]
   object PairLiter extends ParserBridgePos0[PairLiter]
+  object DoubleLit extends ParserBridgePos1[Double, DoubleLit]
 
   /* Unary Operators */
   object Not extends ParserBridgePos1[Expr, Not] {

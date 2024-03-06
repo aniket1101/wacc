@@ -22,7 +22,7 @@ object IR {
 
   sealed trait RegOrImm extends Operand
 
-  case class Immediate(value: Int) extends RegOrImm
+  case class Immediate(value: Number) extends RegOrImm
 
   class Register() extends MemOrReg with RegOrImm
 

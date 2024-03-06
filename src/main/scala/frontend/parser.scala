@@ -5,9 +5,9 @@ import frontend.lexer._
 import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
-import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.{sepBy, sepBy1}
 import parsley.syntax.zipped.Zipped2
+import parsley.Parsley.{atomic, many, some}
+import parsley.combinator.{option, sepBy, sepBy1}
 import parsley.errors.combinator._
 import parsley.expr._
 import parsley.{Parsley, Result}
@@ -26,10 +26,9 @@ object parser {
     private lazy val parser = fully(prog)
 
     // Lazy initialization of the main program parser
-    private lazy val prog: Parsley[Prog] = {
-        // Parsing a complete program
-        fully("begin" ~> Prog(many(imprt), many(func), sepBy1(singleStat, ";")) <~ "end")
-    }
+    private lazy val prog: Parsley[Prog] =
+    // Parsing a complete program
+        fully(Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), "begin" ~> many(func), sepBy1(singleStat, ";")) <~ "end")
 
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(
@@ -40,10 +39,6 @@ object parser {
             "is" ~> sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"
         )
     )
-
-    private lazy val imprt: Parsley[Import] = ("import" ~> StrLit(stringLiterals)).map(f => Import(f, Option.empty)) <|>
-      atomic("from" ~> StrLit(stringLiterals) <~ "import" <~ "*").map(f => Import(f, Option(List.empty)))  <|>
-      ("from" ~> StrLit(stringLiterals), "import" ~> sepBy1(Ident(identifier), ",")).zipped((file, funcs) => Import(file, Option(funcs)))
 
     private lazy val stats = sepBy1(singleStat, ";") // Parser for multiple statements
 
@@ -83,7 +78,7 @@ object parser {
 
     // Parser for base types
     private lazy val baseType: Parsley[BaseType] =
-        (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string")
+        (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string") <|> (DoubleType <# "double")
 
     // Parser for array types
     private lazy val arrayType: Parsley[ArrayType] =
@@ -102,6 +97,7 @@ object parser {
         Not("!" ~> unOppExpr) <|>
         (Neg("-" ~> unOppExpr).map({
               case p@Neg(IntLit(x)) => IntLit(-x)(p.pos)
+              case p@Neg(DoubleLit(x)) => DoubleLit(-x)(p.pos)
               case otherExpr => otherExpr
           }) <|>
             Len("len" ~> unOppExpr) <|>
@@ -124,17 +120,17 @@ object parser {
     private lazy val unOppExpr: Parsley[Expr] = atom <|> ("(" ~> expr <~ ")")
 
     // Parser for numeric unary expressions
-    private lazy val numericUnOppExpr: Parsley[Expr] = IntLit(integers) | unOpp
+    private lazy val numericUnOppExpr: Parsley[Expr] = DoubleLit(doubles) | IntLit(integers) | unOpp
 
     // Parser for atomic expressions
     private lazy val atom: Parsley[Expr] =
-        atomic(arrayElem) | ident | IntLit(integers) |
+        atomic(arrayElem) | Ident(identifier) | (atomic(IntLit(integers) <~ "."), IntLit(integers)).zipped((i1, i2) => DoubleLit(s"${i1.x}.${i2.x}".toDouble)(i1.pos)) | IntLit(integers) |
           BoolLit(boolLiterals) | CharLit(charLiterals) | StrLit(stringLiterals) | unOpp |
           (PairLiter <# "null")
 
     // Parser for lvalues
     private lazy val lvalue: Parsley[LValue] =
-        atomic(arrayElem) | atomic(pairElem) | ident
+        atomic(arrayElem) | atomic(pairElem) | Ident(identifier)
 
     // Parser for rvalues
     private lazy val rvalue: Parsley[RValue] =
@@ -147,7 +143,7 @@ object parser {
 
     // Parser for array elements
     private lazy val arrayElem: Parsley[ArrayElem] =
-        ArrayElem(ident, some("[" ~> expr <~ "]"))
+        ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
 
     // Parser for pair elements
     private lazy val pairElem: Parsley[PairElem] =

@@ -1,5 +1,6 @@
+import "moreMath.wacc"
+
 begin
-  import "moreMath.wacc"
   int absDiff(int a, int b) is
     int d = call moreMath.diff(a, b);
     if d >= 0 then

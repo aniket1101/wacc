@@ -260,7 +260,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     varCounter += 1
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
-      case IntType() | BoolType() | CharType() | StringType() => rValue match {
+      case IntType() | BoolType() | CharType() | StringType() | DoubleType() => rValue match {
         case expr: Expr => instr = evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), newReg)))
         case Call(name, args) => {
           var moveParams: ListBuffer[Instruction] = ListBuffer.empty
@@ -344,6 +344,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   def evaluateExpr(expr: Expr, reg:Register, size: Size): ListBuffer[Instruction] = {
     expr match {
       case IntLit(x) => ListBuffer(MovInstr(Immediate(x), reg).changeSize(size))
+      case DoubleLit(x) => ListBuffer(MovInstr(Immediate(x), reg).changeSize(size))
       case BoolLit(bool) => bool match {
         case true => ListBuffer(MovInstr(Immediate(1), reg).changeSize(size))
         case _ => ListBuffer(MovInstr(Immediate(0), reg).changeSize(size))
@@ -554,10 +555,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         evalBool.concat(List(MovInstr(ReturnRegister(), DestinationRegister()), CallInstr(Label("_printb")))).toList
       }
 
-      case IntType() => {
+      case IntType() | DoubleType() => {
         addBlock(IntPrintBlock())
         val evalInt: List[Instruction] = expr match {
           case IntLit(myInt) => List(MovInstr(Immediate(myInt), ReturnRegister()))
+          case DoubleLit(myInt) => List(MovInstr(Immediate(myInt), ReturnRegister()))
           case _ => evaluateExpr(expr, ReturnRegister(), BIT_64).toList
         }
         evalInt.concat(List(

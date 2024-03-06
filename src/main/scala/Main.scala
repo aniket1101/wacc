@@ -3,7 +3,7 @@ import backend._
 import extensions.dfs.getTopologicalSorting
 import frontend.ast._
 import frontend.parser._
-import frontend.validator.checkSemantics
+import frontend.validator.{checkSemantics, fileExists}
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
@@ -59,7 +59,7 @@ object Main {
         }
 
         // Perform semantic check
-        val combinedProg = new Prog(List.empty, outputFunc, importGraph(mainFile)._2.stats)(nullPos)
+        val combinedProg = new Prog(Option.empty, outputFunc, importGraph(mainFile)._2.stats)(nullPos)
         checkSemantics(combinedProg, mainFile.toString) match {
           // If there are no semantic errors
           case (errors, outputProg, symbolTable) =>
@@ -77,7 +77,12 @@ object Main {
   }
 
   def parseProgramToAST(source: File): Either[Int, Prog] = {
-    val result = parse(source)
+    val filepath = if (!fileExists(source.getPath)) {
+      new File("src/lib", source.getPath)
+    } else {
+      source
+    }
+    val result = parse(filepath)
     result match {
       // If parsing is successful
       case Success(value) =>
@@ -152,7 +157,10 @@ object Main {
     else file
   }
 
-  private def extractFiles(imports: List[Import]): Set[File] = {
-    imports.map({ i => new File(i.filename.s) }).toSet
+  private def extractFiles(files: Option[List[StrLit]]): Set[File] = {
+    files match {
+      case Some(imports) => imports.map({x => new File(x.s)}).toSet
+      case None => Set.empty
+    }
   }
 }

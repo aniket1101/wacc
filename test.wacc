@@ -1,7 +1,6 @@
+import "math.wacc"
+
 begin
-  import "math.wacc"
-  from "string.wacc" import plus, minus
-  from "moreMath.wacc" import *
-  int result = call math.absDiff(5, -3);
-  println result
+  double num = 1.5;
+  println num
 end
