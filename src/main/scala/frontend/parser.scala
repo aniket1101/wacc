@@ -61,7 +61,7 @@ object parser {
     private lazy val declaration: Parsley[Declaration] = Declaration(typ, ident, "=" ~> rvalue)
 
     // Parser for assignment
-    private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue)
+    private lazy val assign: Parsley[AssignorInferDecl] = AssignorInferDecl(lvalue, "=" ~> rvalue)
 
     // Parser for identifier
     private lazy val ident: Parsley[Ident] = Ident(identifier)

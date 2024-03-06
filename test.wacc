@@ -7,11 +7,12 @@
 # Program:
 
 begin
-  addTwo(int x, int y) is
+  int addTwo(int x, int y) is
     return x + y
   end
-  int x = 2;
-  int y = 3;
-  int a = call addTwo(x, y);
+  z = 1;
+  x = 2;
+  y = 3;
+  a = call addTwo(x, y);
   println a
 end

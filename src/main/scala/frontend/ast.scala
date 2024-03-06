@@ -74,7 +74,7 @@ object ast {
   sealed trait Stat extends Position
   case class Skip()(val pos: (Int, Int)) extends Stat
   case class Declaration(typ: Type, x: Ident, y: RValue)(val pos: (Int, Int)) extends Stat
-  case class Assign(lValue: LValue, y: RValue)(val pos: (Int, Int)) extends Stat
+  case class AssignorInferDecl(lValue: LValue, y: RValue)(val pos: (Int, Int)) extends Stat
   case class Read(lValue: LValue)(val pos: (Int, Int)) extends Stat
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
   case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
@@ -194,8 +194,8 @@ object ast {
     override def from(op: Parsley[_]): Parsley[(Type, Ident, RValue) => Declaration] =
       super.from(op).label("declaration")
   }
-  object Assign extends ParserBridgePos2[LValue, RValue, Assign] {
-    override def from(op: Parsley[_]): Parsley[(LValue, RValue) => Assign] = super.from(op).label("assignment")
+  object AssignorInferDecl extends ParserBridgePos2[LValue, RValue, AssignorInferDecl] {
+    override def from(op: Parsley[_]): Parsley[(LValue, RValue) => AssignorInferDecl] = super.from(op).label("assignment or inferred declaration")
   }
   object Read extends ParserBridgePos1[LValue, Read]
   object Free extends ParserBridgePos1[Expr, Free]

@@ -625,18 +625,28 @@ object validator {
           symTable += (newIdName -> idType)
           new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
 
-        case Assign(lVal, rVal) =>
-          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
+        case AssignorInferDecl(lVal, rVal) =>
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
           // Check for type mismatch in assignment
-          if (!sameType(checkType(newLVal), checkType(newRVal)) && checkType(newLVal) != NoTypeExists) {
-            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(newLVal)}, found ${checkType(newRVal)}", stat.pos)
-          } else if (checkType(newLVal) == AnyType && checkType(newRVal) == AnyType) {
+          if (!sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists) {
+            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(lVal)}, found ${checkType(newRVal)}", stat.pos)
+          } else if (checkType(lVal) == AnyType && checkType(newRVal) == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
           }
 
-          new Assign(newLVal, newRVal)(stat.pos)
+          lVal match {
+            case Ident(name) => {
+              val newIdName = scopePrefix ++ name
+              localSymTable = localSymTable.concat(Map(name -> newIdName))
+              val idType = checkType(newRVal)
+              symTable += (newIdName -> idType)
+            }
+          }
+
+          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
+
+          new AssignorInferDecl(newLVal, newRVal)(stat.pos)
 
         case Read(expr) =>
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
@@ -734,7 +744,7 @@ object validator {
   }
 
   // Helper function to infer return type of a function
-  def inferReturnType(stats: List[Stat], file: String): Type = {
+  def inferFuncReturnType(stats: List[Stat], file: String): Type = {
     // Initialize inferred return type as NoTypeExists
     var returnType: Type = NoTypeExists
 
@@ -761,13 +771,13 @@ object validator {
           return returnType
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
-          val thenReturnType = inferReturnType(thenStats, file)
-          val elseReturnType = inferReturnType(elseStats, file)
+          val thenReturnType = inferFuncReturnType(thenStats, file)
+          val elseReturnType = inferFuncReturnType(elseStats, file)
           // Update inferred return type based on the most specific common type
           returnType = findCommonType(thenReturnType, elseReturnType)
         case While(_, whileStats) =>
           // While loop: recursively infer return type from the loop body
-          returnType = inferReturnType(whileStats, file)
+          returnType = inferFuncReturnType(whileStats, file)
         case _ => // For other statements, continue traversing
       }
     }
@@ -828,7 +838,7 @@ object validator {
 
       // Check statements within the function scope
       new Func(x.typ, x.ident, x.paramList,
-        checkStatements(x.stats, m, x.typ.getOrElse(inferReturnType(x.stats, file)), funcScopePrefix))(x.pos)
+        checkStatements(x.stats, m, x.typ.getOrElse(inferFuncReturnType(x.stats, file)), funcScopePrefix))(x.pos)
     })
 
     // Check statements within the main scope
