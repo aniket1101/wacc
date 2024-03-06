@@ -1,5 +1,7 @@
 begin
   import "math.wacc"
+  from "string.wacc" import plus, minus
+  from "moreMath.wacc" import *
   int result = call math.absDiff(5, -3);
   println result
 end

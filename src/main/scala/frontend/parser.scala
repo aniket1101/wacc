@@ -6,7 +6,8 @@ import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.{option, sepBy, sepBy1}
+import parsley.combinator.{sepBy, sepBy1}
+import parsley.syntax.zipped.Zipped2
 import parsley.errors.combinator._
 import parsley.expr._
 import parsley.{Parsley, Result}
@@ -25,9 +26,10 @@ object parser {
     private lazy val parser = fully(prog)
 
     // Lazy initialization of the main program parser
-    private lazy val prog: Parsley[Prog] =
-    // Parsing a complete program
-        fully("begin" ~> Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), many(func), sepBy1(singleStat, ";")) <~ "end")
+    private lazy val prog: Parsley[Prog] = {
+        // Parsing a complete program
+        fully("begin" ~> Prog(many(imprt), many(func), sepBy1(singleStat, ";")) <~ "end")
+    }
 
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(
@@ -38,6 +40,10 @@ object parser {
             "is" ~> sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"
         )
     )
+
+    private lazy val imprt: Parsley[Import] = ("import" ~> StrLit(stringLiterals)).map(f => Import(f, Option.empty)) <|>
+      atomic("from" ~> StrLit(stringLiterals) <~ "import" <~ "*").map(f => Import(f, Option(List.empty)))  <|>
+      ("from" ~> StrLit(stringLiterals), "import" ~> sepBy1(Ident(identifier), ",")).zipped((file, funcs) => Import(file, Option(funcs)))
 
     private lazy val stats = sepBy1(singleStat, ";") // Parser for multiple statements
 
@@ -122,13 +128,13 @@ object parser {
 
     // Parser for atomic expressions
     private lazy val atom: Parsley[Expr] =
-        atomic(arrayElem) | Ident(identifier) | IntLit(integers) |
+        atomic(arrayElem) | ident | IntLit(integers) |
           BoolLit(boolLiterals) | CharLit(charLiterals) | StrLit(stringLiterals) | unOpp |
           (PairLiter <# "null")
 
     // Parser for lvalues
     private lazy val lvalue: Parsley[LValue] =
-        atomic(arrayElem) | atomic(pairElem) | Ident(identifier)
+        atomic(arrayElem) | atomic(pairElem) | ident
 
     // Parser for rvalues
     private lazy val rvalue: Parsley[RValue] =
@@ -141,7 +147,7 @@ object parser {
 
     // Parser for array elements
     private lazy val arrayElem: Parsley[ArrayElem] =
-        ArrayElem(Ident(identifier), some("[" ~> expr <~ "]"))
+        ArrayElem(ident, some("[" ~> expr <~ "]"))
 
     // Parser for pair elements
     private lazy val pairElem: Parsley[PairElem] =

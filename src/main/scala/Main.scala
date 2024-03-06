@@ -59,7 +59,7 @@ object Main {
         }
 
         // Perform semantic check
-        val combinedProg = new Prog(Option.empty, outputFunc, importGraph(mainFile)._2.stats)(nullPos)
+        val combinedProg = new Prog(List.empty, outputFunc, importGraph(mainFile)._2.stats)(nullPos)
         checkSemantics(combinedProg, mainFile.toString) match {
           // If there are no semantic errors
           case (errors, outputProg, symbolTable) =>
@@ -152,10 +152,7 @@ object Main {
     else file
   }
 
-  private def extractFiles(files: Option[List[StrLit]]): Set[File] = {
-    files match {
-      case Some(imports) => imports.map({x => new File(x.s)}).toSet
-      case None => Set.empty
-    }
+  private def extractFiles(imports: List[Import]): Set[File] = {
+    imports.map({ i => new File(i.filename.s) }).toSet
   }
 }

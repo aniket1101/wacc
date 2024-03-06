@@ -66,7 +66,9 @@ object ast {
     val pos: (Int, Int)
   }
 
-  case class Prog(imports: Option[List[StrLit]], funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Import(filename: StrLit, funcs: Option[List[Ident]])
+
+  case class Prog(imports: List[Import], funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position {
     def addLibraryPrefix(str: String): Func = {
       ident.name = s"$str.${ident.name}"
@@ -184,7 +186,7 @@ object ast {
   /* PARSER BRIDGE CONNECTIONS */
 
   /* Core */
-  object Prog extends ParserBridgePos3[Option[List[StrLit]], List[Func], List[Stat], Prog]
+  object Prog extends ParserBridgePos3[List[Import], List[Func], List[Stat], Prog]
   object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func] {
     override def from(op: Parsley[_]): Parsley[(Type, Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")

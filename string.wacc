@@ -1,0 +1,10 @@
+begin
+  int plus(int a, int b) is
+    return a + b
+  end
+  int minus(int a, int b) is
+      return a - b
+    end
+
+  skip
+end

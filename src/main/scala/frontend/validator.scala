@@ -760,15 +760,11 @@ object validator {
     implicit val mainScope: Option[String] = Option.empty
 
     // Check that the files imports are wacc files and that they exists
-    inProg.imports match {
-      case Some(imports) =>
-        for (file <- imports) {
-          if (!fileExists(file.s))
-            semanticErrorOccurred(s"File '${file.s}' does not exist.", file.pos)
-          else if (getFileExtension(file.s) != "wacc")
-            semanticErrorOccurred(s"File '${file.s}' is not a wacc file.", file.pos)
-        }
-      case None =>
+    for (imprt <- inProg.imports) {
+      if (!fileExists(imprt.filename.s))
+        semanticErrorOccurred(s"File '${imprt.filename.s}' does not exist.", imprt.filename.pos)
+      else if (getFileExtension(imprt.filename.s) != "wacc")
+        semanticErrorOccurred(s"File '${imprt.filename.s}' is not a wacc file.", imprt.filename.pos)
     }
 
     // Check for duplicated function declarations and arguments
@@ -798,7 +794,7 @@ object validator {
     })
 
     // Check statements within the main scope
-    val newProg = new Prog(Option.empty, newFuncs, checkStatements(inProg.stats, mutable.Map.empty, null, "main-"))(inProg.pos)
+    val newProg = new Prog(List.empty, newFuncs, checkStatements(inProg.stats, mutable.Map.empty, null, "main-"))(inProg.pos)
     (errors.toList, newProg, symTable)
   }
 
