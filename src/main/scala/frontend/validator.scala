@@ -605,6 +605,17 @@ object validator {
     var scopeIndex = 0
     implicit val funcName: Option[String] = Option(scopePrefix)
 
+    /* returns true if the lvalue isn't declared yet */
+    def isInferredTypeDef(lVal: LValue): Boolean = {
+      lVal match {
+
+        /* if its an identifier then check if its in the parent and child scope maps yet */
+        case Ident(name) =>
+          !localSymTable.values.exists(_ == name)
+        case _ => false
+      }
+    }
+
     // Iterate through each statement in the list
     for (stat <- stats) {
       val checkedStat: Stat = stat match {
@@ -626,25 +637,35 @@ object validator {
           new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
 
         case AssignorInferDecl(lVal, rVal) =>
+          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
+
+          var lType: Type = NoTypeExists
+          var rType: Type = NoTypeExists
 
           lVal match {
             case Ident(name) => {
-              val newIdName = scopePrefix ++ name
-              localSymTable = localSymTable.concat(Map(name -> newIdName))
-              val idType = checkType(newRVal)
-              symTable += (newIdName -> idType)
+              if (isInferredTypeDef(newLVal)) {
+                val newIdName = scopePrefix ++ name
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+                rType = checkType(newRVal)
+                lType = rType
+                symTable += (newIdName -> lType)
+              } else {
+                lType = checkType(newLVal)
+                rType = checkType(newRVal)
+              }
             }
             case _ =>
+              lType = checkType(newLVal)
+              rType = checkType(newRVal)
           }
 
-          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
-
           // Check for type mismatch in assignment
-          //  && checkType(lVal) != NoTypeExists
-          if (!sameType(checkType(lVal), checkType(newRVal))) {
-            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(lVal)}, found ${checkType(newRVal)}", stat.pos)
-          } else if (checkType(lVal) == AnyType && checkType(newRVal) == AnyType) {
+          //  !sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists
+          if ((lType != rType && rType != lType) || !sameType(lType, rType)) {
+            semanticErrorOccurred(s"Type mismatch in assignment: expected $lType, found $rType", stat.pos)
+          } else if (lType == AnyType && rType == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
           }
 

@@ -1,22 +1,16 @@
-# basic array (reference) printing
+# Trying to assign non-matching pairs to eachother.
+# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
 
 # Output:
-# Printing an array variable gives an address, such as #addrs#
-#
+# #semantic_error#
+
+# Exit:
+# 200
 
 # Program:
 
 begin
-  addTwo(int x, int y) is
-  return x + y
-  end
-  x = 2;
-  y = 3;
-  p = newpair(1, 1);
-  a = call addTwo(x, y);
-  fst p = 69;
-  snd p = fst p;
-  p = p;
-  p = newpair(1,2);
-  print a
+  pair(int, int) p1 = newpair(0, 0);
+  pair(char, char) p2 = newpair('a', 'a');
+  p2 = p1
 end
