@@ -98,7 +98,7 @@ object validator {
 
     // If the expression is a Call, find the corresponding function in the function table and return its type
     case Call(ident, _) => funcTable.find(x => x.ident.name == ident.name) match {
-      case Some(value) => value.typ
+      case Some(value) => value.typ.getOrElse(AnyType)
       case None => NoTypeExists
     }
 
@@ -605,6 +605,17 @@ object validator {
     var scopeIndex = 0
     implicit val funcName: Option[String] = Option(scopePrefix)
 
+    /* returns true if the lvalue isn't declared yet */
+    def isInferredTypeDef(lVal: LValue): Boolean = {
+      lVal match {
+
+        /* if its an identifier then check if its in the parent and child scope maps yet */
+        case Ident(name) =>
+          !localSymTable.values.exists(_ == name)
+        case _ => false
+      }
+    }
+
     // Iterate through each statement in the list
     for (stat <- stats) {
       val checkedStat: Stat = stat match {
@@ -625,18 +636,40 @@ object validator {
           symTable += (newIdName -> idType)
           new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
 
-        case Assign(lVal, rVal) =>
+        case AssignorInferDecl(lVal, rVal) =>
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
+          var lType: Type = NoTypeExists
+          var rType: Type = NoTypeExists
+
+          lVal match {
+            case Ident(name) => {
+              if (isInferredTypeDef(newLVal)) {
+                val newIdName = scopePrefix ++ name
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+                rType = checkType(newRVal)
+                lType = rType
+                symTable += (newIdName -> lType)
+              } else {
+                lType = checkType(newLVal)
+                rType = checkType(newRVal)
+              }
+            }
+            case _ =>
+              lType = checkType(newLVal)
+              rType = checkType(newRVal)
+          }
+
           // Check for type mismatch in assignment
-          if (!sameType(checkType(newLVal), checkType(newRVal)) && checkType(newLVal) != NoTypeExists) {
-            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(newLVal)}, found ${checkType(newRVal)}", stat.pos)
-          } else if (checkType(newLVal) == AnyType && checkType(newRVal) == AnyType) {
+          //  !sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists
+          if ((lType != rType && rType != lType) || !sameType(lType, rType)) {
+            semanticErrorOccurred(s"Type mismatch in assignment: expected $lType, found $rType", stat.pos)
+          } else if (lType == AnyType && rType == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
           }
 
-          new Assign(newLVal, newRVal)(stat.pos)
+          new AssignorInferDecl(newLVal, newRVal)(stat.pos)
 
         case Read(expr) =>
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
@@ -733,6 +766,69 @@ object validator {
     newStats.toList // Return the list of checked statements
   }
 
+  // Helper function to infer return type of a function
+  private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func]): Type = {
+    // Initialize inferred return type as NoTypeExists
+    var returnType: Type = NoTypeExists
+
+    implicit val fileName: String = file
+
+    // Read file contents
+    val fileSource = Source.fromFile(new File(file))
+    implicit val fileContents: Array[String] = fileSource.getLines().toArray
+    fileSource.close()
+
+    // Initialize symbol table and error buffer
+    implicit val symTable: mutable.Map[String, Type] = varTable
+    implicit val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty[WaccError]
+    implicit val funcTable: List[Func] = funcTbl
+    implicit val funcName: Option[String] = Option(ident.name)
+
+    def translateScopeVar(sym: String): (String, String) = {
+      val identIndex = sym.lastIndexOf("-")
+      if (identIndex >= 0 && identIndex < sym.length - 1)
+        (sym.substring(identIndex + 1), sym)
+      else
+      ("", "")
+    }
+
+    val varsInScope: mutable.Map[String, String] = symTable.map { case (key, _) =>
+      translateScopeVar(key)
+    }
+
+
+    // Traverse the statements in reverse order to find the last return statement
+    for (stat <- stats.reverse) {
+      stat match {
+        case Return(expr) =>
+          // If a return statement is found, infer the type of the expression
+          returnType = checkType(checkExpr(expr, varsInScope))
+          // Exit the loop once return statement is found
+          return returnType
+        case If(_, thenStats, elseStats) =>
+          // If statement: recursively infer return type from both branches
+          val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable)
+          val elseReturnType = inferFuncReturnType(ident, elseStats, file, symTable, funcTable)
+          // Update inferred return type based on the most specific common type
+          returnType = findCommonType(thenReturnType, elseReturnType)
+        case While(_, whileStats) =>
+          // While loop: recursively infer return type from the loop body
+          returnType = inferFuncReturnType(ident, whileStats, file, symTable, funcTable)
+        case _ => // For other statements, continue traversing
+      }
+    }
+
+    // If no return statement is found, return NoTypeExists
+    returnType
+  }
+
+  // Helper function to find the most specific common type between two types
+  def findCommonType(type1: Type, type2: Type): Type = {
+    // Logic to determine the most specific common type
+    // For simplicity, let's assume the types are compatible
+    type1
+  }
+
 
   // Checks the semantics of a WACC program, including syntax correctness, type checking, and scoping rules.
   def checkSemantics(inProg: Prog, file: String): (List[WaccError], Prog, mutable.Map[String, Type]) = {
@@ -777,8 +873,13 @@ object validator {
       val m: mutable.Map[String, String] = mBuilder.result()
 
       // Check statements within the function scope
-      new Func(x.typ, x.ident, x.paramList,
-        checkStatements(x.stats, m, x.typ, funcScopePrefix))(x.pos)
+      val inferredType: Type = inferFuncReturnType(x.ident, x.stats, file, symTable, funcTable)
+      if (x.typ.isEmpty) {
+        x.typ = Option(inferredType)
+      }
+        new Func(x.typ, x.ident, x.paramList,
+          checkStatements(x.stats, m, x.typ.getOrElse(inferredType), funcScopePrefix))(x.pos)
+
     })
 
     // Check statements within the main scope

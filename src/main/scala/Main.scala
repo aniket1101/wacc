@@ -39,7 +39,7 @@ object Main {
           // If parsing is successful according to the Parsley parser
           case parsley.Success(newValue) =>
             // Check semantics of the parsed program
-            checkSemantics(newValue, source.toString) match {
+            checkSemantics(newValue:Prog, source.toString) match {
               // If there are no semantic errors
               case (errors, prog, symbolTable) =>
                 if (errors.isEmpty) {

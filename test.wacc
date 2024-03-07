@@ -1,13 +1,16 @@
-# basic array (reference) printing
+# Trying to assign non-matching pairs to eachother.
+# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
 
 # Output:
-# Printing an array variable gives an address, such as #addrs#
-#
+# #semantic_error#
+
+# Exit:
+# 200
 
 # Program:
 
 begin
-  print "Printing an array variable gives an address, such as " ;
-  int[] a = [1,2,3] ;
-  println a
+  pair(int, int) p1 = newpair(0, 0);
+  pair(char, char) p2 = newpair('a', 'a');
+  p2 = p1
 end

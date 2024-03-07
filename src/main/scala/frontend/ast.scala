@@ -67,14 +67,14 @@ object ast {
   }
 
   case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Func(typ: Type, ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Func(var typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
 
   // Statements
   sealed trait Stat extends Position
   case class Skip()(val pos: (Int, Int)) extends Stat
   case class Declaration(typ: Type, x: Ident, y: RValue)(val pos: (Int, Int)) extends Stat
-  case class Assign(lValue: LValue, y: RValue)(val pos: (Int, Int)) extends Stat
+  case class AssignorInferDecl(lValue: LValue, y: RValue)(val pos: (Int, Int)) extends Stat
   case class Read(lValue: LValue)(val pos: (Int, Int)) extends Stat
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
   case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
@@ -180,8 +180,8 @@ object ast {
 
   /* Core */
   object Prog extends ParserBridgePos2[List[Func], List[Stat], Prog]
-  object Func extends ParserBridgePos4[Type, Ident, List[Param], List[Stat], Func] {
-    override def from(op: Parsley[_]): Parsley[(Type, Ident, List[Param], List[Stat]) => Func] =
+  object Func extends ParserBridgePos4[Option[Type], Ident, List[Param], List[Stat], Func] {
+    override def from(op: Parsley[_]): Parsley[(Option[Type], Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")
   }
   object Param extends ParserBridgePos2[Type, Ident, Param] {
@@ -194,8 +194,8 @@ object ast {
     override def from(op: Parsley[_]): Parsley[(Type, Ident, RValue) => Declaration] =
       super.from(op).label("declaration")
   }
-  object Assign extends ParserBridgePos2[LValue, RValue, Assign] {
-    override def from(op: Parsley[_]): Parsley[(LValue, RValue) => Assign] = super.from(op).label("assignment")
+  object AssignorInferDecl extends ParserBridgePos2[LValue, RValue, AssignorInferDecl] {
+    override def from(op: Parsley[_]): Parsley[(LValue, RValue) => AssignorInferDecl] = super.from(op).label("assignment or inferred declaration")
   }
   object Read extends ParserBridgePos1[LValue, Read]
   object Free extends ParserBridgePos1[Expr, Free]

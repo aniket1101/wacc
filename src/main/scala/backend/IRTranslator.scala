@@ -133,7 +133,13 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       instructions = instructions.concat(stmt match {
         case Skip() => List.empty
         case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
-        case Assign(Ident(x), rValue) => rValue match {
+        case AssignorInferDecl(Ident(x), rValue) =>
+          if (!variableMap.contains(x)) {
+            val newReg = varRegs(varCounter + 1)
+            varCounter += 1
+            variableMap.addOne((x, newReg))
+          }
+          rValue match {
           case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
           case Call(name, args) => {
             var moveParams: ListBuffer[Instruction] = ListBuffer.empty

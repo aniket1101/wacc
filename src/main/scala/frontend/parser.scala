@@ -6,7 +6,7 @@ import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.{sepBy, sepBy1}
+import parsley.combinator.{option, sepBy, sepBy1}
 import parsley.errors.combinator._
 import parsley.expr._
 import parsley.{Parsley, Result}
@@ -32,7 +32,7 @@ object parser {
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(
         Func(
-            typ, // Function return type
+            option(typ), // Function return type
             ident, // Function identifier
             "(" ~> sepBy(param, ",") <~ ")", // Function parameters
             "is" ~> sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"
@@ -61,7 +61,7 @@ object parser {
     private lazy val declaration: Parsley[Declaration] = Declaration(typ, ident, "=" ~> rvalue)
 
     // Parser for assignment
-    private lazy val assign: Parsley[Assign] = Assign(lvalue, "=" ~> rvalue)
+    private lazy val assign: Parsley[AssignorInferDecl] = AssignorInferDecl(lvalue, "=" ~> rvalue)
 
     // Parser for identifier
     private lazy val ident: Parsley[Ident] = Ident(identifier)
