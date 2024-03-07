@@ -11,19 +11,19 @@ main:
 	mov qword ptr [rsp + 24], r14
 	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 1
-	mov r12, rax
 	mov rax, 2
-	mov r13, rax
+	mov r12, rax
 	mov rax, 3
-	mov r14, rax
-	mov rax, r13
+	mov r13, rax
+	mov rax, r12
 	mov rdi, rax
-	mov rax, r14
+	mov rax, r13
 	mov rsi, rax
 	call wacc_addTwo
 	mov r15, rax
-	call _println
+	mov rax, r15
+	mov rdi, rax
+	call _printi
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
@@ -35,16 +35,18 @@ main:
 	ret
 
 .section .rodata
-	.int 0
-.L._println_str0:
-	.asciz ""
+	.int 2
+.L._printi_str0:
+	.asciz "%d"
 .text
-_println:
+_printi:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	lea rdi, [rip + .L._println_str0]
-	call puts@plt
+	mov esi, edi
+	lea rdi, [rip + .L._printi_str0]
+	mov al, 0
+	call printf@plt
 	mov rdi, 0
 	call fflush@plt
 	mov rsp, rbp

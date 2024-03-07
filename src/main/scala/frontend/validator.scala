@@ -628,13 +628,6 @@ object validator {
         case AssignorInferDecl(lVal, rVal) =>
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
-          // Check for type mismatch in assignment
-          if (!sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists) {
-            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(lVal)}, found ${checkType(newRVal)}", stat.pos)
-          } else if (checkType(lVal) == AnyType && checkType(newRVal) == AnyType) {
-            semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
-          }
-
           lVal match {
             case Ident(name) => {
               val newIdName = scopePrefix ++ name
@@ -642,9 +635,18 @@ object validator {
               val idType = checkType(newRVal)
               symTable += (newIdName -> idType)
             }
+            case _ =>
           }
 
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
+
+          // Check for type mismatch in assignment
+          //  && checkType(lVal) != NoTypeExists
+          if (!sameType(checkType(lVal), checkType(newRVal))) {
+            semanticErrorOccurred(s"Type mismatch in assignment: expected ${checkType(lVal)}, found ${checkType(newRVal)}", stat.pos)
+          } else if (checkType(lVal) == AnyType && checkType(newRVal) == AnyType) {
+            semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
+          }
 
           new AssignorInferDecl(newLVal, newRVal)(stat.pos)
 

@@ -10,9 +10,13 @@ begin
   addTwo(int x, int y) is
   return x + y
   end
-  z = 1;
   x = 2;
   y = 3;
+  p = newpair(1, 1);
   a = call addTwo(x, y);
+  fst p = 69;
+  snd p = fst p;
+  p = p;
+  p = newpair(1,2);
   print a
-  end
+end
