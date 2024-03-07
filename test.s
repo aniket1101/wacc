@@ -23,9 +23,6 @@ main:
 	mov rsi, rax
 	call wacc_addTwo
 	mov r15, rax
-	mov rax, r15
-	mov rdi, rax
-	call _printi
 	call _println
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
@@ -34,25 +31,6 @@ main:
 	mov r14, qword ptr [rsp + 24]
 	mov r15, qword ptr [rsp + 32]
 	add rsp, 40
-	pop rbp
-	ret
-
-.section .rodata
-	.int 2
-.L._printi_str0:
-	.asciz "%d"
-.text
-_printi:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
 	pop rbp
 	ret
 

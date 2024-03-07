@@ -67,7 +67,7 @@ object ast {
   }
 
   case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Func(typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Func(var typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
 
   // Statements

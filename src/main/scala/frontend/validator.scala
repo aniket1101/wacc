@@ -744,7 +744,7 @@ object validator {
   }
 
   // Helper function to infer return type of a function
-  def inferFuncReturnType(stats: List[Stat], file: String): Type = {
+  private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func]): Type = {
     // Initialize inferred return type as NoTypeExists
     var returnType: Type = NoTypeExists
 
@@ -756,28 +756,41 @@ object validator {
     fileSource.close()
 
     // Initialize symbol table and error buffer
-    implicit val symTable: mutable.Map[String, Type] = mutable.LinkedHashMap[String, Type]()
+    implicit val symTable: mutable.Map[String, Type] = varTable
     implicit val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty[WaccError]
-    implicit val funcTable: List[Func] = List.empty
-    implicit val funcName: Option[String] = None
+    implicit val funcTable: List[Func] = funcTbl
+    implicit val funcName: Option[String] = Option(ident.name)
+
+    def translateScopeVar(sym: String): (String, String) = {
+      val identIndex = sym.lastIndexOf("-")
+      if (identIndex >= 0 && identIndex < sym.length - 1)
+        (sym.substring(identIndex + 1), sym)
+      else
+      ("", "")
+    }
+
+    val varsInScope: mutable.Map[String, String] = symTable.map { case (key, _) =>
+      translateScopeVar(key)
+    }
+
 
     // Traverse the statements in reverse order to find the last return statement
     for (stat <- stats.reverse) {
       stat match {
         case Return(expr) =>
           // If a return statement is found, infer the type of the expression
-          returnType = checkType(checkExpr(expr, mutable.Map.empty))
+          returnType = checkType(checkExpr(expr, varsInScope))
           // Exit the loop once return statement is found
           return returnType
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
-          val thenReturnType = inferFuncReturnType(thenStats, file)
-          val elseReturnType = inferFuncReturnType(elseStats, file)
+          val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable)
+          val elseReturnType = inferFuncReturnType(ident, elseStats, file, symTable, funcTable)
           // Update inferred return type based on the most specific common type
           returnType = findCommonType(thenReturnType, elseReturnType)
         case While(_, whileStats) =>
           // While loop: recursively infer return type from the loop body
-          returnType = inferFuncReturnType(whileStats, file)
+          returnType = inferFuncReturnType(ident, whileStats, file, symTable, funcTable)
         case _ => // For other statements, continue traversing
       }
     }
@@ -837,8 +850,13 @@ object validator {
       val m: mutable.Map[String, String] = mBuilder.result()
 
       // Check statements within the function scope
-      new Func(x.typ, x.ident, x.paramList,
-        checkStatements(x.stats, m, x.typ.getOrElse(inferFuncReturnType(x.stats, file)), funcScopePrefix))(x.pos)
+      val inferredType: Type = inferFuncReturnType(x.ident, x.stats, file, symTable, funcTable)
+      if (x.typ.isEmpty) {
+        x.typ = Option(inferredType)
+      }
+        new Func(x.typ, x.ident, x.paramList,
+          checkStatements(x.stats, m, x.typ.getOrElse(inferredType), funcScopePrefix))(x.pos)
+
     })
 
     // Check statements within the main scope
