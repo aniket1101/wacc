@@ -83,6 +83,30 @@ object IR {
     def apply(src: Immediate, dst: Memory): AddInstr = new AddInstr(src, dst) {}
   }
 
+  // Add no Carry (won't check for overflow)
+  sealed abstract case class AddNC(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): AddNC = {
+      this.size = size
+      this
+    }
+  }
+
+  object AddNC {
+    def apply(src: Register, dst: Register): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Register, dst: Memory): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Memory, dst: Register): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Memory, dst: Immediate): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): AddNC = new AddNC(src, dst) {}
+  }
+
   case class AndInstr(register: Register, register2: Register, size: Size) extends Instruction
 
   case class OrInstr(register: Register, register2: Register, size: Size) extends Instruction

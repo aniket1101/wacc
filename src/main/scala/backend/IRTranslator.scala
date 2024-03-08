@@ -343,7 +343,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           MovInstr(Immediate((xs.length) * typSize + 4), DestinationRegister()).changeSize(BIT_32),
           CallInstr(Label("_malloc")),
           MovInstr(ReturnRegister(), mallocReg),
-          AddInstr(Immediate(4), mallocReg),
+          AddNC(Immediate(4), mallocReg),
           MovInstr(Immediate(xs.length), ReturnRegister()),
           MovInstr(ReturnRegister(), Memory(mallocReg, -4)).changeSize(BIT_32)
         )

@@ -196,6 +196,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
         }
         case JlInstr(label) => ListBuffer(Jl(new x86Label(label)))
         case JgeInstr(label) => ListBuffer(Jge(new x86Label(label)))
+        case IR.AddInstr(src, dst, size) => translateAddNC(src, dst, size)
         case Align(StackPointer(), size) => ListBuffer(And(x86StackPointer(), x86Immediate(stackAlignmentMask), getSize(size)))
         case Ret() => ListBuffer(Return())
       }
@@ -252,6 +253,32 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
         case Right(memory) => ListBuffer(Mov(getMemory(mem), x86ReturnRegister(), getSize(size)), Mov(memory, x86Reg10(), getSize(size)), Add(x86ReturnRegister().get(halfReg), x86Reg10().get(halfReg), getSize(size)), Jo(), MoveSX(x86Reg10(), x86Reg10(), halfReg, fullReg), Mov(x86ReturnRegister().get(getSize(size)), getMemory(mem), getSize(size)), Mov(x86Reg10().get(getSize(size)), memory, getSize(size)))
       }
       case (mem1: Memory, mem2: Memory) => ListBuffer(Mov(getMemory(mem1), x86ReturnRegister(), getSize(size)), Mov(getMemory(mem2), x86Reg10(), getSize(size)), Add(x86ReturnRegister().get(halfReg), x86Reg10().get(halfReg), getSize(size)), Jo(), MoveSX(x86Reg10(), x86Reg10(), halfReg, fullReg), Mov(x86ReturnRegister().get(getSize(size)), getMemory(mem1), getSize(size)), Mov(x86Reg10().get(getSize(size)), getMemory(mem2), getSize(size)))
+    }
+  }
+
+  private def translateAddNC(src: Operand, dst: Operand, size: Size): ListBuffer[x86Instruction] = {
+    (src, dst) match {
+      case (n: Immediate, StackPointer()) => ListBuffer(Add(x86Immediate(n.value), x86StackPointer(), fullReg))
+      case (n: Immediate, reg: Register) => getRegister(reg) match {
+        case Left(register) => ListBuffer(Add(x86Immediate(n.value), register, getSize(size)))
+        case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Add(x86Immediate(n.value), x86ReturnRegister(), getSize(size)), Mov(x86ReturnRegister(), mem, fullReg))
+      }
+      case (n: Immediate, mem: Memory) => ListBuffer(Mov(getMemory(mem), x86ReturnRegister(), getSize(size)), Add(x86Immediate(n.value), x86ReturnRegister(), getSize(size)), Mov(x86ReturnRegister(), getMemory(mem), fullReg))
+      case (reg1: Register, reg2: Register) => (getRegister(reg1), getRegister(reg2)) match {
+        case (Left(register1), Left(register2)) => ListBuffer(Add(register1, register2, getSize(size)))
+        case (Left(register), Right(mem)) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Add(register, x86ReturnRegister(), getSize(size)), Mov(x86ReturnRegister(), mem, fullReg))
+        case (Right(mem), Left(register)) => ListBuffer(Add(mem, register, halfReg))
+        case (Right(mem1), Right(mem2)) => ListBuffer(Mov(mem1, x86ReturnRegister(), getSize(size)), Mov(mem2, x86Reg10(), getSize(size)), Add(x86ReturnRegister().get(fullReg), x86Reg10().get(fullReg), getSize(size)), Mov(x86ReturnRegister().get(getSize(size)), mem1, getSize(size)), Mov(x86Reg10().get(getSize(size)), mem2, getSize(size)))
+      }
+      case (reg: Register, mem: Memory) => getRegister(reg) match {
+        case Left(register) => ListBuffer(Mov(getMemory(mem), x86ReturnRegister(), getSize(size)), Add(register, x86ReturnRegister(), getSize(size)), Mov(x86ReturnRegister(), getMemory(mem), getSize(size)))
+        case Right(memory) => ListBuffer(Mov(memory, x86ReturnRegister(), getSize(size)), Mov(getMemory(mem), x86Reg10(), getSize(size)), Add(x86ReturnRegister().get(fullReg), x86Reg10().get(fullReg), getSize(size)), Mov(x86ReturnRegister().get(getSize(size)), memory, getSize(size)), Mov(x86Reg10().get(getSize(size)), getMemory(mem), getSize(size)))
+      }
+      case (mem: Memory, reg: Register) => getRegister(reg) match {
+        case Left(register) => ListBuffer(Mov(getMemory(mem), x86ReturnRegister(), fullReg), Add(x86ReturnRegister(), register, getSize(size)))
+        case Right(memory) => ListBuffer(Mov(getMemory(mem), x86ReturnRegister(), getSize(size)), Mov(memory, x86Reg10(), getSize(size)), Add(x86ReturnRegister().get(halfReg), x86Reg10().get(halfReg), getSize(size)), Mov(x86ReturnRegister().get(getSize(size)), getMemory(mem), getSize(size)), Mov(x86Reg10().get(getSize(size)), memory, getSize(size)))
+      }
+      case (mem1: Memory, mem2: Memory) => ListBuffer(Mov(getMemory(mem1), x86ReturnRegister(), getSize(size)), Mov(getMemory(mem2), x86Reg10(), getSize(size)), Add(x86ReturnRegister().get(halfReg), x86Reg10().get(halfReg), getSize(size)), Mov(x86ReturnRegister().get(getSize(size)), getMemory(mem1), getSize(size)), Mov(x86Reg10().get(getSize(size)), getMemory(mem2), getSize(size)))
     }
   }
 

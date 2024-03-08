@@ -12,18 +12,18 @@ main:
 	call _malloc
 	mov rbx, rax
 	add rbx, 4
-	mov eax, 3
+	mov rax, 3
 	mov dword ptr [rbx - 4], eax
-	mov eax, 1
+	mov rax, 1
 	mov dword ptr [rbx], eax
-	mov eax, 2
+	mov rax, 2
 	mov dword ptr [rbx + 4], eax
-	mov eax, 3
+	mov rax, 3
 	mov dword ptr [rbx + 8], eax
 	mov r12, rbx
 	mov r9, r12
-	mov r10d, 2
-	mov eax, 3
+	mov r10, 2
+	mov rax, 3
 	mov r12, rax
 	call _arrStore4
 	mov rax, 0
@@ -108,12 +108,12 @@ _errOutOfBounds:
 _arrStore4:
 	push rbx
 	cmp r10d, 0
-	cmovl rsi, r10
+	cmovl rdi, rsi
 	jl _errOutOfBounds
 	mov ebx, dword ptr [r9 - 4]
 	cmp r10d, ebx
-	cmovge rsi, r10
+	cmovge rdi, r10
 	jge _errOutOfBounds
-	mov dword ptr [r9 + 4*r10], eax
+	mov dword ptr [r9 + r10 * 4], esi
 	pop rbx
 	ret
