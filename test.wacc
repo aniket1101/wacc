@@ -2,7 +2,6 @@ import "time.wacc"
 
 begin
   print "An example integer is " ;
-  int duration = call time.sleep(3);
-  int result = call time.time();
+  int result = call time.currentMonth();
   println result
 end
