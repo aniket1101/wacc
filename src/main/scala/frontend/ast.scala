@@ -73,7 +73,10 @@ object ast {
       this
     }
   }
-  case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
+  case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position {
+    def updateIdent(str: String): Param = Param(typ, new Ident(str)(ident.pos))(pos)
+
+  }
 
   // Statements
   sealed trait Stat extends Position

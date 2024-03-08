@@ -47,6 +47,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
               addBlock(block)
           }
           addBlock(errOverflow())
+          addBlock(errDivZero())
         }
         case _ => {
           variableMap = mutable.Map.empty

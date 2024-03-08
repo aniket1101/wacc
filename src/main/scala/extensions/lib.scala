@@ -1,5 +1,6 @@
 package extensions
 
+import backend.IR
 import backend.IR._
 import backend.IRRegisters._
 import backend.Size.BIT_32
@@ -7,6 +8,8 @@ import frontend.ast._
 
 object lib {
   val nullPos: (Int, Int) = (-1, -1)
+  private val intType = IntType()(nullPos)
+  private val intParam = Param(intType, new Ident("a")(nullPos))(nullPos)
 
   trait Lib {
     val libName: String
@@ -45,7 +48,7 @@ object lib {
     private case class TimeFunc() extends LibFunc(timeLib) {
       override val funcName: String = "time"
       override val params: List[Param] = List()
-      override val returnType: Type = IntType()(nullPos)
+      override val returnType: Type = intType
 
       override val blockInstr: List[Instruction] = List(
         MovInstr(DestinationRegister(), DataRegister()),
@@ -57,8 +60,8 @@ object lib {
 
     private case class SleepFunc() extends LibFunc(timeLib) {
       override val funcName: String = "sleep"
-      override val params: List[Param] = List(new Param(IntType()(nullPos), new Ident("dur")(nullPos))(nullPos))
-      override val returnType: Type = IntType()(nullPos)
+      override val params: List[Param] = List(intParam)
+      override val returnType: Type = intType
       override val blockInstr: List[Instruction] = List(
         MovInstr(DestinationRegister(), DataRegister()),
         CallInstr(Label("sleep@plt"))
@@ -68,7 +71,7 @@ object lib {
     private case class YearFunc() extends LibFunc(timeLib) {
       override val funcName: String = "currentYear"
       override val params: List[Param] = List()
-      override val returnType: Type = IntType()(null)
+      override val returnType: Type = intType
       override val blockInstr: List[Instruction] = List(
         CallInstr(Label("time@PLT")), 
         MovInstr(ReturnRegister(), Memory(BasePointer(), -88)), 
@@ -97,7 +100,7 @@ object lib {
     private case class MonthFunc() extends LibFunc(timeLib) {
       override val funcName: String = "currentMonth"
       override val params: List[Param] = List()
-      override val returnType: Type = IntType()(null)
+      override val returnType: Type = intType
       override val blockInstr: List[Instruction] = List(
         CallInstr(Label("time@PLT")),
         MovInstr(ReturnRegister(), Memory(BasePointer(), -88)),
@@ -126,7 +129,39 @@ object lib {
     override val libFuncs: List[LibFunc] = List(TimeFunc(), SleepFunc(), YearFunc(), MonthFunc())
   }
 
-  private val libs: List[Lib] = List(timeLib)
+  private object randomLib extends Lib {
+    override val libName: String = "random"
+
+    case class RandIntFunc() extends LibFunc(randomLib) {
+      override val funcName: String = "randint"
+      override val params: List[Param] = List(intParam, intParam.updateIdent("b"))
+      override val returnType: Type = intType
+      override val blockInstr: List[Instruction] = List(
+        SubInstr(Immediate(16), StackPointer()),
+        MovInstr(DestinationRegister(), Memory(BasePointer(), -4)).changeSize(BIT_32),
+        MovInstr(SourceRegister(), Memory(BasePointer(), -8)).changeSize(BIT_32),
+        MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_32),
+        CallInstr(Label("time@PLT")),
+        MovInstr(ReturnRegister(), DestinationRegister()).changeSize(BIT_32),
+        CallInstr(Label("srand@PLT")),
+        CallInstr(Label("rand@PLT")),
+        MovInstr(Memory(BasePointer(), -4), DestinationRegister()).changeSize(BIT_32),
+        MovInstr(Memory(BasePointer(), -8), SourceRegister()).changeSize(BIT_32),
+        AddInstr(Immediate(1), SourceRegister()),
+        MovInstr(SourceRegister(), DataRegister()).changeSize(BIT_32),
+        SubInstr(DestinationRegister(), DataRegister()).changeSize(BIT_32),
+        LeaInstr(Memory(DataRegister()), new paramReg(2)).changeSize(BIT_32),
+        DivInstr(new paramReg(2), new paramReg(2)).changeSize(BIT_32),
+        MovInstr(DestinationRegister(), ReturnRegister()).changeSize(BIT_32),
+        AddInstr(DataRegister(), ReturnRegister())
+      )
+
+    }
+
+    override val libFuncs: List[LibFunc] = List(RandIntFunc())
+  }
+
+  private val libs: List[Lib] = List(timeLib, randomLib)
 
   def getLibs: Map[String, Lib] = {
     libs.map(l => (s"${l.libName}.wacc", l)).toMap

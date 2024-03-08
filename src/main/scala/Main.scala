@@ -55,7 +55,11 @@ object Main {
 
         // Combine other ASTs
         getTopologicalSorting(importGraph).foreach { case (filename, (_, prog)) =>
-          val renamedFuncs = prog.funcs.map(_.addLibraryPrefix(removeFileExt(filename.getName)))
+          val renamedFuncs = if (filename == mainFile) {
+            prog.funcs
+          } else {
+            prog.funcs.map(_.addLibraryPrefix(removeFileExt(filename.getName)))
+          }
           outputFunc = outputFunc.concat(renamedFuncs)
         }
 

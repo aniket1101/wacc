@@ -1,0 +1,4 @@
+begin
+  # Returns a random integer between a and b inclusive
+  int randint(int a, int b)
+end

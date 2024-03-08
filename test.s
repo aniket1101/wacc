@@ -14,7 +14,11 @@ main:
 	lea rax, [rip + .L.str0]
 	mov rdi, rax
 	call _prints
-	call wacc_time.currentMonth
+	mov rax, 1
+	mov rdi, rax
+	mov rax, 6
+	mov rsi, rax
+	call wacc_random.randint
 	mov r12, rax
 	mov rax, r12
 	mov rdi, rax
@@ -83,14 +87,36 @@ _println:
 	pop rbp
 	ret
 
-wacc_time.time:
+wacc_random.randint:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	mov rdx, rdi
-	call time@plt
-	mov qword ptr [rbp - 8], rax
-	mov rax, qword ptr [rbp - 8]
+	sub rsp, 16
+	mov dword ptr [rbp - 4], edi
+	mov dword ptr [rbp - 8], esi
+	mov edi, 0
+	call time@PLT
+	mov edi, eax
+	call srand@PLT
+	call rand@PLT
+	mov edi, dword ptr [rbp - 4]
+	mov esi, dword ptr [rbp - 8]
+	add esi, 1
+	jo _errOverflow
+	movsx rsi, esi
+	mov edx, esi
+	sub edx, edi
+	jo _errOverflow
+	movsx rdx, edx
+	lea ecx, dword ptr [rdx]
+	cmp ecx, 0
+	je _errDivZero
+	cdq
+	idiv ecx
+	mov eax, edi
+	add eax, edx
+	jo _errOverflow
+	movsx rax, eax
 	mov rsp, rbp
 	pop rbp
 	ret
@@ -107,74 +133,14 @@ _errOverflow:
 	mov dil, -1
 	call exit@plt
 
-wacc_time.sleep:
-	push rbp
-	mov rbp, rsp
+.section .rodata
+	.int 40
+.L._errDivZero_str0:
+	.asciz "fatal error: division or modulo by zero\n"
+.text
+_errDivZero:
 	and rsp, -16
-	mov rdx, rdi
-	call sleep@plt
-	mov rsp, rbp
-	pop rbp
-	ret
-
-wacc_time.currentYear:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	call time@PLT
-	mov qword ptr [rbp - 88], rax
-	lea rax, qword ptr [rbp - 88]
-	mov rdi, rax
-	call localtime@PLT
-	mov rcx, qword ptr [rax]
-	mov rbx, qword ptr [rax + 8]
-	mov qword ptr [rbp - 80], rcx
-	mov qword ptr [rbp - 72], rbx
-	mov rcx, qword ptr [rax + 16]
-	mov rbx, qword ptr [rax + 24]
-	mov qword ptr [rbp - 64], rcx
-	mov qword ptr [rbp - 56], rbx
-	mov rcx, qword ptr [rax + 32]
-	mov rbx, qword ptr [rax + 40]
-	mov qword ptr [rbp - 48], rcx
-	mov qword ptr [rbp - 40], rbx
-	mov rax, qword ptr [rax + 48]
-	mov qword ptr [rbp - 32], rax
-	mov eax, dword ptr [rbp - 60]
-	add eax, 1900
-	jo _errOverflow
-	movsx rax, eax
-	mov rsp, rbp
-	pop rbp
-	ret
-
-wacc_time.currentMonth:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	call time@PLT
-	mov qword ptr [rbp - 88], rax
-	lea rax, qword ptr [rbp - 88]
-	mov rdi, rax
-	call localtime@PLT
-	mov rcx, qword ptr [rax]
-	mov rbx, qword ptr [rax + 8]
-	mov qword ptr [rbp - 80], rcx
-	mov qword ptr [rbp - 72], rbx
-	mov rcx, qword ptr [rax + 16]
-	mov rbx, qword ptr [rax + 24]
-	mov qword ptr [rbp - 64], rcx
-	mov qword ptr [rbp - 56], rbx
-	mov rcx, qword ptr [rax + 32]
-	mov rbx, qword ptr [rax + 40]
-	mov qword ptr [rbp - 48], rcx
-	mov qword ptr [rbp - 40], rbx
-	mov rax, qword ptr [rax + 48]
-	mov qword ptr [rbp - 32], rax
-	mov eax, dword ptr [rbp - 64]
-	add eax, 1
-	jo _errOverflow
-	movsx rax, eax
-	mov rsp, rbp
-	pop rbp
-	ret
+	lea rdi, [rip + .L._errDivZero_str0]
+	call _prints
+	mov dil, -1
+	call exit@plt
