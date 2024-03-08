@@ -71,9 +71,13 @@ object IntelX86Formatter {
         case Setl(reg, size) => formatInstr("setl", reg, size)
         case Setle(reg, size) => formatInstr("setle", reg, size)
         case Je(label) => formatInstr("je", label)
+        case Jl(label) => formatInstr("jl", label)
+        case Jge(label) => formatInstr("jge", label)
         case Jne(label) => formatInstr("jne", label)
         case Jump(label) => formatInstr("jmp", label)
         case Jo() => formatInstr("jo", new x86Label("_errOverflow"))
+        case CMovL(register, register1, size) => formatInstr("cmovl", register, register1, size)
+        case CMovGE(register, register1, size) => formatInstr("cmovge", register, register1, size)
         case Cmp(op1, op2, size) => formatInstr("cmp", op1, op2, size)
         case Test(op1, op2, size) => formatInstr("test", op1, op2, size)
         case Lea(reg, mem, size) => formatInstr("lea", reg, mem, size)
@@ -123,7 +127,11 @@ object IntelX86Formatter {
               s" + ${label.name}"
           }
 
-          s"$wordSize[${memory.primReg.get.reg64Bit}$expr]"
+          if (memory.primReg.isDefined && memory.secReg.isDefined && memory.multiplier.isDefined) {
+            s"$wordSize[${memory.primReg.get.reg64Bit} + ${memory.secReg.get.reg64Bit} * ${memory.multiplier.get}$expr]"
+          } else {
+            s"$wordSize[${memory.primReg.get.reg64Bit}$expr]"
+          }
       }
     }
 

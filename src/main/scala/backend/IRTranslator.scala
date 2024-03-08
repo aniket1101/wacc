@@ -133,27 +133,43 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       instructions = instructions.concat(stmt match {
         case Skip() => List.empty
         case Declaration(typ, x, y) => translateDeclaration(typ, x, y)
-        case AssignorInferDecl(Ident(x), rValue) =>
-          if (!variableMap.contains(x)) {
-            val newReg = varRegs(varCounter + 1)
-            varCounter += 1
-            variableMap.addOne((x, newReg))
-          }
-          rValue match {
-          case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
-          case Call(name, args) => {
-            var moveParams: ListBuffer[Instruction] = ListBuffer.empty
-            for (arg <- args) {
-              val paramReg = getParamReg()
-              paramRegs += paramReg
-              paramCount += 1
-              moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
+        case AssignorInferDecl(lValue, rValue) => {
+          lValue match {
+            case Ident(x) =>
+              if (!variableMap.contains(x)) {
+              val newReg = varRegs(varCounter + 1)
+              varCounter += 1
+              variableMap.addOne((x, newReg))
             }
-            val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(x).orNull))
-            paramCount = 0
-            instr
+            rValue match {
+              case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
+              case Call(name, args) => {
+                var moveParams: ListBuffer[Instruction] = ListBuffer.empty
+                for (arg <- args) {
+                  val paramReg = getParamReg()
+                  paramRegs += paramReg
+                  paramCount += 1
+                  moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
+                }
+                val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(x).orNull))
+                paramCount = 0
+                instr
+              }
+              case _ => evaluateRValue(rValue, variableMap(x), x, checkType(rValue)(symbolTable, List()))
+            }
+            case ArrayElem(Ident(arrayName), exprs) => {
+              //  Assume 1D only for now
+              var arrayInstrs: ListBuffer[Instruction] = ListBuffer.empty
+              var moveParams: ListBuffer[Instruction] = ListBuffer(MovInstr(variableMap(arrayName), ArrayPtrRegister()))
+              moveParams = moveParams.concat(evaluateExpr(exprs.head, ArrayIndexRegister(), BIT_64))
+              moveParams = moveParams.concat(evaluateRValue(rValue, ArrayValueRegister(), arrayName, checkType(rValue)(symbolTable, List())))
+              arrayInstrs = moveParams
+              arrayInstrs = arrayInstrs.addOne(CallInstr(Label("_arrStore4")))
+              addBlock(errOutOfBounds())
+              addBlock(arrStore4())
+              arrayInstrs
+            }
           }
-          case _ => evaluateRValue(rValue, variableMap(x), x, checkType(rValue)(symbolTable, List()))
         }
         case Read(v: Ident) =>
           translateRead(checkType(v)(symbolTable), v)
@@ -315,7 +331,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         }
 
         val wordType = typSize match {
-          case 8 => BIT_64
+          case 8 => BIT_64 // Will be used for longs
           case 4 => BIT_32
           case 2 => BIT_16
           case 1 => BIT_8
@@ -327,7 +343,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           MovInstr(Immediate((xs.length) * typSize + 4), DestinationRegister()).changeSize(BIT_32),
           CallInstr(Label("_malloc")),
           MovInstr(ReturnRegister(), mallocReg),
-          LeaInstr(Memory(mallocReg, 4), mallocReg),
+          AddInstr(Immediate(4), mallocReg),
           MovInstr(Immediate(xs.length), ReturnRegister()),
           MovInstr(ReturnRegister(), Memory(mallocReg, -4)).changeSize(BIT_32)
         )

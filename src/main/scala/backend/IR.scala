@@ -37,10 +37,6 @@ object IR {
 
     def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
 
-    def this(primReg: Register, secReg: Register, multiplier: Int) = {
-      this(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None)
-    }
-
     def this(secReg: Register, multiplier: Int, offset: Int) = {
       this(None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None)
     }
@@ -51,6 +47,11 @@ object IR {
   }
 
   object Memory {
+
+    def apply(primReg: Register, secReg: Register, multiplier: Int):Memory = {
+      new Memory(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None) {}
+    }
+
     def apply(primReg: Register): Memory = new Memory(Some(primReg), None, None, None) {}
 
     def apply(primReg: Register, offset: Int): Memory = new Memory(Some(primReg), None, None, Some(OffsetInt(offset))) {}
@@ -588,6 +589,31 @@ object IR {
       CallInstr(Label("exit@plt"))
     ))
 
+  case class arrStore4() extends AsmBlock("text", "_arrStore4", List(
+    Push(BasePointer()),
+    CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovL(ArrayIndexRegister(), DestinationRegister()),
+    JlInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
+    CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovGE(ArrayIndexRegister(), DestinationRegister()),
+    JgeInstr(Label("_errOutOfBounds")),
+    MovInstr(DestinationRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4)),
+    Pop(BaseRegister()),
+    Ret()
+  ))
+
+  case class errOutOfBounds() extends AsmBlock(new ReadOnlyData("errOutOfBounds", 27, "fatal error: array index %d out of bounds\\n"), "text", "_errOutOfBounds", List(
+    Align(StackPointer()),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOutOfBounds_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), DestinationRegister()),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
+    CallInstr(Label("exit@plt"))
+  ))
+
   class ReadOnlyData(val labelName: String, val data: ListBuffer[(Int, String)]) extends Block {
     def this(readOnlyData: ReadOnlyData) = this(readOnlyData.labelName, readOnlyData.data)
     def this(labelName: String) = this(labelName, ListBuffer.empty: ListBuffer[(Int, String)])
@@ -610,4 +636,7 @@ object IR {
 
     def get(n:Int): Label = Label(s".L.str${n}")
   }
+
+  case class CMovL(register: Register, register1: Register, size: Size = BIT_64) extends Instruction
+  case class CMovGE(register: Register, register1: Register, size: Size = BIT_64) extends Instruction
 }

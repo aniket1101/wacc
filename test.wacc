@@ -1,16 +1,14 @@
-# Trying to assign non-matching pairs to eachother.
-# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
+# Testing recursive array indexing
 
 # Output:
-# #semantic_error#
-
-# Exit:
-# 200
+# 6
+# 7
+# 8
+#
 
 # Program:
 
 begin
-  pair(int, int) p1 = newpair(0, 0);
-  pair(char, char) p2 = newpair('a', 'a');
-  p2 = p1
+    int[] idxs1 = [1,2,3];
+    idxs1[2] = 3
 end

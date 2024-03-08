@@ -186,6 +186,16 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
             //            case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
           }
         }
+        case IR.CMovL(reg, reg1, size) => (getRegister(reg), getRegister(reg1)) match {
+          case (Left(reg), Left(reg2)) => ListBuffer(x86IR.CMovL(reg, reg2, getSize(size)))
+          case _ => ListBuffer() // This case can't happen because the 2 registers always have a register translation
+        }
+        case IR.CMovGE(reg, reg1, size) => (getRegister(reg), getRegister(reg1)) match {
+          case (Left(reg), Left(reg2)) => ListBuffer(x86IR.CMovGE(reg, reg2, getSize(size)))
+          case _ => ListBuffer() // This case can't happen because the 2 registers always have a register translation
+        }
+        case JlInstr(label) => ListBuffer(Jl(new x86Label(label)))
+        case JgeInstr(label) => ListBuffer(Jge(new x86Label(label)))
         case Align(StackPointer(), size) => ListBuffer(And(x86StackPointer(), x86Immediate(stackAlignmentMask), getSize(size)))
         case Ret() => ListBuffer(Return())
       }
@@ -306,6 +316,9 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
       case BaseRegister() => Left(x86BaseReg())
       case BasePointer() => Left(x86BasePointer())
       case StackPointer() => Left(x86StackPointer())
+      case ArrayPtrRegister() => Left(x86Reg9())
+      case ArrayValueRegister() => Left(x86ReturnRegister())
+      case ArrayIndexRegister() => Left(x86Reg10())
       case p: paramReg => {
         if (p.no < paramRegList.length) {
           Left(paramRegList(p.no))
