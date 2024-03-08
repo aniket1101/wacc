@@ -627,6 +627,20 @@ object IR {
     Ret()
   ))
 
+  case class arrLoad4() extends AsmBlock("text", "_arrLoad4", List(
+    Push(BaseRegister()),
+    CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovL(SourceRegister(), ArrayIndexRegister()),
+    JlInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
+    CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovGE(ArrayIndexRegister(), SourceRegister()),
+    JgeInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4), ArrayPtrRegister()).changeSize(BIT_32),
+    Pop(BaseRegister()),
+    Ret()
+  ))
+
   case class errOutOfBounds() extends AsmBlock(new ReadOnlyData("errOutOfBounds", 42, "fatal error: array index %d out of bounds\\n"), "text", "_errOutOfBounds", List(
     Align(StackPointer()),
     LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOutOfBounds_str0")), DestinationRegister()),

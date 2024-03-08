@@ -196,7 +196,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
         }
         case JlInstr(label) => ListBuffer(Jl(new x86Label(label)))
         case JgeInstr(label) => ListBuffer(Jge(new x86Label(label)))
-        case IR.AddInstr(src, dst, size) => translateAddNC(src, dst, size)
+        case AddNC(src, dst, size) => translateAddNC(src, dst, size)
         case Align(StackPointer(), size) => ListBuffer(And(x86StackPointer(), x86Immediate(stackAlignmentMask), getSize(size)))
         case Ret() => ListBuffer(Return())
       }

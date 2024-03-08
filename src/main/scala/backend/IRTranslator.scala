@@ -11,6 +11,7 @@ import scala.collection.mutable.ListBuffer
 
 class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
+  var scopePrefix = "main-"
   var inFunc = false
   var labels = 0
   var blocks: ListBuffer[AsmBlock] = ListBuffer()
@@ -48,7 +49,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         paramCount += 1
         variableMap.addOne(s"func-${fun.ident.name}-param-${arg.ident.name}", paramReg)
       }
-      updateCurBlock(setUpScope(symbolTable, s"func-${fun.ident.name}").toList)
+      scopePrefix = s"func-${fun.ident.name}"
+      updateCurBlock(setUpScope(symbolTable, scopePrefix).toList)
       paramCount = 0
       translateStatements(fun.stats, symbolTable)
       addBlock(funBlock)
@@ -344,7 +346,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           CallInstr(Label("_malloc")),
           MovInstr(ReturnRegister(), mallocReg),
           AddNC(Immediate(4), mallocReg),
-          MovInstr(Immediate(xs.length), ReturnRegister()),
+          MovInstr(Immediate(xs.length), ReturnRegister()).changeSize(BIT_32),
           MovInstr(ReturnRegister(), Memory(mallocReg, -4)).changeSize(BIT_32)
         )
         for (i <- xs.indices) {
@@ -352,7 +354,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           val x: Expr = xs(i)
           val movInstr = if (addOffset == 0) MovInstr(ReturnRegister(), Memory(mallocReg)).changeSize(wordType)
           else MovInstr(ReturnRegister(), Memory(mallocReg, addOffset)).changeSize(wordType)
-          val addElem = evaluateExpr(x, ReturnRegister(), BIT_64).concat(List(movInstr))
+          val addElem = evaluateExpr(x, ReturnRegister(), wordType).concat(List(movInstr))
           instr = instr.concat(addElem)
         }
         instr = instr.concat(ListBuffer(MovInstr(mallocReg, reg)))
@@ -375,7 +377,18 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         roData.add(str)
         ListBuffer(LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), reg).changeSize(size),
           Push(reg), Pop(reg), MovInstr(reg, reg))
-      case Ident(name) => ListBuffer(MovInstr(variableMap(name), reg).changeSize(size))
+      case Ident(name) => {
+        ListBuffer(MovInstr(variableMap(addScopePrefix(name)), reg).changeSize(size))
+      }
+      case ArrayElem(name, expr) => name match {
+        case ArrayElem(ident, exprs) => getIndex(ident, exprs, reg)
+        case Ident(array) => {
+          val instrs = evaluateExpr(expr.head, ArrayIndexRegister(), BIT_32).addOne(MovInstr(variableMap(addScopePrefix(array)), ArrayPtrRegister()))
+          addBlock(arrLoad4())
+          addBlock(errOutOfBounds())
+          instrs.concat(ListBuffer(CallInstr(Label("_arrLoad4")), MovInstr(ArrayPtrRegister(), reg)))
+        }
+      }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg, size)
       case Chr(x) => {
         addBlock(errBadChar())
@@ -606,6 +619,42 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
   }
 
+  private def getIndex(identArray: IdentArray, exprs:List[Expr], reg: Register): ListBuffer[Instruction] = {
+    var arrayInstrs: ListBuffer[Instruction] = ListBuffer.empty
+    identArray match {
+      case Ident(name) =>
+        arrayInstrs = ListBuffer(MovInstr(variableMap(addScopePrefix(name)), ArrayPtrRegister()))
+        arrayInstrs = arrayInstrs.concat(evaluateExpr(exprs.head, ArrayIndexRegister(), BIT_64))
+        arrayInstrs = arrayInstrs.addOne(CallInstr(Label("_arrLoad4")))
+        arrayInstrs = arrayInstrs.addOne(MovInstr(ArrayIndexRegister(), reg))
+        addBlock(errOutOfBounds())
+        addBlock(arrLoad4())
+        arrayInstrs
+      case ArrayElem(ident, index) =>
+        // Inside index, index is in reg
+        getIndex(ident, index, reg)
+    }
+    /*case ArrayElem(name, expr) => name match {
+      case Ident(name) =>
+        var arrayInstrs: ListBuffer[Instruction] = ListBuffer.empty
+        arrayInstrs = ListBuffer(MovInstr(variableMap(name), ArrayPtrRegister()))
+        arrayInstrs = arrayInstrs.concat(evaluateExpr(expr.head, ArrayIndexRegister(), BIT_64))
+        arrayInstrs = arrayInstrs.addOne(CallInstr(Label("_arrLoad4")))
+        arrayInstrs = arrayInstrs.addOne(MovInstr(ArrayIndexRegister(), reg))
+        addBlock(errOutOfBounds())
+        addBlock(arrLoad4())
+        arrayInstrs
+      case ArrayElem(ident, exprs) => evaluateExpr(expr.head, ArrayIndexRegister(), BIT_64).concat(MovInstr(variableMap(ident.name), ))
+    }*/
+  }
+
+  private def addScopePrefix(name:String): String = {
+    if (!name.startsWith(scopePrefix)) {
+      s"$scopePrefix$name"
+    } else {
+      name
+    }
+  }
   def getRegsUsed(): Int = {
     usedRegs
   }
