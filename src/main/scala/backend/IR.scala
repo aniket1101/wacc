@@ -590,20 +590,20 @@ object IR {
     ))
 
   case class arrStore4() extends AsmBlock("text", "_arrStore4", List(
-    Push(BasePointer()),
+    Push(BaseRegister()),
     CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
-    CMovL(ArrayIndexRegister(), DestinationRegister()),
+    CMovL(SourceRegister(), DestinationRegister()),
     JlInstr(Label("_errOutOfBounds")),
     MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
     CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
     CMovGE(ArrayIndexRegister(), DestinationRegister()),
     JgeInstr(Label("_errOutOfBounds")),
-    MovInstr(DestinationRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4)),
+    MovInstr(SourceRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4)).changeSize(BIT_32),
     Pop(BaseRegister()),
     Ret()
   ))
 
-  case class errOutOfBounds() extends AsmBlock(new ReadOnlyData("errOutOfBounds", 27, "fatal error: array index %d out of bounds\\n"), "text", "_errOutOfBounds", List(
+  case class errOutOfBounds() extends AsmBlock(new ReadOnlyData("errOutOfBounds", 42, "fatal error: array index %d out of bounds\\n"), "text", "_errOutOfBounds", List(
     Align(StackPointer()),
     LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOutOfBounds_str0")), DestinationRegister()),
     MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
