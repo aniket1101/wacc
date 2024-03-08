@@ -4,6 +4,7 @@ import backend.IR.{LeaInstr, _}
 import frontend.ast._
 import backend.IRRegisters._
 import backend.Size._
+import extensions.lib
 import frontend.validator.checkType
 
 import scala.collection.mutable
@@ -37,23 +38,35 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   private def translateFuncs(funcs:List[Func], currBlocks:ListBuffer[AsmBlock], symbolTable:mutable.Map[String, Type]): ListBuffer[AsmBlock] = {
     for (fun <- funcs) {
-      variableMap = mutable.Map.empty
-      varCounter = 0
-      varRegs = ListBuffer.empty
-      val funBlock = new AsmBlock(s"${fun.ident.name}", List.empty)
-      curBlock = funBlock
-      inFunc = true
-      for (arg <- fun.paramList) {
-        val paramReg = getParamReg()
-        paramCount += 1
-        variableMap.addOne(s"func-${fun.ident.name}-param-${arg.ident.name}", paramReg)
-      }
-      updateCurBlock(setUpScope(symbolTable, s"func-${fun.ident.name}").toList)
-      paramCount = 0
-      translateStatements(fun.stats, symbolTable)
-      addBlock(funBlock)
+      fun.stats match {
+        case Nil => {
+          // Predefined Library Function
+          getLibName(fun) match {
+            case (libName, funcName) =>
+              val block: AsmBlock = lib.getLibs(libName).getBlocks(funcName)
+              addBlock(block)
+          }
+        }
+        case _ => {
+          variableMap = mutable.Map.empty
+          varCounter = 0
+          varRegs = ListBuffer.empty
+          val funBlock = new AsmBlock(s"${fun.ident.name}", List.empty)
+          curBlock = funBlock
+          inFunc = true
+          for (arg <- fun.paramList) {
+            val paramReg = getParamReg()
+            paramCount += 1
+            variableMap.addOne(s"func-${fun.ident.name}-param-${arg.ident.name}", paramReg)
+          }
+          updateCurBlock(setUpScope(symbolTable, s"func-${fun.ident.name}").toList)
+          paramCount = 0
+          translateStatements(fun.stats, symbolTable)
+          addBlock(funBlock)
 
-      revertSetUp(funBlock)
+          revertSetUp(funBlock)
+        }
+      }
     }
     currBlocks
   }
@@ -605,5 +618,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(block.label)) {
       blocks.addOne(block)
     }
+  }
+
+  def getLibName(func: Func): (String, String) = {
+    val funcName = func.ident.name.stripPrefix("wacc_")
+    val libFunc = funcName.split('.')
+    (libFunc(0) + ".wacc", libFunc(1))
   }
 }

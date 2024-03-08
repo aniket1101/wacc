@@ -27,7 +27,7 @@ object parser {
     // Lazy initialization of the main program parser
     private lazy val prog: Parsley[Prog] =
     // Parsing a complete program
-        fully("begin" ~> Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), many(func), sepBy1(singleStat, ";")) <~ "end")
+        fully(Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), "begin" ~> many(func), sepBy1(singleStat, ";")) <~ "end")
 
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(

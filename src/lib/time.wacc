@@ -1,0 +1,8 @@
+begin
+  # Returns EPOCH time in seconds
+  int time() is
+    return 0
+  end
+
+  skip
+end

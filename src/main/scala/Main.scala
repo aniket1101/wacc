@@ -1,6 +1,7 @@
 // Import necessary packages and modules
 import backend._
 import extensions.dfs.getTopologicalSorting
+import extensions.lib
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.{checkSemantics, fileExists}
@@ -77,7 +78,9 @@ object Main {
   }
 
   private def parseProgramToAST(source: File): Either[Int, Prog] = {
-    val filepath = if (!fileExists(source.getPath)) {
+    val filepath = if (lib.getLibs.contains(source.getName)) {
+      return Right(new Prog(Option.empty, lib.getLibs(source.getName).getFuncs, List())(nullPos))
+    } else if (!fileExists(source.getPath)) {
       new File("src/lib", source.getPath)
     } else {
       source

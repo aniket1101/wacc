@@ -1,5 +1,8 @@
+import "time.wacc"
+
 begin
-  import "moreMath.wacc"
-  int result = call moreMath.diff(10, 3);
+  print "An example integer is " ;
+  int duration = call time.sleep(3);
+  int result = call time.time();
   println result
 end
