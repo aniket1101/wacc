@@ -2,14 +2,12 @@ package frontend
 
 import parsley.character.string
 import parsley.token.Lexer
-import parsley.token.descriptions.numeric.{BreakCharDesc, ExponentDesc, NumericDesc, PlusSignPresence}
+import parsley.token.descriptions.numeric.NumericDesc
 import parsley.token.descriptions.text.{EscapeDesc, TextDesc}
 import parsley.token.descriptions.{LexicalDesc, NameDesc, SpaceDesc, SymbolDesc}
 import parsley.token.predicate.Basic
 import parsley.token.symbol.ImplicitSymbol
 import parsley.{Parsley, character}
-
-import scala.collection.immutable.Set
 
 // Object containing lexer-related functionality
 object lexer {
@@ -33,14 +31,7 @@ object lexer {
             hardKeywords = keywords,
             hardOperators = operators
         ),
-        numericDesc = NumericDesc.plain.copy(
-            decimalExponentDesc = ExponentDesc.Supported.apply(compulsory = false,
-                        chars = Set('.'),
-                        base = 10,
-                        positiveSign = PlusSignPresence.Optional,
-                        leadingZerosAllowed = false)
-                    ),
-
+        numericDesc = NumericDesc.plain,
         textDesc = TextDesc.plain.copy(
             escapeSequences = EscapeDesc.plain.copy(
                 // Escape characters
@@ -68,7 +59,6 @@ object lexer {
     val identifier: Parsley[String] = lexer.lexeme.names.identifier
     // Parsley parser for integers
     val integers: Parsley[Int] = lexer.lexeme.signed.decimal32
-    val doubles: Parsley[Double] = lexer.lexeme.floating.exactDouble
     // Parsley parser for character literals
     val charLiterals: Parsley[Char] = lexer.lexeme.character.ascii
     // Parsley parser for string literals

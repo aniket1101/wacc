@@ -23,7 +23,7 @@ object x86IR {
 
   sealed trait x86Operand
 
-  case class x86Immediate(value: Number) extends x86Operand
+  case class x86Immediate(value: Int) extends x86Operand
 
   class x86Register(val reg: String) extends x86Operand {
     def address(): Int = 0

@@ -8,7 +8,11 @@ main:
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
 	mov rbp, rsp
-	mov rax, 1.5
+	mov rax, 10
+	mov rdi, rax
+	mov rax, 3
+	mov rsi, rax
+	call wacc_moreMath.diff
 	mov r12, rax
 	mov rax, r12
 	mov rdi, rax
@@ -94,46 +98,10 @@ wacc_moreMath.diff:
 	push rbx
 	mov rbp, rsp
 	mov rax, rdi
-	mov rbx, rdi
+	mov rbx, rsi
 	sub eax, ebx
 	jo _errOverflow
 	movsx rax, eax
 	pop rbx
-	pop rbp
-	ret
-
-.L0:
-	mov rax, r12
-	jmp .L1
-
-.L1:
-wacc_math.absDiff:
-	push rbp
-	sub rsp, 16
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
-	mov rbp, rsp
-	mov rax, rdi
-	mov rdi, rax
-	mov rax, rdi
-	mov rsi, rax
-	call wacc_moreMath.diff
-	mov r12, rax
-	mov rax, r12
-	mov r10, 0
-	cmp rax, r10
-	setge al
-	movsx rax, al
-	cmp rax, 1
-	je .L0
-	mov rax, r12
-	mov r10, -1
-	imul eax, r10d
-	jo _errOverflow
-	movsx rax, eax
-	jmp .L1
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
 	pop rbp
 	ret

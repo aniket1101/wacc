@@ -5,7 +5,6 @@ import frontend.lexer._
 import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
-import parsley.syntax.zipped.Zipped2
 import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{option, sepBy, sepBy1}
 import parsley.errors.combinator._
@@ -28,7 +27,7 @@ object parser {
     // Lazy initialization of the main program parser
     private lazy val prog: Parsley[Prog] =
     // Parsing a complete program
-        fully(Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), "begin" ~> many(func), sepBy1(singleStat, ";")) <~ "end")
+        fully("begin" ~> Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), many(func), sepBy1(singleStat, ";")) <~ "end")
 
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(
@@ -78,7 +77,7 @@ object parser {
 
     // Parser for base types
     private lazy val baseType: Parsley[BaseType] =
-        (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string") <|> (DoubleType <# "double")
+        (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string")
 
     // Parser for array types
     private lazy val arrayType: Parsley[ArrayType] =
@@ -97,7 +96,6 @@ object parser {
         Not("!" ~> unOppExpr) <|>
         (Neg("-" ~> unOppExpr).map({
               case p@Neg(IntLit(x)) => IntLit(-x)(p.pos)
-              case p@Neg(DoubleLit(x)) => DoubleLit(-x)(p.pos)
               case otherExpr => otherExpr
           }) <|>
             Len("len" ~> unOppExpr) <|>
@@ -120,11 +118,11 @@ object parser {
     private lazy val unOppExpr: Parsley[Expr] = atom <|> ("(" ~> expr <~ ")")
 
     // Parser for numeric unary expressions
-    private lazy val numericUnOppExpr: Parsley[Expr] = DoubleLit(doubles) | IntLit(integers) | unOpp
+    private lazy val numericUnOppExpr: Parsley[Expr] = IntLit(integers) | unOpp
 
     // Parser for atomic expressions
     private lazy val atom: Parsley[Expr] =
-        atomic(arrayElem) | Ident(identifier) | (atomic(IntLit(integers) <~ "."), IntLit(integers)).zipped((i1, i2) => DoubleLit(s"${i1.x}.${i2.x}".toDouble)(i1.pos)) | IntLit(integers) |
+        atomic(arrayElem) | Ident(identifier) | IntLit(integers) |
           BoolLit(boolLiterals) | CharLit(charLiterals) | StrLit(stringLiterals) | unOpp |
           (PairLiter <# "null")
 

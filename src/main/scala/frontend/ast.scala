@@ -134,10 +134,6 @@ object ast {
   case class IntType()(val pos: (Int, Int)) extends BaseType {
     override def toString: String = "<int>"
   }
-
-  case class DoubleType()(val pos: (Int, Int)) extends BaseType {
-    override def toString: String = "<double>"
-  }
   case class BoolType()(val pos: (Int, Int)) extends BaseType {
     override def toString: String = "<bool>"
   }
@@ -184,7 +180,6 @@ object ast {
   case class CharLit(c: Char)(override val pos: (Int, Int)) extends Atom(pos)
   case class StrLit(s: String)(override val pos: (Int, Int)) extends Atom(pos)
   case class PairLiter()(override val pos: (Int, Int)) extends Atom(pos)
-  case class DoubleLit(d: Double)(override val pos: (Int, Int)) extends Atom(pos)
 
   /* PARSER BRIDGE CONNECTIONS */
 
@@ -219,7 +214,6 @@ object ast {
 
   /* Base Types */
   object IntType extends ParserBridgePos0[IntType]
-  object DoubleType extends ParserBridgePos0[DoubleType]
   object BoolType extends ParserBridgePos0[BoolType]
   object CharType extends ParserBridgePos0[CharType]
   object StringType extends ParserBridgePos0[StringType]
@@ -258,7 +252,6 @@ object ast {
   object CharLit extends ParserBridgePos1[Char, CharLit]
   object StrLit extends ParserBridgePos1[String, StrLit]
   object PairLiter extends ParserBridgePos0[PairLiter]
-  object DoubleLit extends ParserBridgePos1[Double, DoubleLit]
 
   /* Unary Operators */
   object Not extends ParserBridgePos1[Expr, Not] {

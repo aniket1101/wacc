@@ -1,6 +1,5 @@
-import "math.wacc"
-
 begin
-  double num = 1.5;
-  println num
+  import "moreMath.wacc"
+  int result = call moreMath.diff(10, 3);
+  println result
 end
