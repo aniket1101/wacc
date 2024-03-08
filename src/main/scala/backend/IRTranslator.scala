@@ -45,9 +45,21 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             case (libName, funcName) =>
               val block: AsmBlock = lib.getLibs(libName).getBlocks(funcName)
               addBlock(block)
+
+              if (block.instructions.exists {
+                case _: AddInstr => true
+                case _: SubInstr => true
+                case _: MulInstr => true
+                case _ => false})
+                addBlock(errOverflow())
+
+              if (block.instructions.exists {
+                case _: DivInstr => true
+                case _: ModInstr => true
+                case _ => false
+              })
+                addBlock(errDivZero())
           }
-          addBlock(errOverflow())
-          addBlock(errDivZero())
         }
         case _ => {
           variableMap = mutable.Map.empty
