@@ -1,7 +1,7 @@
-import "random.wacc"
+import "time.wacc"
 
 begin
   print "An example integer is " ;
-  int result = call random.randint(1, 6);
+  int result = call time.currentDay();
   println result
 end

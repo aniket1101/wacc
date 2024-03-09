@@ -126,7 +126,24 @@ object lib {
       )
     }
 
-    override val libFuncs: List[LibFunc] = List(TimeFunc(), SleepFunc(), YearFunc(), MonthFunc())
+    private case class DayFunc() extends LibFunc(timeLib) {
+      override val funcName: String = "currentDay"
+      override val params: List[Param] = List()
+      override val returnType: Type = intType
+      override val blockInstr: List[Instruction] = List(
+        MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_32),
+        CallInstr(Label("time@PLT")),
+        MovInstr(ReturnRegister(), Memory(BasePointer(), -24)),
+        LeaInstr(Memory(BasePointer(), -24), ReturnRegister()),
+        MovInstr(ReturnRegister(), DestinationRegister()),
+        CallInstr(Label("localtime@PLT")),
+        MovInstr(ReturnRegister(), Memory(BasePointer(), -16)),
+        MovInstr(Memory(BasePointer(), -16), ReturnRegister()),
+        MovInstr(Memory(ReturnRegister(), 12), ReturnRegister()).changeSize(BIT_32)
+      )
+    }
+
+    override val libFuncs: List[LibFunc] = List(TimeFunc(), SleepFunc(), YearFunc(), MonthFunc(), DayFunc())
   }
 
   private object randomLib extends Lib {
