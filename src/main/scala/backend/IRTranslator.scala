@@ -31,6 +31,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   var roData: ReadOnlyData = new ReadOnlyData("")
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
+  var arrayMap: mutable.Map[String, Memory] = mutable.Map.empty
 
   def translate():List[AsmBlock] = {
     translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
@@ -162,9 +163,14 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             case ArrayElem(Ident(arrayName), exprs) => {
               //  Assume 1D only for now
               var arrayInstrs: ListBuffer[Instruction] = ListBuffer.empty
-              var moveParams: ListBuffer[Instruction] = ListBuffer(MovInstr(variableMap(arrayName), ArrayPtrRegister()))
+              var moveParams: ListBuffer[Instruction] = ListBuffer.empty
               moveParams = moveParams.concat(evaluateExpr(exprs.head, ArrayIndexRegister(), BIT_64))
+              moveParams = moveParams.addOne(Push(ArrayIndexRegister()))
               moveParams = moveParams.concat(evaluateRValue(rValue, ArrayValueRegister(), arrayName, checkType(rValue)(symbolTable, List())))
+              moveParams = moveParams.addOne(Push(ArrayValueRegister()))
+              moveParams = moveParams.concat(ListBuffer(MovInstr(variableMap(addScopePrefix(arrayName)), ArrayPtrRegister())))
+              moveParams = moveParams.addOne(Pop(ArrayValueRegister()))
+              moveParams = moveParams.addOne(Pop(ArrayIndexRegister()))
               arrayInstrs = moveParams
               arrayInstrs = arrayInstrs.addOne(CallInstr(Label("_arrStore4")))
               addBlock(errOutOfBounds())
@@ -282,6 +288,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   def translateDeclaration(typ: Type, ident: Ident, rValue: RValue): ListBuffer[Instruction] = {
     val newReg = varRegs(varCounter + 1)
     varCounter += 1
+    variableMap.addOne((ident.name, newReg))
     var instr:ListBuffer[Instruction] = ListBuffer.empty
     typ match {
       case IntType() | BoolType() | CharType() | StringType() => rValue match {
@@ -308,13 +315,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       }
       case _ =>
     }
-    variableMap.addOne((ident.name, newReg))
     instr
   }
 
   def evaluateRValue(rValue: RValue, reg: Register, ident: String, typ: Type): ListBuffer[Instruction] = {
     rValue match {
-      case expr: Expr => evaluateExpr(expr, reg, BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(ident).orNull)))
+      case expr: Expr => evaluateExpr(expr, reg, BIT_64)
       case ArrayLit(xs) => {
         addBlock(MallocBlock())
         addBlock(errOutOfMemory())
@@ -341,6 +347,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
         val mallocReg = new scratchReg(scratchCounter, 0)
         scratchCounter += 1
+        arrayMap = arrayMap.addOne(ident, Memory(mallocReg, -typSize))
         var instr: ListBuffer[Instruction] = ListBuffer(
           MovInstr(Immediate((xs.length) * typSize + 4), DestinationRegister()).changeSize(BIT_32),
           CallInstr(Label("_malloc")),
@@ -361,7 +368,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         scratchCounter = 0
         instr
       }
+//      case ArrayElem(ident, exprs) => evaluateExpr()
     }
+
   }
 
   // Outputs code to evaluate an expression and put the result in the given register
@@ -388,6 +397,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           addBlock(errOutOfBounds())
           instrs.concat(ListBuffer(CallInstr(Label("_arrLoad4")), MovInstr(ArrayPtrRegister(), reg)))
         }
+      }
+      case Len(x) => x match {
+        case Ident(arr) => ListBuffer(MovInstr(arrayMap(arr), reg))
+        case ArrayElem(_, _) => ListBuffer.empty
+        case _ => ListBuffer.empty
       }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg, size)
       case Chr(x) => {

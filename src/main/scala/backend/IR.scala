@@ -616,13 +616,13 @@ object IR {
   case class arrStore4() extends AsmBlock("text", "_arrStore4", List(
     Push(BaseRegister()),
     CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
-    CMovL(SourceRegister(), DestinationRegister()),
+    CMovL(ArrayIndexRegister(), SourceRegister()),
     JlInstr(Label("_errOutOfBounds")),
     MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
     CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
-    CMovGE(ArrayIndexRegister(), DestinationRegister()),
+    CMovGE(ArrayIndexRegister(), SourceRegister()),
     JgeInstr(Label("_errOutOfBounds")),
-    MovInstr(SourceRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4)).changeSize(BIT_32),
+    MovInstr(ReturnRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4)).changeSize(BIT_32),
     Pop(BaseRegister()),
     Ret()
   ))
@@ -630,7 +630,7 @@ object IR {
   case class arrLoad4() extends AsmBlock("text", "_arrLoad4", List(
     Push(BaseRegister()),
     CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
-    CMovL(SourceRegister(), ArrayIndexRegister()),
+    CMovL(ArrayIndexRegister(), SourceRegister()),
     JlInstr(Label("_errOutOfBounds")),
     MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
     CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),

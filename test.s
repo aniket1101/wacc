@@ -4,83 +4,27 @@
 .text
 main:
 	push rbp
-	sub rsp, 40
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov edi, 16
+	mov edi, 20
 	call _malloc
 	mov rbx, rax
 	add rbx, 4
-	mov eax, 3
+	mov eax, 4
 	mov dword ptr [rbx - 4], eax
-	mov eax, 2
+	mov eax, 43
 	mov dword ptr [rbx], eax
-	mov eax, 0
+	mov eax, 2
 	mov dword ptr [rbx + 4], eax
-	mov eax, 1
+	mov eax, 18
 	mov dword ptr [rbx + 8], eax
+	mov eax, 1
+	mov dword ptr [rbx + 12], eax
 	mov r12, rbx
-	mov edi, 16
-	call _malloc
-	mov rbx, rax
-	add rbx, 4
-	mov eax, 3
-	mov dword ptr [rbx - 4], eax
-	mov eax, 1
-	mov dword ptr [rbx], eax
-	mov eax, 2
-	mov dword ptr [rbx + 4], eax
-	mov eax, 0
-	mov dword ptr [rbx + 8], eax
-	mov r13, rbx
-	mov edi, 16
-	call _malloc
-	mov rbx, rax
-	add rbx, 4
-	mov eax, 3
-	mov dword ptr [rbx - 4], eax
-	mov eax, 5
-	mov dword ptr [rbx], eax
-	mov eax, 6
-	mov dword ptr [rbx + 4], eax
-	mov eax, 7
-	mov dword ptr [rbx + 8], eax
-	mov r14, rbx
-	mov rax, 0
-	mov r15, rax
-	mov rax, r15
-	mov rdi, rax
-	call _printi
-	call _println
-	mov r10d, r15d
-	mov r9, r13
-	call _arrLoad4
-	mov rax, r9
-	mov rdi, rax
-	call _printi
-	call _println
-	mov r10d, r15d
-	mov r9, r13
-	call _arrLoad4
-	mov r10, r9
+	mov r10d, 0
 	mov r9, r12
-	call _arrLoad4
-	mov rax, r9
-	mov rdi, rax
-	call _printi
-	call _println
-	mov r10d, r15d
-	mov r9, r13
-	call _arrLoad4
-	mov r10, r9
-	mov r9, r12
-	call _arrLoad4
-	mov r10, r9
-	mov r9, r14
 	call _arrLoad4
 	mov rax, r9
 	mov rdi, rax
@@ -89,10 +33,7 @@ main:
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	add rsp, 40
+	add rsp, 16
 	pop rbp
 	ret
 
@@ -171,28 +112,11 @@ _printi:
 	pop rbp
 	ret
 
-.section .rodata
-	.int 0
-.L._println_str0:
-	.asciz ""
-.text
-_println:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	lea rdi, [rip + .L._println_str0]
-	call puts@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
-	pop rbp
-	ret
-
 .text
 _arrLoad4:
 	push rbx
 	cmp r10d, 0
-	cmovl r10, rsi
+	cmovl rsi, r10
 	jl _errOutOfBounds
 	mov ebx, dword ptr [r9 - 4]
 	cmp r10d, ebx
@@ -216,3 +140,20 @@ _errOutOfBounds:
 	call fflush@plt
 	mov dil, -1
 	call exit@plt
+
+.section .rodata
+	.int 0
+.L._println_str0:
+	.asciz ""
+.text
+_println:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	lea rdi, [rip + .L._println_str0]
+	call puts@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
