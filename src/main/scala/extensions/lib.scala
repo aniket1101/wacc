@@ -73,6 +73,7 @@ object lib {
       override val params: List[Param] = List()
       override val returnType: Type = intType
       override val blockInstr: List[Instruction] = List(
+        MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_32),
         CallInstr(Label("time@PLT")), 
         MovInstr(ReturnRegister(), Memory(BasePointer(), -88)), 
         LeaInstr(Memory(BasePointer(), -88), ReturnRegister()), 
@@ -102,6 +103,7 @@ object lib {
       override val params: List[Param] = List()
       override val returnType: Type = intType
       override val blockInstr: List[Instruction] = List(
+        MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_32),
         CallInstr(Label("time@PLT")),
         MovInstr(ReturnRegister(), Memory(BasePointer(), -88)),
         LeaInstr(Memory(BasePointer(), -88), ReturnRegister()),
@@ -149,8 +151,16 @@ object lib {
   private object randomLib extends Lib {
     override val libName: String = "random"
 
-    case class RandIntFunc() extends LibFunc(randomLib) {
+    private case class RandIntFunc() extends LibFunc(randomLib) {
       override val funcName: String = "randint"
+      override val params: List[Param] = List(intParam, intParam.updateIdent("b"))
+      override val returnType: Type = intType
+      override val blockInstr: List[Instruction] = RandRangeFunc().blockInstr
+        .patch(10, Seq(AddInstr(Immediate(1), SourceRegister())), 0)
+    }
+
+    private case class RandRangeFunc() extends LibFunc(randomLib) {
+      override val funcName: String = "randrange"
       override val params: List[Param] = List(intParam, intParam.updateIdent("b"))
       override val returnType: Type = intType
       override val blockInstr: List[Instruction] = List(
@@ -164,7 +174,6 @@ object lib {
         CallInstr(Label("rand@PLT")),
         MovInstr(Memory(BasePointer(), -4), DestinationRegister()).changeSize(BIT_32),
         MovInstr(Memory(BasePointer(), -8), SourceRegister()).changeSize(BIT_32),
-        AddInstr(Immediate(1), SourceRegister()),
         MovInstr(SourceRegister(), DataRegister()).changeSize(BIT_32),
         SubInstr(DestinationRegister(), DataRegister()).changeSize(BIT_32),
         LeaInstr(Memory(DataRegister()), new paramReg(2)).changeSize(BIT_32),
@@ -172,10 +181,22 @@ object lib {
         MovInstr(DestinationRegister(), ReturnRegister()).changeSize(BIT_32),
         AddInstr(DataRegister(), ReturnRegister())
       )
-
     }
 
-    override val libFuncs: List[LibFunc] = List(RandIntFunc())
+    private case class RandSeedFunc() extends LibFunc(randomLib) {
+      override val funcName: String = "randseed"
+      override val params: List[Param] = List()
+      override val returnType: Type = intType
+      override val blockInstr: List[Instruction] = List(
+        MovInstr(Immediate(0), DestinationRegister()).changeSize(BIT_32),
+        CallInstr(Label("time@PLT")),
+        MovInstr(ReturnRegister(), DestinationRegister()).changeSize(BIT_32),
+        CallInstr(Label("srand@PLT")),
+        CallInstr(Label("rand@PLT"))
+      )
+    }
+
+    override val libFuncs: List[LibFunc] = List(RandIntFunc(), RandRangeFunc(), RandSeedFunc())
   }
 
   private val libs: List[Lib] = List(timeLib, randomLib)

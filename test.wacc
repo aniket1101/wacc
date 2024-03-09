@@ -1,7 +1,47 @@
-import "time.wacc"
+import "time.wacc", "random.wacc"
 
 begin
-  print "An example integer is " ;
-  int result = call time.currentDay();
-  println result
+  int WACC_DUE_DATE = 15;
+
+  # 1. Display the date
+  print "The date is: (" ;
+  int day = call time.currentDay();
+  int month = call time.currentMonth();
+  int year = call time.currentYear();
+  print day;
+  print ", ";
+  print month;
+  print ", ";
+  print year;
+  println ").";
+
+  # 2. Display days remaining
+  if (day <= WACC_DUE_DATE) then
+    print "You have ";
+    print WACC_DUE_DATE - day;
+    println " day(s) remaining to finish the WACC Project."
+  else
+    print "It has been ";
+    print WACC_DUE_DATE - day;
+    println " day(s) since you finished the WACC Project."
+  fi;
+
+  # 3. Grade Generator
+  year = call random.randint(60, 100);
+  println "";
+  println "What grade will you get?";
+  print "Reveal my grade!";
+  read year;
+
+  println "Calculating...";
+  month = call time.sleep(1);
+  println "Calculating...";
+  month = call time.sleep(1);
+  println "Calculating...";
+  month = call time.sleep(1);
+  println "";
+
+  print "You will get: ";
+  print year;
+  println "%"
 end
