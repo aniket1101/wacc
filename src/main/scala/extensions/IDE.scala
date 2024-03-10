@@ -5,14 +5,14 @@ import java.awt.datatransfer.{DataFlavor, UnsupportedFlavorException}
 import java.awt.event.{ActionEvent, InputEvent, KeyEvent}
 import java.io.{File, IOException, PrintWriter}
 import javax.swing._
-import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener, UndoableEditEvent, UndoableEditListener}
+import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener, UndoableEditEvent}
 import javax.swing.filechooser.FileNameExtensionFilter
-import javax.swing.text.DefaultEditorKit
+import javax.swing.text.{DefaultEditorKit, SimpleAttributeSet, StyleConstants}
 import javax.swing.undo.UndoManager
 import scala.io.Source
 import scala.sys.process.Process
 
-object main {
+object runIDE {
   def main(args: Array[String]): Unit = {
     new IDE().run()
   }
@@ -23,8 +23,29 @@ class IDE extends JFrame {
   private val UNSPECIFIED_FILENAME: String = "untitled"
   private var windowTitle: String = UNSPECIFIED_FILENAME
   private var openFile: Option[File] = Option.empty
+  private var formattingInProgress = false
 
-  private var textEditor: JTextArea = new JTextArea()
+  private val defaultStyle = new SimpleAttributeSet()
+
+  private val keywords: Set[String] = Set("begin", "end", "import", "is", "skip", "return",
+    "if", "then", "else", "fi", "while", "do", "done",  "call", "true", "false", "null")
+  private val keywordStyle = new SimpleAttributeSet()
+  private val KEYWORD_COLOR: Color = new Color(227, 110, 0)
+
+  private val commentSep: Char = '#'
+  private val commentStyle = new SimpleAttributeSet()
+  private val COMMENT_COLOR: Color = new Color(200, 0, 0)
+
+  private val stringEncl: Set[Char] = Set('"', '\'')
+  private val stringStyle = new SimpleAttributeSet()
+  private val STRING_COLOR: Color = new Color(0, 170, 0)
+
+  private val typesAndFuncs: Set[String] = Set("read", "exit", "print", "free",  "println",
+    "newpair", "fst", "snd", "int", "bool", "char", "string", "pair", "len", "ord", "chr")
+  private val typesAndFuncsStyle = new SimpleAttributeSet()
+  private val TYPES_AND_FUNCS_COLOR: Color = new Color(145, 0, 200)
+
+  private var textEditor: JTextPane = new JTextPane()
   private val undoManager = new UndoManager()
 
   private val initialProgram: String =
@@ -50,22 +71,25 @@ class IDE extends JFrame {
     setTitle(windowTitle)
     setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
-    textEditor = new JTextArea(fileContents)
+    textEditor = new JTextPane()
     textEditor.setFont(new Font("Monospaced", Font.PLAIN, 14))
 
+    highlightKeywords(fileContents)
     if (openFile.isEmpty) {
-      textEditor.setCaretPosition(initialProgram.indexOf("end") - 1)
+      textEditor.setCaretPosition(initialProgram.indexOf("end") - 4)
     }
 
     val statusBar = new JLabel("Ln: 3, Col: 2")
     getContentPane.add(statusBar, BorderLayout.SOUTH)
 
-    textEditor.addCaretListener((_: CaretEvent) => {
-      val caretPosition = textEditor.getCaretPosition
-      val line = textEditor.getLineOfOffset(caretPosition) + 1
-      val column = caretPosition - textEditor.getLineStartOffset(line - 1) + 1
+    textEditor.addCaretListener((e: CaretEvent) => {
+      val caretPosition = e.getDot
+      val document = textEditor.getDocument
+      val line = document.getDefaultRootElement.getElementIndex(caretPosition) + 1
+      val column = caretPosition - document.getDefaultRootElement.getElement(line - 1).getStartOffset + 1
       statusBar.setText(s"Ln: $line, Col: $column")
     })
+
 
     val scrollPane = new JScrollPane(textEditor)
     getContentPane.add(scrollPane, BorderLayout.CENTER)
@@ -74,15 +98,21 @@ class IDE extends JFrame {
 
     textEditor.getDocument.addDocumentListener(new DocumentListener {
       def changedUpdate(e: DocumentEvent): Unit = {
-        textModified()
+        if (!formattingInProgress) {
+          textModified()
+        }
       }
 
       def insertUpdate(e: DocumentEvent): Unit = {
-        textModified()
+        if (!formattingInProgress) {
+          textModified()
+        }
       }
 
       def removeUpdate(e: DocumentEvent): Unit = {
-        textModified()
+        if (!formattingInProgress) {
+          textModified()
+        }
       }
     })
 
@@ -97,6 +127,59 @@ class IDE extends JFrame {
     setSize(800, 600)
     setLocationRelativeTo(null)
     setVisible(true)
+  }
+
+  private def highlightKeywords(text: String): Unit = {
+    StyleConstants.setForeground(keywordStyle, KEYWORD_COLOR)
+    StyleConstants.setForeground(typesAndFuncsStyle, TYPES_AND_FUNCS_COLOR)
+    StyleConstants.setForeground(commentStyle, COMMENT_COLOR)
+    StyleConstants.setForeground(stringStyle, STRING_COLOR)
+
+    val doc = textEditor.getStyledDocument
+    val lines = text.replace("\r", "").split("\n")
+
+    textEditor.setText("")
+    for (n <- lines.indices) {
+      val line = lines(n)
+      val tokens = line.split("(?<=\\s)(?=\\S)|(?<=\\S)(?=\\s)")
+      var isComment = false
+      var inString = false
+      var stringChar = stringEncl.head
+      for (token <- tokens) {
+        if (inString) {
+          // Currently in a string
+          doc.insertString(doc.getLength, token, stringStyle)
+          inString = !token.contains(stringChar)
+        } else {
+          var stringInserted = false
+          for (stringSep <- stringEncl) {
+            if (token.contains(stringSep)) {
+              // Starting a string
+              doc.insertString(doc.getLength, token, stringStyle)
+              stringChar = stringSep
+              inString = if (token.count(_ == stringSep) % 2 == 1) true else false
+              stringInserted = true
+            }
+          }
+
+          if (!inString && !stringInserted) {
+            // Non-string cases
+            if (keywords.contains(token.trim())) {
+              doc.insertString(doc.getLength, token, keywordStyle)
+            } else if (typesAndFuncs.contains(token.trim())) {
+              doc.insertString(doc.getLength, token, typesAndFuncsStyle)
+            } else if (token.strip() == commentSep.toString || isComment) {
+              isComment = true
+              doc.insertString(doc.getLength, token, commentStyle)
+            } else {
+              doc.insertString(doc.getLength, token, defaultStyle)
+            }
+          }
+        }
+      }
+      if (n < lines.length)
+        doc.insertString(doc.getLength, "\n", defaultStyle)
+    }
   }
 
   private def addMenuBar() = {
@@ -224,7 +307,7 @@ class IDE extends JFrame {
       }
       val result = JOptionPane.showOptionDialog(
         null,
-        s"Do you want to save '${filename}' before closing?",
+        s"Do you want to save '$filename' before closing?",
         "Save on Close",
         JOptionPane.YES_NO_CANCEL_OPTION,
         JOptionPane.QUESTION_MESSAGE,
@@ -245,8 +328,18 @@ class IDE extends JFrame {
   }
 
   private def textModified(): Unit = {
-    fileModified = true
-    setTitle(s"*$windowTitle")
+    val doHighlight = new Runnable() {
+      override def run(): Unit = {
+        formattingInProgress = true
+        val caretPosition = textEditor.getCaretPosition
+        fileModified = true
+        setTitle(s"*$windowTitle")
+        highlightKeywords(textEditor.getText.replace("\r", ""))
+        textEditor.setCaretPosition(caretPosition)
+        formattingInProgress = false
+      }
+    }
+    SwingUtilities.invokeLater(doHighlight)
   }
 
   private def newFile(): Unit = {
@@ -358,7 +451,8 @@ class IDE extends JFrame {
       try {
         val clipboardContent = transferable.getTransferData(DataFlavor.stringFlavor).asInstanceOf[String].replace("\r", "")
         val caretPosition = textEditor.getCaretPosition
-        textEditor.insert(clipboardContent, caretPosition)
+        textEditor.getStyledDocument
+          .insertString(caretPosition, clipboardContent, defaultStyle)
       } catch {
         case ex: UnsupportedFlavorException =>
           ex.printStackTrace()
@@ -371,20 +465,33 @@ class IDE extends JFrame {
   private def modifySelectedText(modifyFunction: String => String): Unit = {
     val selectedText = textEditor.getSelectedText
     if (selectedText != null && selectedText.nonEmpty) {
-      val textArea = textEditor.getText
+      formattingInProgress = true
+
+      val textArea = textEditor.getText().replace("\r", "")
       val startOffset = textEditor.getSelectionStart
       val endOffset = textEditor.getSelectionEnd
+
       val startLine = textArea.lastIndexOf('\n', startOffset - 1) + 1
+
       val endLine = textArea.indexOf('\n', endOffset)
-      val fullSelectedText = textArea.substring(startLine, endLine)
+      val endLineAdjusted = if (endLine != -1) endLine + 1 else textArea.length()
 
+      val fullSelectedText = textArea.substring(startLine, endLineAdjusted)
       val modifiedText = modifyFunction(fullSelectedText)
-      textEditor.replaceRange(modifiedText, startLine, endLine)
 
+      val doc = textEditor.getStyledDocument
+      doc.remove(startLine, endLineAdjusted - startLine)
+      doc.insertString(startLine, modifiedText + "\n", null)
+
+      formattingInProgress = false
+      highlightKeywords(textEditor.getText().replace("\r", ""))
+
+      // Adjust the caret position
       textEditor.setSelectionStart(startOffset)
-      textEditor.setSelectionEnd(textEditor.getCaretPosition)
+      textEditor.setSelectionEnd(startOffset + modifiedText.length())
     }
   }
+
 
   private def indentRegion(): Unit = {
     modifySelectedText(text => text.split("\n").map(line => "\t" + line).mkString("\n"))
