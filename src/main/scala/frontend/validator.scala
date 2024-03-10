@@ -611,6 +611,7 @@ object validator {
 
         /* if its an identifier then check if its in the parent and child scope maps yet */
         case Ident(name) =>
+          println(funcTable)
           !localSymTable.values.exists(_ == name) && !localSymTable.contains(name)
         case _ => false
       }
@@ -643,8 +644,10 @@ object validator {
           var rType: Type = NoTypeExists
 
           lVal match {
-            case Ident(name) => {
-
+            case id@Ident(name) => {
+              if (funcTable.map(func => func.ident.name).contains(waccPrefix + name) && !varsInScope.contains(name)) {
+                semanticErrorOccurred("Cannot assign value to a function: " + name, id.pos)
+              }
               if (isInferredTypeDef(lVal)) {
                 val newIdName = scopePrefix ++ name
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
