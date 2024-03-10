@@ -303,7 +303,7 @@ object validator {
             }
             // Check if the types of arguments match the types of parameters in the function definition
             (funcCalled.paramList zip newParams).foreach({ case (x, y) =>
-              if (!sameType(x.typ, checkType(y))) {
+              if (!sameType(x.typ.getOrElse(NoTypeExists), checkType(y))) {
                 semanticErrorOccurred(s"Argument ${x.ident.name} in the call to function ${id.name} has the incorrect type. Expected ${x.typ}. Received ${checkType(y)}", y.pos)
               }
             })
@@ -611,8 +611,19 @@ object validator {
 
         /* if its an identifier then check if its in the parent and child scope maps yet */
         case Ident(name) =>
-          println(funcTable)
           !localSymTable.values.exists(_ == name) && !localSymTable.contains(name)
+        case _ => false
+      }
+    }
+
+    def isTypelessParam(lVal: LValue): Boolean = {
+      lVal match {
+        case (x@Ident(name)) =>
+          if (!localSymTable.values.exists(_ == name) && !localSymTable.contains(name)) {
+            ???
+          } else {
+            checkType(lVal) == NoTypeExists
+          }
         case _ => false
       }
     }
@@ -649,6 +660,12 @@ object validator {
                 semanticErrorOccurred("Cannot assign value to a function: " + name, id.pos)
               }
               if (isInferredTypeDef(lVal)) {
+                val newIdName = scopePrefix ++ name
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+                rType = checkType(newRVal)
+                lType = rType
+                symTable += (newIdName -> lType)
+              } else if (isTypelessParam(lVal)) {
                 val newIdName = scopePrefix ++ name
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
@@ -811,6 +828,8 @@ object validator {
           returnType = checkType(checkExpr(expr, varsInScope))
           // Exit the loop once return statement is found
           return returnType
+        case Exit(expr) =>
+          returnType = checkType(checkExpr(expr, varsInScope))
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
           val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable)
@@ -872,20 +891,85 @@ object validator {
         argList = argList :+ a
       })
       val funcScopePrefix = s"func-${x.ident.name}-"
-      x.paramList.foreach(y => symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ)
+
 
       val mBuilder = mutable.Map.newBuilder[String, String]
       mBuilder ++= x.paramList.map(y => y.ident.name -> (funcScopePrefix ++ "param-" ++ y.ident.name))
       val m: mutable.Map[String, String] = mBuilder.result()
+
+      def inferParamType(param: Param, returnType: Option[Type], stats: List[Stat]): Type = {
+
+        if (!param.typ.isEmpty) {
+          return param.typ.get
+        }
+
+        val paramName = param.ident.name
+        var typeFound: Type = AnyType
+
+        for (stat <- stats) {
+          stat match {
+            case Skip() =>
+            case Declaration(typ, _, rVal) =>
+//              val rType = checkType(rVal)
+//              rType match {
+//                case Ident(name) =>
+//                  if (name == paramName) {
+//                    typeFound = typ
+//                  }
+//                case _ =>
+//              }
+            case AssignorInferDecl(lVal, rVal) =>
+              lVal match {
+                case Ident(name) =>
+                  if (name == paramName) {
+                    checkType(rVal)
+                  }
+                case _ =>
+              }
+            case Read(lVal) =>
+            case Free(exp) =>
+            case Return(exp) => {
+              exp match {
+                case Ident(name) =>
+                  if (name == paramName) {
+                    typeFound = returnType.get
+                  }
+                case _ =>
+              }
+            }
+            case Exit(exp) =>
+              exp match {
+                case Ident(name) =>
+                  if (name == paramName) {
+                    typeFound = IntType()(exp.pos)
+                  }
+              }
+            case Print(exp) =>
+              typeFound = AnyType
+            case Println(exp) =>
+              typeFound = AnyType
+            case If(cond, thenStat, elseStat) =>
+            case While(cond, doStat) =>
+            case Scope(stats) =>
+          }
+        }
+        typeFound
+      }
+
+      x.paramList.foreach(y => {
+        val inferredParamType = inferParamType(y, x.typ, x.stats)
+        symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ.getOrElse(inferredParamType)
+        y.typ = Option(inferredParamType)
+      })
 
       // Check statements within the function scope
       val inferredType: Type = inferFuncReturnType(x.ident, x.stats, file, symTable, funcTable)
       if (x.typ.isEmpty) {
         x.typ = Option(inferredType)
       }
+
         new Func(x.typ, x.ident, x.paramList,
           checkStatements(x.stats, m, x.typ.getOrElse(inferredType), funcScopePrefix))(x.pos)
-
     })
 
     // Check statements within the main scope

@@ -4,16 +4,19 @@
 .text
 main:
 	push rbp
-	sub rsp, 16
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
+	push rbx
 	mov rbp, rsp
-	mov rax, 2
-	mov r12, rax
 	mov rax, 0
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	pop rbx
+	pop rbp
+	ret
+
+_exit:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	call exit@plt
+	mov rsp, rbp
 	pop rbp
 	ret
 
@@ -21,7 +24,11 @@ wacc_f:
 	push rbp
 	push rbx
 	mov rbp, rsp
-	mov rax, 3
+	mov rax, rdi
+	push rdi
+	mov rdi, rax
+	call _exit
+	pop rdi
 	pop rbx
 	pop rbp
 	ret

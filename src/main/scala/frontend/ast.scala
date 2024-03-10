@@ -68,7 +68,7 @@ object ast {
 
   case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Func(var typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
+  case class Param(var typ: Option[Type], ident: Ident)(val pos: (Int, Int)) extends Position
 
   // Statements
   sealed trait Stat extends Position
@@ -184,8 +184,8 @@ object ast {
     override def from(op: Parsley[_]): Parsley[(Option[Type], Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")
   }
-  object Param extends ParserBridgePos2[Type, Ident, Param] {
-    override def from(op: Parsley[_]): Parsley[(Type, Ident) => Param] = super.from(op).label("parameter")
+  object Param extends ParserBridgePos2[Option[Type], Ident, Param] {
+    override def from(op: Parsley[_]): Parsley[(Option[Type], Ident) => Param] = super.from(op).label("parameter")
   }
 
   /* Statements */

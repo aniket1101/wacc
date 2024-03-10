@@ -72,7 +72,7 @@ object parser {
         chain.postfix(baseType <|> pairType)(ArrayType <# ("[" <* "]"))
 
     // Parser for function parameter
-    private lazy val param: Parsley[Param] = Param(typ, ident)
+    private lazy val param: Parsley[Param] = Param(option(typ), ident)
 
     // Parser for base types
     private lazy val baseType: Parsley[BaseType] =

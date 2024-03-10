@@ -9,12 +9,8 @@
 # Program:
 
 begin
-  int f() is
-    return 3
+  f(x) is
+    exit x
   end
-
-  int i = 0;
-
-
-  f = 2
+  skip
 end
