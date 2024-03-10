@@ -161,20 +161,27 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
               case _ => evaluateRValue(rValue, variableMap(x), x, checkType(rValue)(symbolTable, List()))
             }
             case ArrayElem(Ident(arrayName), exprs) => {
-              //  Assume 1D only for now
               var arrayInstrs: ListBuffer[Instruction] = ListBuffer.empty
+              var typ: Type = symbolTable(arrayName)
+              var index = variableMap(addScopePrefix(arrayName))
+              for (expression <- exprs) {
+                var loadDimension = evaluateExpr(expression, ArrayIndexRegister(), BIT_32).addOne(MovInstr(index, ArrayPtrRegister()))
+                typ = typ match {
+                  case ArrayType(inTyp) => inTyp
+                  case x => x
+                }
+                if (expression != exprs.last) loadDimension = loadDimension.addOne(chooseLoad(getTypeSize(typ)))
+                index = ArrayPtrRegister()
+                arrayInstrs = arrayInstrs.concat(loadDimension)
+              }
               var moveParams: ListBuffer[Instruction] = ListBuffer.empty
-              moveParams = moveParams.concat(evaluateExpr(exprs.head, ArrayIndexRegister(), BIT_64))
+              moveParams = moveParams.addOne(Push(ArrayPtrRegister()))
               moveParams = moveParams.addOne(Push(ArrayIndexRegister()))
               moveParams = moveParams.concat(evaluateRValue(rValue, ArrayValueRegister(), arrayName, checkType(rValue)(symbolTable, List())))
-              moveParams = moveParams.addOne(Push(ArrayValueRegister()))
-              moveParams = moveParams.concat(ListBuffer(MovInstr(variableMap(addScopePrefix(arrayName)), ArrayPtrRegister())))
-              moveParams = moveParams.addOne(Pop(ArrayValueRegister()))
               moveParams = moveParams.addOne(Pop(ArrayIndexRegister()))
-              arrayInstrs = moveParams
-              arrayInstrs = arrayInstrs.addOne(CallInstr(Label("_arrStore4")))
-              addBlock(errOutOfBounds())
-              addBlock(arrStore4())
+              moveParams = moveParams.addOne(Pop(ArrayPtrRegister()))
+              arrayInstrs = arrayInstrs.concat(moveParams)
+              arrayInstrs = arrayInstrs.addOne(chooseStore(getTypeSize(typ)))
               arrayInstrs
             }
           }
@@ -720,7 +727,20 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         "_arrLoad4"
       }
     }))
+  }
 
+  private def chooseStore(size: Int): Instruction = {
+    addBlock(errOutOfBounds())
+    CallInstr(Label(size match {
+      case 8 => {
+        addBlock(arrStore8())
+        "_arrStore8"
+      }
+      case 4 => {
+        addBlock(arrStore4())
+        "_arrStore4"
+      }
+    }))
   }
 
   private def getNewLabel(): Label = {
