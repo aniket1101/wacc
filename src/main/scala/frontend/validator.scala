@@ -56,15 +56,24 @@ object validator {
       // If it's an identifier, get its type from the symbol table
       case Ident(name) => symTable.getOrElse(name, NoTypeExists)
       // If it's an array element, get the type of the array
-      case ArrayElem(id, _) => checkType(id: Expr) match {
-        case ArrayType(arrTyp) => arrTyp
-        case _ => NoTypeExists
-      }
+      case ArrayElem(id, exprs) => removeArrayWrapper(checkType(id: Expr), exprs.length)
       // If it's a pair first element, get the type of the first element
       case PairFst(value) => pairOperation(value, isFirst = true)
       // If it's a pair second element, get the type of the second element
       case PairSnd(value) => pairOperation(value, isFirst = false)
     }
+  }
+
+  private def removeArrayWrapper(typ:Type, dimensions:Int)(implicit symTable: mutable.Map[String, Type]): Type = {
+    if (dimensions <= 0) {
+      typ
+    } else {
+      typ match {
+        case ArrayType(arrTyp) => removeArrayWrapper(arrTyp, dimensions - 1)
+        case _ => NoTypeExists
+      }
+    }
+
   }
 
 
@@ -160,10 +169,7 @@ object validator {
       case Chr(_) => CharType()(nullPos)
 
       // Array element access returns the type of the elements inside the array
-      case ArrayElem(id, _) => checkType(id: Expr) match {
-        case ArrayType(insideType) => insideType
-        case _ => NoTypeExists
-      }
+      case ArrayElem(id, exprs) => removeArrayWrapper(checkType(id: Expr), exprs.length)
 
       // Literal expressions return their corresponding types
       case BoolLit(_) => BoolType()(nullPos)

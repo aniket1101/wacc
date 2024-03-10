@@ -394,6 +394,24 @@ object IR {
 
   sealed trait Block
 
+  sealed class arrLoad(bytes:Int) extends AsmBlock("text", s"_arrLoad$bytes", List(
+    Push(BaseRegister()),
+    CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovL(ArrayIndexRegister(), SourceRegister()),
+    JlInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
+    CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovGE(ArrayIndexRegister(), SourceRegister()),
+    JgeInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), ArrayIndexRegister(), bytes), ArrayPtrRegister()).changeSize(getWordType(bytes)),
+    Pop(BaseRegister()),
+    Ret()
+  ))
+
+  case class arrLoad4() extends arrLoad(4)
+
+  case class arrLoad8() extends arrLoad(8)
+
   class AsmBlock(var roData: Option[ReadOnlyData], val directive: Option[Directive], val label: Label, var instructions: List[Instruction]) extends Block {
     def this(label: String, instructions: List[Instruction]) = this(Option.empty, Option.empty, Label(label), instructions)
 
@@ -623,20 +641,6 @@ object IR {
     CMovGE(ArrayIndexRegister(), SourceRegister()),
     JgeInstr(Label("_errOutOfBounds")),
     MovInstr(ReturnRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4)).changeSize(BIT_32),
-    Pop(BaseRegister()),
-    Ret()
-  ))
-
-  case class arrLoad4() extends AsmBlock("text", "_arrLoad4", List(
-    Push(BaseRegister()),
-    CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
-    CMovL(ArrayIndexRegister(), SourceRegister()),
-    JlInstr(Label("_errOutOfBounds")),
-    MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
-    CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
-    CMovGE(ArrayIndexRegister(), SourceRegister()),
-    JgeInstr(Label("_errOutOfBounds")),
-    MovInstr(Memory(ArrayPtrRegister(), ArrayIndexRegister(), 4), ArrayPtrRegister()).changeSize(BIT_32),
     Pop(BaseRegister()),
     Ret()
   ))

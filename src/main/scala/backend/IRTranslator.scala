@@ -31,7 +31,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   var roData: ReadOnlyData = new ReadOnlyData("")
 
   var variableMap: mutable.Map[String, Register] = mutable.Map.empty
-  var arrayMap: mutable.Map[String, Memory] = mutable.Map.empty
+  var arrayMap: mutable.Map[String, (Memory,Int)] = mutable.Map.empty
 
   def translate():List[AsmBlock] = {
     translateFuncs(prog.funcs, translateProgram(prog.stats, symbolTable), symbolTable).toList
@@ -327,29 +327,20 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         addBlock(errOverflow())
         addBlock(StringPrintBlock())
 
-        val typSize = typ match {
-          case ArrayType(innerType) => innerType match {
-            case IntType() => 4
-            case CharType() => 1
-            case _ => 4
-          }
-          case IntType() => 4
-          case CharType() => 1
-          case _ => 4
+        val newTyp = typ match {
+          case ArrayType(newTyp) => newTyp
+          case x => x
         }
+        val typSize = getTypeSize(newTyp)
 
-        val wordType = typSize match {
-          case 8 => BIT_64 // Will be used for longs
-          case 4 => BIT_32
-          case 2 => BIT_16
-          case 1 => BIT_8
-        }
+        val wordType = getWordType(typSize)
 
         val mallocReg = new scratchReg(scratchCounter, 0)
+        val arrSize = getArrSize(xs, typ)
         scratchCounter += 1
-        arrayMap = arrayMap.addOne(ident, Memory(mallocReg, -typSize))
+        arrayMap = arrayMap.addOne(ident, (Memory(mallocReg, -typSize), arrSize))
         var instr: ListBuffer[Instruction] = ListBuffer(
-          MovInstr(Immediate((xs.length) * typSize + 4), DestinationRegister()).changeSize(BIT_32),
+          MovInstr(Immediate(arrSize + 4), DestinationRegister()).changeSize(BIT_32),
           CallInstr(Label("_malloc")),
           MovInstr(ReturnRegister(), mallocReg),
           AddNC(Immediate(4), mallocReg),
@@ -372,6 +363,32 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
 
   }
+  private def getArrSize(rVals: List[RValue], typ:Type): Int = {
+    rVals.map(rVal => getSize(rVal, typ)).sum
+  }
+
+  private def getSize(rVal: RValue, typ:Type): Int = {
+    rVal match {
+      case ArrayLit(xs) =>
+        // Calculate the size of the array by summing the size of each element
+        xs.map(x => getSize(x, typ)).sum
+      case Ident(name) => 8
+      case _ => typ match {
+        case ArrayType(inType) => getSize(rVal, inType)
+        case outType => getTypeSize(outType)
+      }
+    }
+  }
+
+  private def getTypeSize(typ: Type): Int = {
+    val typSize = typ match {
+      case ArrayType(innerType) => 8
+      case IntType() => 4
+      case CharType() => 1
+      case _ => 4
+    }
+    typSize
+  }
 
   // Outputs code to evaluate an expression and put the result in the given register
   def evaluateExpr(expr: Expr, reg:Register, size: Size): ListBuffer[Instruction] = {
@@ -389,17 +406,27 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case Ident(name) => {
         ListBuffer(MovInstr(variableMap(addScopePrefix(name)), reg).changeSize(size))
       }
-      case ArrayElem(name, expr) => name match {
+      case ArrayElem(name, exp) => name match {
         case ArrayElem(ident, exprs) => getIndex(ident, exprs, reg)
         case Ident(array) => {
-          val instrs = evaluateExpr(expr.head, ArrayIndexRegister(), BIT_32).addOne(MovInstr(variableMap(addScopePrefix(array)), ArrayPtrRegister()))
-          addBlock(arrLoad4())
-          addBlock(errOutOfBounds())
-          instrs.concat(ListBuffer(CallInstr(Label("_arrLoad4")), MovInstr(ArrayPtrRegister(), reg)))
+          var instrs: ListBuffer[Instruction] = ListBuffer.empty
+          var typ: Type = symbolTable(array)
+          var index = variableMap(addScopePrefix(array))
+          for (expression <- exp) {
+            var loadDimension = evaluateExpr(expression, ArrayIndexRegister(), BIT_32).addOne(MovInstr(index, ArrayPtrRegister()))
+            typ = typ match {
+              case ArrayType(inTyp) => inTyp
+              case x => x
+            }
+            loadDimension = loadDimension.concat(ListBuffer(chooseLoad(getTypeSize(typ)), MovInstr(ArrayPtrRegister(), reg)))
+            index = reg
+            instrs = instrs.concat(loadDimension)
+          }
+          instrs
         }
       }
       case Len(x) => x match {
-        case Ident(arr) => ListBuffer(MovInstr(arrayMap(arr), reg))
+        case Ident(arr) => ListBuffer(MovInstr(arrayMap(arr)._1, reg))
         case ArrayElem(_, _) => ListBuffer.empty
         case _ => ListBuffer.empty
       }
@@ -679,6 +706,21 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     } else {
       paramRegs(paramCount)
     }
+  }
+
+  private def chooseLoad(size:Int): Instruction = {
+    addBlock(errOutOfBounds())
+    CallInstr(Label(size match {
+      case 8 => {
+        addBlock(arrLoad8())
+        "_arrLoad8"
+      }
+      case 4 => {
+        addBlock(arrLoad4())
+        "_arrLoad4"
+      }
+    }))
+
   }
 
   private def getNewLabel(): Label = {
