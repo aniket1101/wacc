@@ -637,7 +637,6 @@ object validator {
           new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
 
         case AssignorInferDecl(lVal, rVal) =>
-          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
           var lType: Type = NoTypeExists
@@ -645,21 +644,23 @@ object validator {
 
           lVal match {
             case Ident(name) => {
-              if (isInferredTypeDef(newLVal)) {
+              if (isInferredTypeDef(lVal)) {
                 val newIdName = scopePrefix ++ name
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
                 symTable += (newIdName -> lType)
               } else {
-                lType = checkType(newLVal)
+                lType = checkType(lVal)
                 rType = checkType(newRVal)
               }
             }
             case _ =>
-              lType = checkType(newLVal)
+              lType = checkType(lVal)
               rType = checkType(newRVal)
           }
+
+          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
 
           // Check for type mismatch in assignment
           //  !sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists
