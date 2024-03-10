@@ -118,6 +118,11 @@ object ast {
     override def toString:String = "<Unknown Type>"
   }
 
+  case object NoType extends Type with PairElemType {
+    override val pos: (Int, Int) = (-1, -1)
+    override def toString: String = "<Type Not Inferred>"
+  }
+
   // Type traits
   sealed trait Type extends Position
   sealed trait BaseType extends Type with PairElemType

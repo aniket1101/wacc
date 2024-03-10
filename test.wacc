@@ -10,7 +10,9 @@
 
 begin
   f(x) is
-    exit x
+    x = 5;
+    return x
   end
-  skip
+  int a = call f(4);
+  println a
 end

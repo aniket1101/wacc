@@ -628,8 +628,7 @@ object validator {
       }
     }
 
-    // Iterate through each statement in the list
-    for (stat <- stats) {
+    def checkStatement(stat: Stat) = {
       val checkedStat: Stat = stat match {
         case Skip() => stat // No action needed for Skip statement
         case Declaration(idType, id, value) =>
@@ -784,6 +783,12 @@ object validator {
           scopeIndex += 1
           new Scope(newBody)(stat.pos)
       }
+      checkedStat
+    }
+
+    // Iterate through each statement in the list
+    for (stat <- stats) {
+      val checkedStat = checkStatement(stat)
       newStats += checkedStat
     }
     newStats.toList // Return the list of checked statements
@@ -897,73 +902,218 @@ object validator {
       mBuilder ++= x.paramList.map(y => y.ident.name -> (funcScopePrefix ++ "param-" ++ y.ident.name))
       val m: mutable.Map[String, String] = mBuilder.result()
 
-      def inferParamType(param: Param, returnType: Option[Type], stats: List[Stat]): Type = {
+      def trySetTypelessRParam(param: LRValue, rType: Type): Type = {
+        param match {
+          case Ident(name) =>
+            val symName = funcScopePrefix ++ "param-" ++ name
+            symTable.get(symName) match {
+              case Some(x) =>
+                if (x == NoType) {
+                  symTable += (symName) -> rType
+                  rType
+                } else {
+                  symTable.get(symName).get
+                }
+              case None =>
+                rType
+            }
+          case _ =>
+            rType
+        }
+      }
 
-        if (!param.typ.isEmpty) {
+      def inferParamType(param: Param, returnType: Option[Type], stats: List[Stat]): Type = {
+        if (param.typ.isDefined) {
           return param.typ.get
         }
 
         val paramName = param.ident.name
-        var typeFound: Type = AnyType
+        var typeFound: Type = NoType
 
         for (stat <- stats) {
           stat match {
             case Skip() =>
             case Declaration(typ, _, rVal) =>
-//              val rType = checkType(rVal)
-//              rType match {
-//                case Ident(name) =>
-//                  if (name == paramName) {
-//                    typeFound = typ
-//                  }
-//                case _ =>
-//              }
+              rVal match {
+                case Ident(name) =>
+                  if (name == paramName) {
+                    typeFound = trySetTypelessRParam(rVal, typ)
+                  }
+                case _ =>
+                  typeFound = checkRValParam(paramName, rVal)
+              }
             case AssignorInferDecl(lVal, rVal) =>
               lVal match {
                 case Ident(name) =>
                   if (name == paramName) {
-                    checkType(rVal)
+                    typeFound = trySetTypelessRParam(lVal, checkType(rVal))
                   }
                 case _ =>
               }
-            case Read(lVal) =>
-            case Free(exp) =>
+              typeFound = checkRValParam(paramName, rVal)
+
             case Return(exp) => {
               exp match {
                 case Ident(name) =>
                   if (name == paramName) {
-                    typeFound = returnType.get
+                    typeFound = trySetTypelessRParam(exp, returnType.getOrElse(NoType))
                   }
                 case _ =>
+                  typeFound = checkRValParam(paramName, exp)
               }
             }
             case Exit(exp) =>
               exp match {
                 case Ident(name) =>
                   if (name == paramName) {
-                    typeFound = IntType()(exp.pos)
+                    trySetTypelessRParam(exp, IntType()(exp.pos))
                   }
+                case _ =>
+                  checkRValParam(paramName, exp)
               }
             case Print(exp) =>
-              typeFound = AnyType
+              typeFound = trySetTypelessRParam(exp, checkType(exp))
             case Println(exp) =>
-              typeFound = AnyType
-            case If(cond, thenStat, elseStat) =>
-            case While(cond, doStat) =>
-            case Scope(stats) =>
+              typeFound = trySetTypelessRParam(exp, checkType(exp))
+            case If(cond, thenStats, elseStats) =>
+              cond match {
+                case Ident(name) =>
+                  if (name == paramName) {
+                    typeFound = trySetTypelessRParam(cond, BoolType()(cond.pos))
+                  }
+                case _ =>
+              }
+              typeFound = inferParamType(param, returnType, thenStats)
+              typeFound = inferParamType(param, returnType, elseStats)
+              typeFound = checkRValParam(paramName, cond)
+            case While(cond, doStats) =>
+              cond match {
+                case Ident(name) =>
+                  if (name == paramName) {
+                    typeFound = trySetTypelessRParam(cond, BoolType()(cond.pos))
+                  }
+                case _ =>
+              }
+              typeFound = inferParamType(param, returnType, doStats)
+              typeFound = checkRValParam(paramName, cond)
+            case Scope(scopeStats) =>
+              typeFound = inferParamType(param, returnType, scopeStats)
           }
         }
         typeFound
       }
 
+      def inferBinOp(paramName: String, exp1: Expr, exp2: Expr, isIntBinOp: Boolean) = {
+        var typeFound: Type = NoType
+        exp1 match {
+          case Ident(name) =>
+            if (name == paramName) {
+              if (isIntBinOp) {
+                typeFound = trySetTypelessRParam(exp1, IntType()(name.pos))
+              } else {
+                typeFound = trySetTypelessRParam(exp1, BoolType()(name.pos))
+              }
+            }
+          case _ =>
+        }
+        exp2 match {
+          case Ident(name) =>
+            if (name == paramName) {
+              if (isIntBinOp) {
+                typeFound = trySetTypelessRParam(exp2, IntType()(name.pos))
+              } else {
+                typeFound = trySetTypelessRParam(exp2, BoolType()(name.pos))
+              }
+            }
+          case _ =>
+        }
+
+        typeFound
+      }
+
+      def checkRValParam(paramName: String, rVal: RValue): Type = {
+        var typeFound: Type = NoType
+        rVal match {
+
+          // Unary Operators
+          case Chr(inside) =>
+            inside match {
+              case Ident(name) =>
+                if (name == paramName) {
+                  typeFound = trySetTypelessRParam(inside, IntType()(inside.pos))
+                }
+            }
+          case Len(inside) =>
+            inside match {
+              case Ident(name) =>
+                if (name == paramName) {
+                  typeFound = trySetTypelessRParam(inside, ArrayType(AnyType)(inside.pos))
+                }
+            }
+          case Neg(inside) =>
+            inside match {
+              case Ident(name) =>
+                if (name == paramName) {
+                  typeFound = trySetTypelessRParam(inside, IntType()(inside.pos))
+                }
+            }
+          case Not(inside) =>
+            inside match {
+              case Ident(name) =>
+                if (name == paramName) {
+                  typeFound = trySetTypelessRParam(inside, BoolType()(inside.pos))
+                }
+            }
+          case Ord(inside) =>
+            inside match {
+              case Ident(name) =>
+                if (name == paramName) {
+                  typeFound = trySetTypelessRParam(inside, CharType()(inside.pos))
+                }
+            }
+
+          // Binary Operators
+          case Sub(x, y) =>
+            typeFound = inferBinOp(paramName, x, y, true)
+          case Add(x, y) =>
+            typeFound = inferBinOp(paramName, x, y, true)
+          case Mul(x, y) =>
+            typeFound = inferBinOp(paramName, x, y, true)
+          case Div(x, y) =>
+            typeFound =  inferBinOp(paramName, x, y, true)
+          case Mod(x, y) =>
+            typeFound = inferBinOp(paramName, x, y, true)
+          case And(x, y) =>
+            typeFound = inferBinOp(paramName, x, y, false)
+          case Or(x, y) =>
+            typeFound = inferBinOp(paramName, x, y, false)
+          case GT(_, _) =>
+          case GTE(_, _) =>
+          case LT(_, _) =>
+          case LTE(_, _) =>
+          case Eq(_, _) =>
+          case NEq(_, _) =>
+
+          case _ =>
+            typeFound = checkType(rVal)
+        }
+        typeFound
+      }
+
       x.paramList.foreach(y => {
+        symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ.getOrElse(NoType)
         val inferredParamType = inferParamType(y, x.typ, x.stats)
-        symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ.getOrElse(inferredParamType)
+        if (inferredParamType == NoType) {
+          semanticErrorOccurred("Type of parameter could not be inferred: " + y.ident, y.pos)
+        }
         y.typ = Option(inferredParamType)
       })
 
       // Check statements within the function scope
       val inferredType: Type = inferFuncReturnType(x.ident, x.stats, file, symTable, funcTable)
+      if (inferredType == NoTypeExists) {
+        semanticErrorOccurred("Return type of function could not be inferred: " + x.ident, x.pos)
+      }
       if (x.typ.isEmpty) {
         x.typ = Option(inferredType)
       }
