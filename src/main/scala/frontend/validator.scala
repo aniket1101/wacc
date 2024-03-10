@@ -611,7 +611,7 @@ object validator {
 
         /* if its an identifier then check if its in the parent and child scope maps yet */
         case Ident(name) =>
-          !localSymTable.values.exists(_ == name)
+          !localSymTable.values.exists(_ == name) && !localSymTable.contains(name)
         case _ => false
       }
     }
@@ -644,6 +644,7 @@ object validator {
 
           lVal match {
             case Ident(name) => {
+
               if (isInferredTypeDef(lVal)) {
                 val newIdName = scopePrefix ++ name
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
@@ -651,7 +652,8 @@ object validator {
                 lType = rType
                 symTable += (newIdName -> lType)
               } else {
-                lType = checkType(lVal)
+                val tempLVal = checkExpr(lVal, varsInScope ++ localSymTable)
+                lType = checkType(tempLVal)
                 rType = checkType(newRVal)
               }
             }

@@ -10,10 +10,7 @@
 # Program:
 
 begin
-  int i = 0;
-  while i != 3 do
-    i = i + 1;
-    println i
-  done;
-  println i
+  pair(int, int) p1 = newpair(0, 0);
+  pair(char, char) p2 = newpair('a', 'a');
+  p2 = p1
 end
