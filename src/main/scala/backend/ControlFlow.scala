@@ -158,8 +158,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
 
   def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
-    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Option[Expr]]]] =
-      mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Option[Expr]]]): _*)
+    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Expr]]): _*)
     var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
     var allStats = mutable.Stack[Stat]()
     allStats.pushAll(prog.stats)
