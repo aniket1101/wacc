@@ -5,10 +5,10 @@ import java.awt.datatransfer.{DataFlavor, UnsupportedFlavorException}
 import java.awt.event.{ActionEvent, InputEvent, KeyEvent}
 import java.io.{File, IOException, PrintWriter}
 import javax.swing._
-import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener, UndoableEditEvent}
+import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener}
 import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.text.{DefaultEditorKit, SimpleAttributeSet, StyleConstants}
-import javax.swing.undo.UndoManager
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.sys.process.Process
 
@@ -46,7 +46,11 @@ class IDE extends JFrame {
   private val TYPES_AND_FUNCS_COLOR: Color = new Color(145, 0, 200)
 
   private var textEditor: JTextPane = new JTextPane()
-  private val undoManager = new UndoManager()
+  private val undoManager: ListBuffer[(String, Int)] = ListBuffer()
+  private val redoManager: ListBuffer[(String, Int)] = ListBuffer()
+  private val UNDO_MAX_SIZE: Int = 100
+  private var undoTimer: Double = 0
+  private val UNDO_TIME_INTERVAL: Int = 1000
 
   private val initialProgram: String =
     """begin
@@ -78,6 +82,7 @@ class IDE extends JFrame {
     if (openFile.isEmpty) {
       textEditor.setCaretPosition(initialProgram.indexOf("end") - 4)
     }
+    undoManager.append((fileContents, textEditor.getCaretPosition))
 
     val statusBar = new JLabel("Ln: 3, Col: 2")
     getContentPane.add(statusBar, BorderLayout.SOUTH)
@@ -224,10 +229,6 @@ class IDE extends JFrame {
     val editMenu = new JMenu("Edit")
     menuBar.add(editMenu)
 
-    textEditor.getDocument.addUndoableEditListener((e: UndoableEditEvent) => {
-      undoManager.addEdit(e.getEdit)
-    })
-
     val undoMenuItem = new JMenuItem("Undo")
     undoMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK))
     undoMenuItem.addActionListener(_ => undo())
@@ -334,7 +335,21 @@ class IDE extends JFrame {
         val caretPosition = textEditor.getCaretPosition
         fileModified = true
         setTitle(s"*$windowTitle")
-        highlightKeywords(textEditor.getText.replace("\r", ""))
+        val text = textEditor.getText.replace("\r", "")
+
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - undoTimer >= UNDO_TIME_INTERVAL) {
+          if (undoManager.size >= UNDO_MAX_SIZE) {
+            undoManager.remove(0)
+            redoManager.remove(0)
+          }
+          if (undoManager.isEmpty || undoManager.last._1 != text) {
+            undoManager.append((text, textEditor.getCaretPosition))
+          }
+          undoTimer = currentTime
+        }
+
+        highlightKeywords(text)
         textEditor.setCaretPosition(caretPosition)
         formattingInProgress = false
       }
@@ -419,14 +434,18 @@ class IDE extends JFrame {
   }
 
   private def undo(): Unit = {
-    if (undoManager.canUndo) {
-      undoManager.undo()
+    if (undoManager.length > 1) {
+      redoManager.append(undoManager.remove(undoManager.length - 1))
+      highlightKeywords(undoManager.last._1)
+      textEditor.setCaretPosition(undoManager.last._2)
     }
   }
 
   private def redo(): Unit = {
-    if (undoManager.canRedo) {
-      undoManager.redo()
+    if (redoManager.nonEmpty) {
+      val prev = redoManager.remove(redoManager.length - 1)
+      highlightKeywords(prev._1)
+      textEditor.setCaretPosition(prev._2)
     }
   }
 
