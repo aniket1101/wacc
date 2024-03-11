@@ -80,9 +80,16 @@ class IntelX86Test extends AnyFlatSpec {
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode
-        output.output shouldBe correctOutput.output
+        formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
       }
     }
+
+  def formatOutput(str: String): String = {
+    val memoryAddressPattern = """0x[0-9a-fA-F]+""".r
+    val formattedStr = memoryAddressPattern.replaceAllIn(str, "[memAddress]")
+    formattedStr
+  }
+
 
   def deleteFile(filePath: String): Int = {
     val file = new File(filePath)

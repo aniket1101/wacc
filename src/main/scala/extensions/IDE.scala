@@ -7,7 +7,8 @@ import java.io._
 import javax.swing._
 import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener}
 import javax.swing.filechooser.FileNameExtensionFilter
-import javax.swing.text.{DefaultEditorKit, SimpleAttributeSet, StyleConstants}
+import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
+import javax.swing.text.{DefaultEditorKit, Highlighter, SimpleAttributeSet, StyleConstants}
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.sys.process._
@@ -266,6 +267,18 @@ class IDE extends JFrame {
     pasteMenuItem.addActionListener(_ => paste())
     editMenu.add(pasteMenuItem)
 
+    editMenu.addSeparator()
+
+    val findAsMenuItem = new JMenuItem("Find")
+    findAsMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK))
+    findAsMenuItem.addActionListener(_ => find())
+    editMenu.add(findAsMenuItem)
+
+    val replaceMenuItem = new JMenuItem("Replace")
+    replaceMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK))
+    replaceMenuItem.addActionListener(_ => replace())
+    editMenu.add(replaceMenuItem)
+
     // Format menu
     val formatMenu = new JMenu("Format")
     menuBar.add(formatMenu)
@@ -481,6 +494,107 @@ class IDE extends JFrame {
       }
     }
   }
+
+  private def createPopupFrame(title: String, size: Dimension, contentPanel: JPanel): JFrame = {
+    val frame = new JFrame(title)
+    frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+    frame.setSize(size)
+
+    // Calculate the center of the screen
+    val screenSize = Toolkit.getDefaultToolkit.getScreenSize
+    val screenWidth = screenSize.getWidth.toInt
+    val screenHeight = screenSize.getHeight.toInt
+    val frameWidth = size.width
+    val frameHeight = size.height
+    val x = (screenWidth - frameWidth) / 2
+    val y = (screenHeight - frameHeight) / 2
+
+    // Set the frame location
+    frame.setLocation(x, y)
+    frame.setLayout(new BorderLayout())
+    frame.add(contentPanel, BorderLayout.NORTH)
+    frame
+  }
+
+  def find(): Unit = {
+    val label = new JLabel("Enter word to find:")
+    val textField = new JTextField(15)
+    val findButton = new JButton("Find Next")
+
+    val panel: JPanel = new JPanel(new FlowLayout())
+    panel.add(label)
+    panel.add(textField)
+    panel.add(findButton)
+
+    val findFrame = createPopupFrame("Find", new Dimension(450, 80), panel)
+
+    findButton.addActionListener((_: ActionEvent) => findNext(textField))
+
+    findFrame.setVisible(true)
+  }
+
+  def replace(): Unit = {
+    val findLabel = new JLabel("Find:")
+    val replaceLabel = new JLabel("Replace:")
+    val findTextField = new JTextField(15)
+    val replaceTextField = new JTextField(15)
+    val findButton = new JButton("Find Next")
+    val replaceButton = new JButton("Replace")
+
+    val panel = new JPanel(new FlowLayout())
+    panel.add(findLabel)
+    panel.add(findTextField)
+    panel.add(replaceLabel)
+    panel.add(replaceTextField)
+    panel.add(findButton)
+    panel.add(replaceButton)
+
+    val replaceFrame = createPopupFrame("Find and Replace", new Dimension(750, 80), panel)
+
+    findButton.addActionListener((_: ActionEvent) => findNext(findTextField))
+    replaceButton.addActionListener((_: ActionEvent) => replaceNext(findTextField, replaceTextField))
+
+    replaceFrame.setVisible(true)
+  }
+
+  private var currentIndex = 0
+
+  private def findNext(findTextField: JTextField): Unit = {
+    val highlighter: Highlighter = textEditor.getHighlighter
+    val highlightPainter = new DefaultHighlightPainter(new Color(183, 205, 227))
+
+    val text = textEditor.getText().toLowerCase()
+    val word = findTextField.getText().toLowerCase()
+    val index = text.indexOf(word, currentIndex)
+    if (index != -1) {
+      highlighter.removeAllHighlights()
+      highlighter.addHighlight(index, index + word.length(), highlightPainter)
+      textEditor.setCaretPosition(index + word.length())
+      currentIndex = index + word.length()
+    } else {
+      JOptionPane.showMessageDialog(null, s"No more occurrences of '$word' found.", "Info", JOptionPane.INFORMATION_MESSAGE)
+      currentIndex = 0
+    }
+  }
+
+
+  private def replaceNext(findTextField: JTextField, replaceTextField: JTextField): Unit = {
+    var currentIndex = 0
+    val text = textEditor.getText
+    val findWord = findTextField.getText
+    val replaceWord = replaceTextField.getText
+    val index = text.toLowerCase.indexOf(findWord.toLowerCase, currentIndex)
+    if (index != -1) {
+      textEditor.setSelectionStart(index)
+      textEditor.setSelectionEnd(index + findWord.length)
+      textEditor.replaceSelection(replaceWord)
+      currentIndex = index + replaceWord.length
+    } else {
+      JOptionPane.showMessageDialog(null, s"No more occurrences of '$findWord' found.", "Info", JOptionPane.INFORMATION_MESSAGE)
+      currentIndex = 0
+    }
+  }
+
 
   private def modifySelectedText(modifyFunction: String => String): Unit = {
     val selectedText = textEditor.getSelectedText
