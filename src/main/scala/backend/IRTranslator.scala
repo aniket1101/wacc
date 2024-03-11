@@ -38,18 +38,20 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   private def translateFun(stats: List[Stat], state: State): Unit = {
     setUpScope(state.getScopePrefix(), state)
+    translateStatements(stats, state)
+    revertSetUp(state)
   }
 
   private def setUpFun(fun:Func): State = {
     val varMap: mutable.Map[String, Register] = mutable.Map.empty
     val funBlock = new AsmBlock(s"${fun.ident.name}", List.empty)
-//    var paramCount = 0
     val scopePrefix: String = s"func-${fun.ident.name}"
     val funState = State(true, funBlock, varMap, scopePrefix)
     for (arg <- fun.paramList) {
       val paramReg = getParamReg(funState)
       funState.getVarMap().addOne(s"$scopePrefix-param-${arg.ident.name}", paramReg)
     }
+    funState.paramCount = 0
     addBlock(funBlock)
     funState
   }
@@ -588,8 +590,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       state.incrementParamCounter()
       new paramReg(paramRegs.length)
     } else {
+      val reg = paramRegs(state.paramCount)
       state.incrementParamCounter()
-      paramRegs(state.paramCount)
+      reg
     }
   }
 

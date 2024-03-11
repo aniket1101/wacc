@@ -4,83 +4,102 @@
 .text
 main:
 	push rbp
-	sub rsp, 40
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 1
-	mov r12, rax
-	mov rax, 1
-	mov r13, rax
 	mov rax, 0
-	mov r14, rax
-	mov rax, 1
-	mov r15, rax
+	mov r12, rax
 	mov rax, r12
-	mov rbx, r13
-	mov rbx, r14
-	cmp rbx, rbx
-	setne bl
-	movsx rbx, bl
-	and al, bl
-	mov rbx, r15
-	or al, bl
 	mov rdi, rax
-	call _printb
+	call wacc_inc
+	mov r12, rax
+	mov rax, r12
+	mov rdi, rax
+	call _printi
 	call _println
 	mov rax, r12
-	mov r11, r13
-	and al, r11b
-	mov r10, r14
-	mov r11, r15
-	or r10b, r11b
-	cmp rax, r10
-	setne al
-	movsx rax, al
 	mov rdi, rax
-	call _printb
+	call wacc_inc
+	mov r12, rax
+	mov rax, r12
+	mov rdi, rax
+	call wacc_inc
+	mov r12, rax
+	mov rax, r12
+	mov rdi, rax
+	call wacc_inc
+	mov r12, rax
+	mov rax, r12
+	mov rdi, rax
+	call _printi
 	call _println
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	add rsp, 40
+	add rsp, 16
+	pop rbp
+	ret
+
+wacc_inc:
+	push rbp
+	sub rsp, 16
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], r12
+	mov rbp, rsp
+	mov rax, rdi
+	add eax, 1
+	jo _errOverflow
+	movsx rax, eax
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
 	pop rbp
 	ret
 
 .section .rodata
-	.int 5
-.L._printb_str0:
-	.asciz "false"
+	.int 52
+.L._errOverflow_str0:
+	.asciz "fatal error: integer overflow or underflow occurred\n"
+.text
+_errOverflow:
+	and rsp, -16
+	lea rdi, [rip + .L._errOverflow_str0]
+	call _prints
+	mov dil, -1
+	call exit@plt
+
+.section .rodata
 	.int 4
-.L._printb_str1:
-	.asciz "true"
-	.int 4
-.L._printb_str2:
+.L._prints_str0:
 	.asciz "%.*s"
 .text
-_printb:
+_prints:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	cmp dil, 0
-	jne .L_printb0
-	lea rdx, [rip + .L._printb_str0]
-	jmp .L_printb1
+	mov rdx, rdi
+	mov esi, dword ptr [rdi - 4]
+	lea rdi, [rip + .L._prints_str0]
+	mov al, 0
+	call printf@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
 
+.section .rodata
+	.int 2
+.L._printi_str0:
+	.asciz "%d"
 .text
-.L_printb0:
-	lea rdx, [rip + .L._printb_str1]
-
-.text
-.L_printb1:
-	mov esi, dword ptr [rdx - 4]
-	lea rdi, [rip + .L._printb_str2]
+_printi:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	mov esi, edi
+	lea rdi, [rip + .L._printi_str0]
 	mov al, 0
 	call printf@plt
 	mov rdi, 0
