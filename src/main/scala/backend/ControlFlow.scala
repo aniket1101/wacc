@@ -11,9 +11,9 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
-  def CFProgram(): (Prog, mutable.Map[String, Type]) = {
+  def CFProgram(): (Prog) = {
     val variables: mutable.Map[String, Option[Expr]] = mutable.Map(symbolTable.keys.map(key => key -> None).toSeq: _*)
-    (optimiseProg(prog, variables), symbolTable)
+    optimiseProg(prog, variables)
   }
 
   def checkBoolList(bools: List[Option[Boolean]]): Boolean = {
@@ -158,7 +158,8 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
 
   def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
-    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Expr]]): _*)
+    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Option[Expr]]]] =
+      mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Option[Expr]]]): _*)
     var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
     var allStats = mutable.Stack[Stat]()
     allStats.pushAll(prog.stats)
@@ -264,6 +265,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case Scope(stats) => {
 
         }
+        case _ =>
       }
     }
 
