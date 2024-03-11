@@ -6,19 +6,20 @@ import backend.IRRegisters._
 import backend.Size._
 import frontend.validator.checkType
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   var inFunc = false
-  var labels = 0
+  var labels = new AtomicInteger(0)
   var blocks: ListBuffer[AsmBlock] = ListBuffer()
   var curBlock: AsmBlock = _
   val nullPos: (Int, Int) = (-1, -1)
   val CHAR_RANGE_MASK = -128
 
-  var strCounter = 0
+  var strCounter = new AtomicInteger(0)
   var strMap:mutable.Map[String, Int] = mutable.Map.empty
   var usedRegs = 0
 
@@ -279,8 +280,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
     typ match {
       case StringType() => {
-        strMap = strMap.addOne(ident.name, strCounter)
-        strCounter += 1
+        addString(ident.name)
       }
       case _ =>
     }
@@ -596,14 +596,18 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
   }
 
-  private def getNewLabel(): Label = {
-    labels += 1
-    Label(s".L${labels-1}")
+  private def getNewLabel(): Label = synchronized {
+    labels.addAndGet(1)
+    Label(s".L${labels.get()-1}")
   }
 
-  private def addBlock(block: AsmBlock): Unit = {
+  private def addBlock(block: AsmBlock): Unit = synchronized {
     if (!blocks.map({ case b: AsmBlock => b.label case _ =>}).contains(block.label)) {
       blocks.addOne(block)
     }
+  }
+
+  private def addString(str: String): Unit = synchronized {
+    strMap = strMap.addOne((str, strCounter.getAndIncrement()))
   }
 }
