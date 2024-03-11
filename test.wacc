@@ -31,7 +31,6 @@ begin
   println "";
   println "What grade will you get?";
   print "Reveal my grade!";
-  read year;
 
   println "Calculating...";
   month = call time.sleep(1);
