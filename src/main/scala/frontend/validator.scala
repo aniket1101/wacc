@@ -1009,9 +1009,9 @@ object validator {
           case Ident(name) =>
             if (name == paramName) {
               if (isIntBinOp) {
-                typeFound = trySetTypelessRParam(exp1, IntType()(name.pos))
+                typeFound = trySetTypelessRParam(exp1, IntType()(exp1.pos))
               } else {
-                typeFound = trySetTypelessRParam(exp1, BoolType()(name.pos))
+                typeFound = trySetTypelessRParam(exp1, BoolType()(exp1.pos))
               }
             }
           case _ =>
@@ -1020,9 +1020,9 @@ object validator {
           case Ident(name) =>
             if (name == paramName) {
               if (isIntBinOp) {
-                typeFound = trySetTypelessRParam(exp2, IntType()(name.pos))
+                typeFound = trySetTypelessRParam(exp2, IntType()(exp2.pos))
               } else {
-                typeFound = trySetTypelessRParam(exp2, BoolType()(name.pos))
+                typeFound = trySetTypelessRParam(exp2, BoolType()(exp2.pos))
               }
             }
           case _ =>

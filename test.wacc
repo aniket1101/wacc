@@ -9,10 +9,11 @@
 # Program:
 
 begin
-  f(x) is
+  f(x, y) is
     x = 5;
-    return x
+    y = 6 + x;
+    return x + y
   end
-  int a = call f(4);
+  int a = call f(4, 6);
   println a
 end
