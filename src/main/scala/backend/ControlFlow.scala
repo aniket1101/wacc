@@ -43,109 +43,147 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   // Returns expressions in the forms of: IntLit(x), BoolLit(b), CharLit(chr) or StrLit(str)
   // Need to add handling of unknown identifiers from reads using Option
-  def evaluateExpr(opExpr: Option[Expr], identTable: mutable.Map[String, Option[Expr]]): Option[Expr] = {
-    val expr : Expr = opExpr.orNull
-    expr match {
-      case null =>
-        Option.empty
-      case IntLit(x) => Option(expr)
-      case BoolLit(bool) => Option(expr)
-      case CharLit(chr) => Option(expr)
-      case StrLit(str) => Option(expr)
-      case Neg(x) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        Option(IntLit(-1 * i)(expr.pos))
-        
+  def evaluateExpr(opExpr: Option[Expr], identTable: mutable.Map[String, Option[Expr]]): Option[Expr] = opExpr match {
+    case Some(expr) => expr match {
+      case IntLit(_) | BoolLit(_) | CharLit(_) | StrLit(_) => Some(expr)
+      
+      case Ident(name) => identTable.getOrElse(name, None)
+      
+      case Neg(x) => evaluateExpr(Some(x), identTable).collect { case IntLit(i) => IntLit(-i)(x.pos) }
+      
+      case Not(x) => evaluateExpr(Some(x), identTable).collect { case BoolLit(b) => BoolLit(!b)(x.pos) }
+      
+      case Add(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(IntLit(i + j)(expr.pos))
+        case _ => None
       }
-      case Chr(x) => evaluateExpr(Option(x), identTable)
-      case Ord(x) => evaluateExpr(Option(x), identTable)
-      case Len(x) => ???
-      case Add(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(IntLit(i + j)(expr.pos))
+      
+      case Sub(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(IntLit(i - j)(expr.pos))
+        case _ => None
+      }
+      
+      case Mul(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(IntLit(i * j)(expr.pos))
+        case _ => None
+      }
+      
+      case Div(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) if j != 0 => Some(IntLit(i / j)(expr.pos))
+        case _ => None
+      }
+      
+      case Mod(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) if j != 0 => Some(IntLit(i % j)(expr.pos))
+        case _ => None
+      }
+      
+      case And(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(BoolLit(i)), Some(BoolLit(j))) => Some(BoolLit(i && j)(expr.pos))
+        case _ => None
+      }
+      
+      case Or(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(BoolLit(i)), Some(BoolLit(j))) => Some(BoolLit(i || j)(expr.pos))
+        case _ => None
+      }
+      
+      case GT(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(BoolLit(i > j)(expr.pos))
+        case _ => None
+      }
+      
+      case GTE(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(BoolLit(i >= j)(expr.pos))
+        case _ => None
+      }
+      
+      case LT(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(BoolLit(i < j)(expr.pos))
+        case _ => None
+      }
+      
+      case LTE(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(IntLit(i)), Some(IntLit(j))) => Some(BoolLit(i <= j)(expr.pos))
+        case _ => None
+      }
+      
+      case Eq(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(l), Some(r)) => Some(BoolLit(l == r)(expr.pos))
+        case _ => None
+      }
+      
+      case NEq(x, y) => (evaluateExpr(Some(x), identTable), evaluateExpr(Some(y), identTable)) match {
+        case (Some(l), Some(r)) => Some(BoolLit(l != r)(expr.pos))
+        case _ => None
       }
 
-      case Sub(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(IntLit(i - j)(expr.pos))
-      }
-      case Mul(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(IntLit(i * j)(expr.pos))
-      }
-      case Div(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(IntLit(i * j)(expr.pos))
-      }
-
-      case Mod(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(IntLit(i % j)(expr.pos))
-      }
-      case GT(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i > j)(expr.pos))
-      }
-      case GTE(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i >= j)(expr.pos))
-      }
-      case LT(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i < j)(expr.pos))
-      }
-      case LTE(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i <= j)(expr.pos))
-      }
-      case Eq(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i == j)(expr.pos))
-      }
-      case NEq(x, y) => {
-        val IntLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val IntLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i != j)(expr.pos))
-      }
-      case And(x, y) => {
-        val BoolLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val BoolLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i && j)(expr.pos))
-      }
-      case Or(x, y) => {
-        val BoolLit(i) = evaluateExpr(Option(x), identTable).getOrElse()
-        val BoolLit(j) = evaluateExpr(Option(y), identTable).getOrElse()
-        Option(BoolLit(i || j)(expr.pos))
-      }
-      case Not(bool) => {
-        val BoolLit(b) = evaluateExpr(Option(bool), identTable).getOrElse()
-        Option(BoolLit(!b)(expr.pos))
-      }
-      case Ident(x) => evaluateExpr(identTable.getOrElse(x, Option.empty), identTable)
-      case _ => ???
+      case _ => None
     }
+
+    case None => None
   }
 
-  def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
-    // var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map((prog.funcs.map(func => func.ident -> ListBuffer(ListBuffer())).toMap).toSeq: _*)
-    var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
-    /**for (stat:Stat <- prog.stats : List[Stat]) {
-      case Skip() => {
 
+
+  def findParams(stats: List[Stat]): List[String] = {
+    val paramsBuffer = ListBuffer.empty : ListBuffer[String]
+
+    def extractIdentFromLValue(lValue: LValue): Unit = {
+      lValue match {
+        case Ident(name) => paramsBuffer += name
+        case _ =>
       }
-      //TODO: REMOVE DUPLICATE DECLARATION AND ASSIGN CODE
-      case Declaration(typ, ident, y) => {
-        y match {
+    }
+
+    // assuming no side effects for functions
+    def traverseStats(stats: List[Stat]) : Unit = {
+      for (stat <- stats) {
+        stat match {
+          case Declaration(_, ident, _) => paramsBuffer += ident.name
+          case Assign(lValue, _) => extractIdentFromLValue(lValue)
+          case If(_, thenStat, elseStat) =>
+            traverseStats(thenStat)
+            traverseStats(elseStat)
+          case While(_, doStat) => traverseStats(doStat)
+          case Scope(stats) => traverseStats(stats)
+          case _ =>
+        }
+      }
+    }
+
+    traverseStats(stats)
+    paramsBuffer.toList
+  }
+
+
+  def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
+    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map((prog.funcs.map(func => func.ident -> ListBuffer(ListBuffer())).toMap).toSeq: _*)
+    var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
+    var allStats = mutable.Stack[Stat]()
+    allStats.pushAll(prog.stats)
+    while (allStats.nonEmpty) {
+      val stat = allStats.pop
+      stat match {
+        case Skip() => {
+
+        }
+        //TODO: REMOVE DUPLICATE DECLARATION AND ASSIGN CODE
+        case Declaration(typ, ident, y) => {
+          y match {
+            case expr: Expr => {
+              identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
+            }
+            case Call(name, args) => {
+              funcAllArgs.get(name) match {
+                case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ args
+                case None => funcAllArgs(name) = ListBuffer(args)
+              }
+              identTable(ident.toString) = Option.empty
+            }
+          }
+        }
+        case Assign(ident: Ident, rValue) => rValue match {
           case expr: Expr => {
             identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
           }
@@ -157,73 +195,121 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             identTable(ident.toString) = Option.empty
           }
         }
-      }
-      case Assign(ident: Ident, rValue) => rValue match {
-        case expr: Expr => {
-          identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
+        case Free(_) => {
+
         }
-        case Call(name, args) => {
-          funcAllArgs.get(name) match {
-            case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ args
-            case None => funcAllArgs(name) = ListBuffer(args)
-          }
+        case Print(expr) => {
+
+        }
+        case Println(expr) => {
+
+        }
+        case Read(ident: Ident) => {
           identTable(ident.toString) = Option.empty
         }
-      }
-      case Free(_) => {
 
-      }
-      case Print(expr) => {
+        // TODO: REMOVE DUPLICATION IN IF AND WHILE WITH A FUNCTION
 
-      }
-      case Println(expr) => {
+        case If(cond, thenStat, elseStat) => {
+          val calcBool = evaluateExpr(Option(cond), identTable)
+          loopConds.get(stat.pos) match {
+            case Some(listbuffer) => loopConds(stat.pos) = listbuffer :+ calcBool
+            case None => loopConds(stat.pos) = ListBuffer(calcBool)
+          }
+          calcBool.getOrElse(-1) match {
+            case true => allStats.pushAll(thenStat)
+            case false => allStats.pushAll(elseStat)
+            case _ =>  {
+              for (param <- findParams(thenStat)) {
+                identTable(param) = Option.empty
+              }
+              for (param <- findParams(elseStat)) {
+                identTable(param) = Option.empty
+              }
+            }
 
-      }
-      case Read(ident: Ident) => {
-        identTable(ident.toString) = Option.empty
-      }
-
-      // TODO: REMOVE DUPLICATION IN IF AND WHILE WITH A FUNCTION
-
-      case If(cond, thenStat, elseStat) => {
-        val calcBool = evaluateExpr(Option(cond), identTable)
-        loopConds.get(stat.pos) match {
-          case Some(listbuffer) => loopConds(stat.pos) = listbuffer :+ calcBool
-          case None => loopConds(stat.pos) = ListBuffer(calcBool)
+              // Iterate through statements and mark anything assigned or declared
+              // as unknown, additionally do the same for any function calls as well
+              // TODO: extend the above by also adding a way to compare variable outputs from both blocks
+              // such as if both blocks make a = true then it can be true instead of unknown
+          }
         }
-      }
-      case While(cond, doStat) => {
-        val calcBool = evaluateExpr(Option(cond), identTable)
-        loopConds.get(stat.pos) match {
-          case Some(listbuffer) => loopConds(stat.pos) = listbuffer :+ calcBool
-          case None => loopConds(stat.pos) = ListBuffer(calcBool)
+        case While(cond, doStat) => {
+          val calcBool = evaluateExpr(Option(cond), identTable)
+          loopConds.get(stat.pos) match {
+            case Some(listbuffer) => loopConds(stat.pos) = listbuffer :+ calcBool
+            case None => loopConds(stat.pos) = ListBuffer(calcBool)
+          }
+          calcBool.getOrElse(-1) match {
+            case true => {
+              allStats.pushAll(doStat)
+              allStats.push(stat)
+            }
+            case false =>
+            case _ => {
+              for (param <- findParams(doStat)) {
+                identTable(param) = Option.empty
+              }
+          }
+            // Iterate through statements and mark anything assigned or declared
+            // as unknown, additionally do the same for any function calls as well
+          }
         }
-      }
-      case Return(expr) => {
+        case Return(expr) => {
 
-      }
-      case Exit(expr) => {
+        }
+        case Exit(expr) => {
 
-      }
-      case Scope(stats) => {
+        }
+        case Scope(stats) => {
 
+        }
       }
     }
+
+    val statsToChange : mutable.Map[(Int, Int), Boolean] = mutable.Map.empty
+
     for (loopCond <- loopConds) {
       if (checkBoolList(loopCond._2.toList)) {
         // This loop is always true or always false
-        // statement has position: loopCond._1
+        val posToChange = loopCond._1
         val loopValue = loopCond._2.head.get
+        statsToChange(posToChange) = loopValue
       }
-
     }
-    **/
-    prog
-  }
+    var modifiedStats = prog.stats.map {
+      stat =>
+        if (statsToChange.contains(stat.pos)) {
+          stat match {
+            case If(cond, thenStat, elseStat) => {
+              if (statsToChange(stat.pos)) {
+                thenStat
+              } else {
+                elseStat
+              }
+            }
+            case While(cond, doStat) => {
+              if (statsToChange(stat.pos)) {
+                doStat
+              }
+            }
+            case Declaration(typ, ident, y) => {
+              y match {
+                case expr: Expr => stat
+                case Call(name, args) =>
+              }
+            }
+            case Assign(ident: Ident, rValue) => rValue match {
+              case expr: Expr => stat
+              case Call(name, args) =>
+            }
 
-  // Unimplemented
-  def hasSideEffects(func:Func): Boolean = {
-    true
+            case _ => stat
+          }
+        }
+        else stat
+    }
+    prog.copy(stats=modifiedStats)
   }
 
   def optimiseFunc(func:Func, symbolTable:mutable.Map[String, Type], identTables:List[mutable.Map[String, Expr]]): Unit = {
@@ -246,4 +332,3 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
 
   }
-}
