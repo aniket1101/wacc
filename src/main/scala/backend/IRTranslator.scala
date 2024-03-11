@@ -379,7 +379,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case ArrayLit(xs) =>
         // Calculate the size of the array by summing the size of each element
         xs.map(x => getSize(x, typ)).sum
-      case Ident(name) => 8
+      case Ident(name) => getTypeSize(symbolTable(name))
       case _ => typ match {
         case ArrayType(inType) => getSize(rVal, inType)
         case outType => getTypeSize(outType)
@@ -433,11 +433,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           instrs
         }
       }
-      case Len(x) => x match {
-        case Ident(arr) => ListBuffer(MovInstr(arrayMap(arr)._1, reg))
-        case ArrayElem(_, _) => ListBuffer.empty
-        case _ => ListBuffer.empty
-      }
+//      //TODO: Fix length for multi dimensional arrays
+//      case Len(x) => x match {
+//        case Ident(arr) => ListBuffer(MovInstr(arrayMap(arr)._1, reg))
+//        case ArrayElem(Ident(name), exprs) => ListBuffer(MovInstr(arrayMap(name)._1, reg))
+//        case _ => ListBuffer.empty
+//      }
       case Neg(x) => evaluateExpr(new Sub(IntLit(0)(nullPos), x)(nullPos), reg, size)
       case Chr(x) => {
         addBlock(errBadChar())
