@@ -158,7 +158,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
 
   def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
-    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map((prog.funcs.map(func => func.ident -> ListBuffer(ListBuffer())).toMap).toSeq: _*)
+    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Expr]]): _*)
     var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
     var allStats = mutable.Stack[Stat]()
     allStats.pushAll(prog.stats)
@@ -176,8 +176,8 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             }
             case Call(name, args) => {
               funcAllArgs.get(name) match {
-                case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ args
-                case None => funcAllArgs(name) = ListBuffer(args)
+                case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ ListBuffer(args: _*)
+                case None => funcAllArgs(name) = ListBuffer(ListBuffer(args: _*))
               }
               identTable(ident.toString) = Option.empty
             }
@@ -189,8 +189,8 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           }
           case Call(name, args) => {
             funcAllArgs.get(name) match {
-              case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ args
-              case None => funcAllArgs(name) = ListBuffer(args)
+              case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ ListBuffer(args: _*)
+              case None => funcAllArgs(name) = ListBuffer(ListBuffer(args: _*))
             }
             identTable(ident.toString) = Option.empty
           }
@@ -211,14 +211,14 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         // TODO: REMOVE DUPLICATION IN IF AND WHILE WITH A FUNCTION
 
         case If(cond, thenStat, elseStat) => {
-          val calcBool = evaluateExpr(Option(cond), identTable)
-          loopConds.get(stat.pos) match {
-            case Some(listbuffer) => loopConds(stat.pos) = listbuffer :+ calcBool
-            case None => loopConds(stat.pos) = ListBuffer(calcBool)
+          val calcBool = evaluateExpr(Option(cond), identTable) match {
+            case Some(BoolLit(bool)) => Option(bool)
+            case _ => Option.empty[Boolean]
           }
-          calcBool.getOrElse(-1) match {
-            case true => allStats.pushAll(thenStat)
-            case false => allStats.pushAll(elseStat)
+          loopConds.getOrElseUpdate(stat.pos, ListBuffer.empty[Option[Boolean]]) += calcBool
+          calcBool match {
+            case Some(true) => allStats.pushAll(thenStat)
+            case Some(false) => allStats.pushAll(elseStat)
             case _ =>  {
               for (param <- findParams(thenStat)) {
                 identTable(param) = Option.empty
@@ -235,17 +235,17 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           }
         }
         case While(cond, doStat) => {
-          val calcBool = evaluateExpr(Option(cond), identTable)
-          loopConds.get(stat.pos) match {
-            case Some(listbuffer) => loopConds(stat.pos) = listbuffer :+ calcBool
-            case None => loopConds(stat.pos) = ListBuffer(calcBool)
+          val calcBool = evaluateExpr(Option(cond), identTable) match {
+            case Some(BoolLit(bool)) => Option(bool)
+            case _ => Option.empty[Boolean]
           }
-          calcBool.getOrElse(-1) match {
-            case true => {
+          loopConds.getOrElseUpdate(stat.pos, ListBuffer.empty[Option[Boolean]]) += calcBool
+          calcBool match {
+            case Some(true) => {
               allStats.pushAll(doStat)
               allStats.push(stat)
             }
-            case false =>
+            case Some(false) =>
             case _ => {
               for (param <- findParams(doStat)) {
                 identTable(param) = Option.empty
@@ -277,7 +277,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         statsToChange(posToChange) = loopValue
       }
     }
-    var modifiedStats = prog.stats.map {
+    var modifiedStats = prog.stats.flatMap {
       stat =>
         if (statsToChange.contains(stat.pos)) {
           stat match {
@@ -291,25 +291,27 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             case While(cond, doStat) => {
               if (statsToChange(stat.pos)) {
                 doStat
+              } else {
+                List.empty
               }
             }
             case Declaration(typ, ident, y) => {
               y match {
-                case expr: Expr => stat
-                case Call(name, args) =>
+                case expr: Expr => List(stat)
+                case Call(name, args) => List(stat)
               }
             }
             case Assign(ident: Ident, rValue) => rValue match {
-              case expr: Expr => stat
-              case Call(name, args) =>
+              case expr: Expr => List(stat)
+              case Call(name, args) => List(stat)
             }
 
-            case _ => stat
+            case _ => List(stat)
           }
         }
-        else stat
+        else List(stat)
     }
-    prog.copy(stats=modifiedStats)
+    prog.copy(stats = modifiedStats)(0, 0)
   }
 
   def optimiseFunc(func:Func, symbolTable:mutable.Map[String, Type], identTables:List[mutable.Map[String, Expr]]): Unit = {
