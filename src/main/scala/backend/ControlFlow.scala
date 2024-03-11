@@ -332,3 +332,4 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
 
   }
+}
