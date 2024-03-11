@@ -422,8 +422,10 @@ object IR {
     Ret()
   ))
 
+  case class arrLoad1() extends arrLoad(1)
   case class arrLoad4() extends arrLoad(4)
   case class arrLoad8() extends arrLoad(8)
+  case class arrStore1() extends arrStore(1)
   case class arrStore4() extends arrStore(4)
   case class arrStore8() extends arrStore(8)
 

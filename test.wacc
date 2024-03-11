@@ -8,12 +8,6 @@
 # Program:
 
 begin
-  int[] a = [1,2,3];
-  int[] b = [3,4,5];
-  int[][] c = [a,b] ;
-  c[0] = b;
-  c[0][1] = 3;
-  println c[0][0];
-  println c[0][1];
-  println c[0][2]
+  string b = "cl";
+  println b
 end

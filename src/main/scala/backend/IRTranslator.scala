@@ -140,26 +140,26 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
           lValue match {
             case Ident(x) =>
               if (!variableMap.contains(x)) {
-              val newReg = varRegs(varCounter + 1)
-              varCounter += 1
-              variableMap.addOne((x, newReg))
-            }
-            rValue match {
-              case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
-              case Call(name, args) => {
-                var moveParams: ListBuffer[Instruction] = ListBuffer.empty
-                for (arg <- args) {
-                  val paramReg = getParamReg()
-                  paramRegs += paramReg
-                  paramCount += 1
-                  moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
-                }
-                val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(x).orNull))
-                paramCount = 0
-                instr
+                val newReg = varRegs(varCounter + 1)
+                varCounter += 1
+                variableMap.addOne((x, newReg))
               }
-              case _ => evaluateRValue(rValue, variableMap(x), x, checkType(rValue)(symbolTable, List()))
-            }
+              rValue match {
+                case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64).concat(ListBuffer(MovInstr(ReturnRegister(), variableMap.get(x).orNull)))
+                case Call(name, args) => {
+                  var moveParams: ListBuffer[Instruction] = ListBuffer.empty
+                  for (arg <- args) {
+                    val paramReg = getParamReg()
+                    paramRegs += paramReg
+                    paramCount += 1
+                    moveParams = moveParams.concat((evaluateExpr(arg, ReturnRegister(), BIT_64).concat(List(MovInstr(ReturnRegister(), paramReg)))))
+                  }
+                  val instr = moveParams.addOne(CallInstr(Label(name.name))).addOne(MovInstr(ReturnRegister(), variableMap.get(x).orNull))
+                  paramCount = 0
+                  instr
+                }
+                case _ => evaluateRValue(rValue, variableMap(x), x, checkType(rValue)(symbolTable, List()))
+              }
             case ArrayElem(Ident(arrayName), exprs) => {
               var arrayInstrs: ListBuffer[Instruction] = ListBuffer.empty
               var typ: Type = symbolTable(arrayName)
@@ -392,6 +392,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case ArrayType(innerType) => 8
       case IntType() => 4
       case CharType() => 1
+      case BoolType() => 1
       case _ => 4
     }
     typSize
@@ -417,7 +418,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case ArrayElem(ident, exprs) => getIndex(ident, exprs, reg)
         case Ident(array) => {
           var instrs: ListBuffer[Instruction] = ListBuffer.empty
-          var typ: Type = symbolTable(array)
+          var typ: Type = symbolTable(addScopePrefix(array))
           var index = variableMap(addScopePrefix(array))
           for (expression <- exp) {
             var loadDimension = evaluateExpr(expression, ArrayIndexRegister(), BIT_32).addOne(MovInstr(index, ArrayPtrRegister()))
@@ -726,6 +727,10 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         addBlock(arrLoad4())
         "_arrLoad4"
       }
+      case 1 => {
+        addBlock(arrLoad1())
+        "_arrLoad1"
+      }
     }))
   }
 
@@ -739,6 +744,10 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       case 4 => {
         addBlock(arrStore4())
         "_arrStore4"
+      }
+      case 1 => {
+        addBlock(arrStore1())
+        "_arrStore1"
       }
     }))
   }
