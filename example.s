@@ -171,6 +171,27 @@ _errOverflow:
 	mov dil, -1
 	call exit@plt
 
+.section .rodata
+	.int 2
+.L._readi_str0:
+	.asciz "%d"
+.text
+_readi:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	sub rsp, 16
+	mov dword ptr [rsp], edi
+	lea rsi, qword ptr [rsp]
+	lea rdi, [rip + .L._readi_str0]
+	mov al, 0
+	call scanf@plt
+	movsx rax, dword ptr [rsp]
+	add rsp, 16
+	mov rsp, rbp
+	pop rbp
+	ret
+
 .L0:
 	lea rax, [rip + .L.str5]
 	mov rdi, rax
@@ -206,7 +227,10 @@ _errOverflow:
 	lea rax, [rip + .L.str9]
 	mov rdi, rax
 	call _prints
-	call _println
+	mov rax, r14
+	mov rdi, rax
+	call _readi
+	mov r14, rax
 	lea rax, [rip + .L.str10]
 	mov rdi, rax
 	call _prints

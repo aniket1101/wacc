@@ -10,6 +10,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.text.{DefaultEditorKit, SimpleAttributeSet, StyleConstants}
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
+import scala.sys.process._
 
 object runIDE {
   def main(args: Array[String]): Unit = {
@@ -565,22 +566,28 @@ class IDE extends JFrame {
     if (fileIsSaved) {
       openFile match {
         case Some(file) =>
-          val outputName = removeFileExt(file.getName)
-          val compileCMD =
-            "/usr/lib/jvm/java-1.17.0-openjdk-amd64/bin/java " +
-              "-javaagent:/usr/lib/idea-IU-233.14475.28/lib/idea_rt.jar=44433:" +
-              "/usr/lib/idea-IU-233.14475.28/bin -Dfile.encoding=UTF-8 " +
-              "-classpath /homes/as7322/Documents/WACC_14/target/scala-2.13/classes:" +
-              "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/com/github/j-mie6/parsley_2.13/5.0.0-M5/parsley_2.13-5.0.0-M5.jar:" +
-              "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.12/scala-library-2.13.12.jar:" +
-              "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.12/scala-reflect-2.13.12.jar:" +
-              "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scalactic/scalactic_2.13/3.2.17/scalactic_2.13-3.2.17.jar Main"
+          try {
+            val outputName = removeFileExt(file.getName)
+            val compileCMD =
+              "/usr/lib/jvm/java-1.17.0-openjdk-amd64/bin/java " +
+                "-javaagent:/usr/lib/idea-IU-233.14475.28/lib/idea_rt.jar=44433:" +
+                "/usr/lib/idea-IU-233.14475.28/bin -Dfile.encoding=UTF-8 " +
+                "-classpath /homes/as7322/Documents/WACC_14/target/scala-2.13/classes:" +
+                "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/com/github/j-mie6/parsley_2.13/5.0.0-M5/parsley_2.13-5.0.0-M5.jar:" +
+                "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.12/scala-library-2.13.12.jar:" +
+                "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.12/scala-reflect-2.13.12.jar:" +
+                "/homes/as7322/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scalactic/scalactic_2.13/3.2.17/scalactic_2.13-3.2.17.jar Main " + file.getPath
 
-          val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
+            val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
 
-          val runWindow = new TerminalOutputWindow(s"Running ${file.getName}")
-          ProcessHelper.executeProcess(compileCMD + " " + file.getPath, new File(file.getParent), runWindow)
-          ProcessHelper.executeProcess(runCMD, new File(file.getParent), runWindow)
+            compileCMD.! match {
+              case 0 => s"""gnome-terminal -- /bin/bash -c "$runCMD; read -p 'Press Enter to close' key" """.!!
+              case _ => JOptionPane.showMessageDialog(null, "Compilation Failed.", "Error", JOptionPane.ERROR_MESSAGE)
+            }
+          } catch {
+            case ex: Exception =>
+              ex.printStackTrace()
+          }
 
         case None =>
       }
@@ -601,58 +608,6 @@ class IDE extends JFrame {
     } finally {
       source.close()
     }
-  }
-}
-
-object ProcessHelper {
-  def executeProcess(cmd: String, workingDirectory: File, window: TerminalOutputWindow): Unit = {
-    val processBuilder = new ProcessBuilder("/bin/bash", "-c", cmd)
-    processBuilder.directory(workingDirectory)
-
-    val process = processBuilder.start()
-
-    // Read and display the output of the process
-    val inputThread = readProcessStream(process.getInputStream, window)
-
-    // Read and display the error output of the process
-    val errorThread = readProcessStream(process.getErrorStream, window)
-
-    // Wait for the process to finish
-    process.waitFor()
-
-    // Wait for threads to finish
-    inputThread.join()
-    errorThread.join()
-  }
-
-  private def readProcessStream(inputStream: InputStream, window: TerminalOutputWindow): Thread = {
-    val reader = new BufferedReader(new InputStreamReader(inputStream))
-
-    val thread = new Thread(() => {
-      var line: String = null
-      while ({ line = reader.readLine(); line != null }) {
-        window.appendText(line)
-      }
-    })
-
-    thread.start()
-    thread
-  }
-}
-
-class TerminalOutputWindow(title: String) {
-  private val frame = new JFrame(title)
-  private val textArea = new JTextArea()
-  textArea.setEditable(false)
-  private val scrollPane = new JScrollPane(textArea)
-
-  frame.getContentPane.add(scrollPane, BorderLayout.CENTER)
-  frame.setSize(800, 600)
-  frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-  frame.setVisible(true)
-
-  def appendText(text: String): Unit = {
-    textArea.append(text + "\n")
   }
 }
 
