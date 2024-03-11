@@ -40,6 +40,7 @@ class IDE extends JFrame {
   private val stringEncl: Set[Char] = Set('"', '\'')
   private val stringStyle = new SimpleAttributeSet()
   private val STRING_COLOR: Color = new Color(0, 170, 0)
+  private val brackets: Map[Char, Char] = Map('(' -> ')', '[' -> ']')
 
   private val typesAndFuncs: Set[String] = Set("read", "exit", "print", "free",  "println",
     "newpair", "fst", "snd", "int", "bool", "char", "string", "pair", "len", "ord", "chr")
@@ -105,19 +106,24 @@ class IDE extends JFrame {
     textEditor.getDocument.addDocumentListener(new DocumentListener {
       def changedUpdate(e: DocumentEvent): Unit = {
         if (!formattingInProgress) {
-          textModified()
+          textModified(Option.empty)
         }
       }
 
       def insertUpdate(e: DocumentEvent): Unit = {
         if (!formattingInProgress) {
-          textModified()
+          val document = e.getDocument()
+          val changeOffset = e.getOffset()
+          val changeLength = e.getLength()
+          val insertedText = document.getText(changeOffset, changeLength)
+          val lastTypedCharacter: Option[Char] = if (insertedText.nonEmpty) Option(insertedText.charAt(insertedText.length() - 1)) else Option.empty
+          textModified(lastTypedCharacter)
         }
       }
 
       def removeUpdate(e: DocumentEvent): Unit = {
         if (!formattingInProgress) {
-          textModified()
+          textModified(Option.empty)
         }
       }
     })
@@ -342,14 +348,29 @@ class IDE extends JFrame {
     }
   }
 
-  private def textModified(): Unit = {
+  private def textModified(typedChar: Option[Char]): Unit = {
     val doHighlight = new Runnable() {
       override def run(): Unit = {
         formattingInProgress = true
-        val caretPosition = textEditor.getCaretPosition
+        var caretPosition = textEditor.getCaretPosition
         fileModified = true
         setTitle(s"*$windowTitle")
-        val text = textEditor.getText.replace("\r", "")
+        var text = textEditor.getText.replace("\r", "")
+
+        typedChar match {
+          case Some(value) => value match {
+            case '\n' =>
+              val tab = getPreviousLineIndentation
+              text = insertSubstring(text, caretPosition, tab)
+              caretPosition += tab.length
+            case char if stringEncl.contains(char) =>
+              text = insertSubstring(text, caretPosition, char.toString)
+            case openBracket if brackets.contains(openBracket) =>
+              text = insertSubstring(text, caretPosition, brackets(openBracket).toString)
+            case _ =>
+          }
+          case None =>
+        }
 
         val currentTime = System.currentTimeMillis()
         if (currentTime - undoTimer >= UNDO_TIME_INTERVAL) {
@@ -709,7 +730,20 @@ class IDE extends JFrame {
 
   }
 
-  def removeFileExt(file: String): String = {
+  def getPreviousLineIndentation: String = {
+    val caretPosition = textEditor.getCaretPosition
+    val doc = textEditor.getDocument
+    val root = doc.getDefaultRootElement
+    val currentLineIndex = root.getElementIndex(caretPosition)
+    val previousLineIndex = if (currentLineIndex > 0) currentLineIndex - 1 else 0
+    val previousLineElement = root.getElement(previousLineIndex)
+    val previousLineStartOffset = previousLineElement.getStartOffset
+    val previousLineEndOffset = previousLineElement.getEndOffset
+    val previousLineText = doc.getText(previousLineStartOffset, previousLineEndOffset - previousLineStartOffset)
+    previousLineText.takeWhile(_ == '\t')
+  }
+
+    def removeFileExt(file: String): String = {
     val index = file.lastIndexOf('.')
     if (index > 0) file.substring(0, index)
     else file
@@ -722,6 +756,10 @@ class IDE extends JFrame {
     } finally {
       source.close()
     }
+  }
+
+  def insertSubstring(original: String, index: Int, substring: String): String = {
+    original.substring(0, index) + substring + original.substring(index)
   }
 }
 
