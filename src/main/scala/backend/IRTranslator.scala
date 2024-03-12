@@ -9,6 +9,9 @@ import frontend.validator.checkType
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration.Inf
+import scala.concurrent.{Await, Future}
 
 class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], val concurrent:Boolean) {
 
@@ -28,17 +31,30 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
 
   def translate():List[AsmBlock] = {
     if (concurrent) {
-      ???
+      val funcs = Future.apply(translateFuncsConcurrent(prog.funcs))
+      val main = Future.apply(translateProgram(prog.stats))
+      val result = for {
+        fun <- funcs
+        mainProcess <- main
+      } yield (fun, mainProcess, blocks)
+      Await.result(result, Inf)
     } else {
       translateFuncs(prog.funcs)
       translateProgram(prog.stats)
-      blocks.toList
     }
+    blocks.toList
 
   }
 
+  private def translateFuncsConcurrent(funcs:List[Func]): ListBuffer[AsmBlock] = {
+    funcs.foreach(fun => Future {
+      translateFun(fun.stats, setUpFun(fun))
+    })
+    blocks
+  }
+
   private def translateFuncs(funcs:List[Func]): Unit = {
-    funcs.map(fun => translateFun(fun.stats, setUpFun(fun)))
+    funcs.foreach(fun => translateFun(fun.stats, setUpFun(fun)))
   }
 
   private def translateFun(stats: List[Stat], state: State): Unit = {
@@ -70,7 +86,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
   }
 
 
-  private def translateProgram(stmts:List[Stat]): Unit = {
+  private def translateProgram(stmts:List[Stat]): ListBuffer[AsmBlock] = {
     val mainBlock = new AsmBlock("text", "main", List.empty)
     val mainPrefix = "main-"
     mainState = State(false, mainBlock, mutable.Map.empty, mainPrefix)
@@ -80,6 +96,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
     revertSetUp(mainState)
     mainBlock.addROData(roData)
     blocks.insert(0, mainBlock)
+    blocks
   }
 
   private def setUpScope(scopePrefix: String, state:State): Unit = {

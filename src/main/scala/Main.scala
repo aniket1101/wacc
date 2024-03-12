@@ -19,7 +19,7 @@ object Main {
   val VALID_EXIT_STATUS: Int = 0
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
-  val CONCURRENT_COMPILATION: Boolean = false
+  val CONCURRENT_COMPILATION: Boolean = true
   private val FAIL: Int = -1
 
   // Main function of the program
@@ -83,7 +83,7 @@ object Main {
         }
         val asmCode = IntelX86Formatter.translate(x86Code)
         val endTime = System.nanoTime()
-        println(endTime - startTime)
+//        println(endTime - startTime)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
           case err =>

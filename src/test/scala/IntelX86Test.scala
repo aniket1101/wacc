@@ -64,8 +64,9 @@ class IntelX86Test extends AnyFlatSpec {
 
 //  val src = "src/test/scala/allIntelX86Compiled"
 
-  new ProcessExamples(src, ".s").processFolder()
-    .foreach { case (testName, testCode) =>
+  val start = System.nanoTime()
+  val tests = new ProcessExamples(src, ".s").processFolder()
+    tests.foreach { case (testName, testCode) =>
       val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
       val inputs: List[String] = findWaccInputs(waccFile)
       val correctOutput = compileAndRunAsm(testCode.getPath, inputs)
@@ -85,6 +86,9 @@ class IntelX86Test extends AnyFlatSpec {
         output.output shouldBe correctOutput.output
       }
     }
+  val end = System.nanoTime()
+  val avgTime = ((end - start) / tests.length) / 1000000
+  println("Average time: " + avgTime + "ms")
 
   def deleteFile(filePath: String): Int = {
     val file = new File(filePath)

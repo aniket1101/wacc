@@ -11,7 +11,6 @@ import scala.collection.mutable.ListBuffer
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import cats.implicits._
 
 class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concurrent:Boolean) {
   private val byteSize = 8
@@ -27,21 +26,23 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
   def translate(): Either[Future[List[x86Block]], List[x86Block]] = {
     allocateKnownRegs()
     if (concurrent) {
-      Left(asmInstr.map(blockToX86IRConcurrent).sequence[Future, x86Block])
+      val futureBlocks: List[Future[x86Block]] = asmInstr.map(blockToX86IRConcurrent)
+      val blocksFuture: Future[List[x86Block]] = Future.sequence(futureBlocks)
+      Left(for {
+        blocks <- blocksFuture
+      } yield blocks)
     } else {
       Right(asmInstr.map(blockToX86IR))
     }
 
   }
 
-  def blockToX86IRConcurrent(block: AsmBlock): Future[x86Block] = {
-    Future.successful(
-      new x86Block(
-        block.roData.map(new x86ReadOnlyData(_)),
-        block.directive.map(new x86Directive(_)),
-        new x86Label(block.label),
-        instrsToX86IR(block.instructions)
-      )
+  def blockToX86IRConcurrent(block: AsmBlock): Future[x86Block] = Future {
+    new x86Block(
+      block.roData.map(new x86ReadOnlyData(_)),
+      block.directive.map(new x86Directive(_)),
+      new x86Label(block.label),
+      instrsToX86IR(block.instructions)
     )
   }
 
