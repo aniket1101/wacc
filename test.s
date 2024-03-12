@@ -4,79 +4,51 @@
 .text
 main:
 	push rbp
-	sub rsp, 40
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 2
+	mov rax, 1
 	mov r12, rax
-	mov rax, 3
-	mov r13, rax
 	mov rax, r12
 	mov rdi, rax
-	mov rax, r13
-	mov rsi, rax
-	call wacc_addTwo
-	mov r15, rax
-	mov rax, r15
-	mov rdi, rax
-	call _printi
+	call _printb
+	call _println
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	add rsp, 40
+	add rsp, 16
 	pop rbp
 	ret
 
 .section .rodata
-	.int 2
-.L._printi_str0:
-	.asciz "%d"
-.text
-_printi:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
-	pop rbp
-	ret
-
-.section .rodata
-	.int 52
-.L._errOverflow_str0:
-	.asciz "fatal error: integer overflow or underflow occurred\n"
-.text
-_errOverflow:
-	and rsp, -16
-	lea rdi, [rip + .L._errOverflow_str0]
-	call _prints
-	mov dil, -1
-	call exit@plt
-
-.section .rodata
+	.int 5
+.L._printb_str0:
+	.asciz "false"
 	.int 4
-.L._prints_str0:
+.L._printb_str1:
+	.asciz "true"
+	.int 4
+.L._printb_str2:
 	.asciz "%.*s"
 .text
-_prints:
+_printb:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	mov rdx, rdi
-	mov esi, dword ptr [rdi - 4]
-	lea rdi, [rip + .L._prints_str0]
+	cmp dil, 0
+	jne .L_printb0
+	lea rdx, [rip + .L._printb_str0]
+	jmp .L_printb1
+
+.text
+.L_printb0:
+	lea rdx, [rip + .L._printb_str1]
+
+.text
+.L_printb1:
+	mov esi, dword ptr [rdx - 4]
+	lea rdi, [rip + .L._printb_str2]
 	mov al, 0
 	call printf@plt
 	mov rdi, 0
@@ -85,15 +57,34 @@ _prints:
 	pop rbp
 	ret
 
-wacc_addTwo:
+.section .rodata
+	.int 0
+.L._println_str0:
+	.asciz ""
+.text
+_println:
 	push rbp
-	push rbx
 	mov rbp, rsp
-	mov rax, rdi
-	mov rbx, rsi
-	add eax, ebx
-	jo _errOverflow
-	movsx rax, eax
-	pop rbx
+	and rsp, -16
+	lea rdi, [rip + .L._println_str0]
+	call puts@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
+
+wacc_f:
+	push rbp
+	sub rsp, 16
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], r12
+	mov rbp, rsp
+	mov rax, 1
+	mov r12, rax
+	mov rax, r12
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
 	pop rbp
 	ret
