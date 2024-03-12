@@ -91,6 +91,11 @@ object Main {
       source
     }
 
+    if (!filepath.exists()) {
+      println(s"Import Error: File '${filepath.getPath}' does not exist.")
+      return Left(FAIL)
+    }
+
     val result = parse(filepath)
     result match {
       // If parsing is successful
@@ -148,7 +153,7 @@ object Main {
     IntelX86Formatter.translate(x86Code)
   }
 
-  private def writeToFile(contents: String, filename: String): Int = {
+  def writeToFile(contents: String, filename: String): Int = {
     try {
       val writer = new PrintWriter(new File(filename))
       writer.write(contents)

@@ -4,12 +4,13 @@ import frontend.ast._
 import frontend.lexer._
 import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
+import frontend.waccErrors.SemanticError.genError
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
 import parsley.combinator.{option, sepBy, sepBy1}
 import parsley.errors.combinator._
 import parsley.expr._
-import parsley.{Parsley, Result}
+import parsley.{Failure, Parsley, Result, Success}
 
 import java.io.File
 import scala.util.Try
@@ -19,7 +20,9 @@ object parser {
     implicit val waccErrorBuilder: WaccErrorBuilder = new WaccErrorBuilder
 
     // Function to parse a file and return a result
-    def parse(file: File): Try[Result[WaccError, Prog]] = parser.parseFile(file)
+    def parse(file: File): Try[Result[WaccError, Prog]] = {
+        parser.parseFile(file)
+    }
 
     // Lazy initialization of parser
     private lazy val parser = fully(prog)

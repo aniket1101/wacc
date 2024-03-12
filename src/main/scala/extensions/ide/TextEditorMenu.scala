@@ -219,7 +219,7 @@ abstract class TextEditorMenu extends JFrame {
 
   private def saveToFile(file: File): Boolean = {
     try {
-      val text = textEditor.getText.replace("\r", "")
+      val text = editorText()
       val writer = new PrintWriter(file)
       writer.write(text)
       writer.close()
@@ -385,7 +385,7 @@ abstract class TextEditorMenu extends JFrame {
     val highlighter: Highlighter = textEditor.getHighlighter
     val highlightPainter = new DefaultHighlightPainter(new Color(183, 205, 227))
 
-    val text = textEditor.getText().replace("\r", "").toLowerCase()
+    val text = editorText().toLowerCase()
     val word = findTextField.getText().toLowerCase()
     val index = text.indexOf(word, currentIndex)
     if (index != -1) {
@@ -403,7 +403,7 @@ abstract class TextEditorMenu extends JFrame {
 
   private def replaceNext(findTextField: JTextField, replaceTextField: JTextField): Unit = {
     var currentIndex = 0
-    val text = textEditor.getText.replace("\r", "")
+    val text = editorText()
     val findWord = findTextField.getText
     val replaceWord = replaceTextField.getText
     val index = text.toLowerCase.indexOf(findWord.toLowerCase, currentIndex)
@@ -425,7 +425,7 @@ abstract class TextEditorMenu extends JFrame {
     if (selectedText != null && selectedText.nonEmpty) {
       formattingInProgress = true
 
-      val textArea = textEditor.getText().replace("\r", "")
+      val textArea = editorText()
       val startOffset = textEditor.getSelectionStart
       val endOffset = textEditor.getSelectionEnd
 
@@ -442,7 +442,7 @@ abstract class TextEditorMenu extends JFrame {
       doc.insertString(startLine, modifiedText + "\n", null)
 
       formattingInProgress = false
-      highlightKeywords(textEditor.getText().replace("\r", ""))
+      highlightKeywords(editorText())
 
       // Adjust the caret position
       textEditor.setSelectionStart(startOffset)
@@ -551,6 +551,8 @@ abstract class TextEditorMenu extends JFrame {
     val previousLineText = doc.getText(previousLineStartOffset, previousLineEndOffset - previousLineStartOffset)
     previousLineText.takeWhile(_ == '\t')
   }
+
+  def editorText(): String = textEditor.getText.replace("\r", "")
 
   def readFileToString(file: String): String = {
     val source = Source.fromFile(file)
