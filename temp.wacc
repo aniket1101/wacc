@@ -1,5 +1,5 @@
+import "foo.wacc"  
 begin
 	# Enter your code here
-	print "Hello" ;
-	skip 
+	skip
 end

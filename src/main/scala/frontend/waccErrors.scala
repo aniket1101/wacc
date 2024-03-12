@@ -35,6 +35,7 @@ object waccErrors {
 
     def displayForIDE: String = {
       errorLines.lines.map(_.capitalize).mkString("\n")
+        .replace("<", "⟨").replace(">", "⟩")
     }
   }
 

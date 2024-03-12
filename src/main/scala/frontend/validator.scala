@@ -763,7 +763,7 @@ object validator {
     inProg.imports match {
       case Some(imports) =>
         for (file <- imports) {
-          if (!fileExists(file.s))
+          if (!fileExists(file.s) && !new File("src/lib", file.s).exists())
             semanticErrorOccurred(s"File '${file.s}' does not exist.", file.pos)
           else if (getFileExtension(file.s) != "wacc")
             semanticErrorOccurred(s"File '${file.s}' is not a wacc file.", file.pos)

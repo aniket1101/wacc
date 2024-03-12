@@ -1,6 +1,7 @@
 package extensions.ide
 
 import frontend.parser.parse
+import frontend.validator.checkSemantics
 import main.Main.writeToFile
 
 import java.awt._
@@ -49,6 +50,7 @@ class IDE extends TextEditorMenu {
   private var highlightedEnd = 0
   private var errorMsg = ""
   private var errorType = ""
+  private val fileNotFound = "does not exist"
 
   var textEditor: JTextPane = new JTextPane()
   val undoManager: ListBuffer[(String, Int)] = ListBuffer()
@@ -160,7 +162,7 @@ class IDE extends TextEditorMenu {
 
   def displayError(): Unit = {
     JOptionPane.showMessageDialog(textEditor, errorMsg,
-      s"$errorType Error", JOptionPane.INFORMATION_MESSAGE)
+      s"$errorType Error", JOptionPane.ERROR_MESSAGE)
   }
 
   private def textModified(typedChar: Option[Char]): Unit = {
@@ -279,11 +281,24 @@ class IDE extends TextEditorMenu {
     val tempFile = new File("temp.wacc")
     writeToFile(text, tempFile.getPath)
 
-    // Check parser
+    // 1. Check for Syntax Errors
     parse(tempFile) match {
       case Success(value) =>
         value match {
-          case parsley.Success(_) =>
+          case parsley.Success(prog) =>
+            // 2. Check for Semantic Errors
+            checkSemantics(prog, tempFile.getPath) match {
+              case (errors, _, _) =>
+                if (errors.nonEmpty) {
+                  val err = errors.head
+                  val pos = err.pos
+                  errorMsg = err.displayForIDE
+                  errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
+                  highlightLastWordWithErrorStyle(pos._1, pos._2)
+                  return false
+                }
+            }
+
           case parsley.Failure(err) =>
             val pos = err.pos
             errorType = "Syntax"
