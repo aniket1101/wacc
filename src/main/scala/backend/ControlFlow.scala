@@ -9,6 +9,12 @@ import frontend.validator.checkType
 import scala.collection.immutable.Nil.toMap
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import java.{util => ju}
+
+object FuncCallType extends Enumeration {
+  val NoCall, SingleCall, MultiCallIdent, MultiCallDiff = Value
+}
+
 class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
   def CFProgram(): (Prog) = {
@@ -156,9 +162,32 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     paramsBuffer.toList
   }
 
+  def analyseFuncCalls(funcAllArgs: mutable.Map[Ident, ListBuffer[ListBuffer[Option[Expr]]]]) 
+    : Map[Ident, FuncCallType.Value] = {
+
+    funcAllArgs.map { case (funcIdent, callArgs) =>
+      val funcCallsType = callArgs match {
+        case calls if calls.isEmpty =>
+          FuncCallType.NoCall
+        case calls if calls.size == 1 =>
+          FuncCallType.SingleCall
+        case calls =>
+          val allCallsIdentical = calls.forall(_ == calls.head)
+          if (allCallsIdentical) {
+            FuncCallType.MultiCallIdent
+          } else {
+            FuncCallType.MultiCallDiff
+          }
+      }
+      (funcIdent, funcCallsType)
+    }.toMap
+  }
+
+
 
   def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
-    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Expr]]] = mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Expr]]): _*)
+    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Option[Expr]]]] =
+      mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Option[Expr]]]): _*)
     var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
     var allStats = mutable.Stack[Stat]()
     allStats.pushAll(prog.stats)
@@ -172,28 +201,37 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case Declaration(typ, ident, y) => {
           y match {
             case expr: Expr => {
-              identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
+              identTable(ident.name) = evaluateExpr(Option(expr), identTable)
             }
+            // case ArrayLit
+//            case NewPair(fst, snd)
+//            case PairFst(_)
+//            case PairSnd(_)
             case Call(name, args) => {
+              val funcParams = args.map(Some(_)).map(arg => evaluateExpr(arg, identTable)) : List[Option[Expr]]
               funcAllArgs.get(name) match {
-                case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ ListBuffer(args: _*)
-                case None => funcAllArgs(name) = ListBuffer(ListBuffer(args: _*))
+                case Some(listbuffer) => funcAllArgs(name) = listbuffer += ListBuffer(funcParams: _*)
+                case None => funcAllArgs(name) = ListBuffer(ListBuffer(funcParams: _*))
               }
-              identTable(ident.toString) = Option.empty
+              identTable(ident.name) = Option.empty
             }
+            case _ =>
+              identTable(ident.name) = Option.empty
           }
         }
         case AssignorInferDecl(ident: Ident, rValue) => rValue match {
           case expr: Expr => {
-            identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
+            identTable(ident.name) = evaluateExpr(Option(expr), identTable)
           }
           case Call(name, args) => {
+            val funcParams = args.map(Some(_)).map(arg => evaluateExpr(arg, identTable)) : List[Option[Expr]]
             funcAllArgs.get(name) match {
-              case Some(listbuffer) => funcAllArgs(name) = listbuffer :+ ListBuffer(args: _*)
-              case None => funcAllArgs(name) = ListBuffer(ListBuffer(args: _*))
+              case Some(listbuffer) => funcAllArgs(name) = listbuffer += ListBuffer(funcParams: _*)
+              case None => funcAllArgs(name) = ListBuffer(ListBuffer(funcParams: _*))
             }
-            identTable(ident.toString) = Option.empty
+            identTable(ident.name) = Option.empty
           }
+          case _ => identTable(ident.name) = Option.empty
         }
         case Free(_) => {
 
@@ -205,7 +243,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
         }
         case Read(ident: Ident) => {
-          identTable(ident.toString) = Option.empty
+          identTable(ident.name) = Option.empty
         }
 
         // TODO: REMOVE DUPLICATION IN IF AND WHILE WITH A FUNCTION
@@ -312,7 +350,28 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         }
         else List(stat)
     }
-    prog.copy(stats = modifiedStats)(0, 0)
+
+    val funcCallsAnalysed = analyseFuncCalls(funcAllArgs)
+
+    val modifiedFuncs = prog.funcs.flatMap { func =>
+      funcCallsAnalysed(func.ident) match {
+        case FuncCallType.NoCall =>
+          None
+        case FuncCallType.SingleCall =>
+          // Optimise for single call of function to replace with result + side effects
+          Some(func)
+
+        case FuncCallType.MultiCallIdent =>
+          // this can be optimised by treating it like the single call case
+          Some(func)
+
+        case FuncCallType.MultiCallDiff =>
+          // here you need to check if the return value or part of the function
+          // can be optimised such an if loop possibly by recursively calling ControlFlow
+          Some(func)
+      }
+    }
+    prog.copy(stats = modifiedStats, funcs = modifiedFuncs)(0, 0)
   }
 
   def optimiseFunc(func:Func, symbolTable:mutable.Map[String, Type], identTables:List[mutable.Map[String, Expr]]): Unit = {
