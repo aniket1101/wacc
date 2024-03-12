@@ -10,6 +10,8 @@ main:
 	mov rbp, rsp
 	mov rax, 4
 	mov rdi, rax
+	mov rax, 3
+	mov rsi, rax
 	call wacc_f
 	mov r12, rax
 	mov rax, r12
@@ -61,15 +63,9 @@ _println:
 
 wacc_f:
 	push rbp
-	sub rsp, 16
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
+	push rbx
 	mov rbp, rsp
-	mov rax, 5
-	mov r12, rax
-	mov rax, r12
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
+	mov rax, rdi
+	pop rbx
 	pop rbp
 	ret
