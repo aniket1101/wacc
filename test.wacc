@@ -1,16 +1,20 @@
-# Trying to assign non-matching pairs to eachother.
-# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
+# find the min of two numbers
 
 # Output:
-# #semantic_error#
-
-# Exit:
-# 200
+# min value = 10
+#
 
 # Program:
 
 begin
-  pair(int, int) p1 = newpair(0, 0);
-  pair(char, char) p2 = newpair('a', 'a');
-  p2 = p1
+  int i = 0 ;
+  int x = 10 ;
+  int y = 17 ;
+  while y > 0 && x > 0 do
+    x = x - 1 ;
+    y = y - 1 ;
+    i = i + 1
+  done ;
+  print "min value = " ;
+  println i
 end

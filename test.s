@@ -1,57 +1,25 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
+	.int 12
+.L.str0:
+	.asciz "min value = "
 .text
 main:
 	push rbp
-	sub rsp, 40
+	sub rsp, 32
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
 	mov qword ptr [rsp + 16], r13
 	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 2
-	mov r12, rax
-	mov rax, 3
-	mov r13, rax
-	mov rax, r12
-	mov rdi, rax
-	mov rax, r13
-	mov rsi, rax
-	call wacc_addTwo
-	mov r15, rax
-	mov rax, r15
-	mov rdi, rax
-	call _printi
 	mov rax, 0
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	add rsp, 40
-	pop rbp
-	ret
-
-.section .rodata
-	.int 2
-.L._printi_str0:
-	.asciz "%d"
-.text
-_printi:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
-	pop rbp
-	ret
+	mov r12, rax
+	mov rax, 10
+	mov r13, rax
+	mov rax, 17
+	mov r14, rax
+	jmp .L0
 
 .section .rodata
 	.int 52
@@ -85,15 +53,91 @@ _prints:
 	pop rbp
 	ret
 
-wacc_addTwo:
+.section .rodata
+	.int 2
+.L._printi_str0:
+	.asciz "%d"
+.text
+_printi:
 	push rbp
-	push rbx
 	mov rbp, rsp
-	mov rax, rdi
-	mov rbx, rsi
-	add eax, ebx
+	and rsp, -16
+	mov esi, edi
+	lea rdi, [rip + .L._printi_str0]
+	mov al, 0
+	call printf@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
+
+.section .rodata
+	.int 0
+.L._println_str0:
+	.asciz ""
+.text
+_println:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	lea rdi, [rip + .L._println_str0]
+	call puts@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
+
+.L0:
+	mov rax, r14
+	mov rbx, 0
+	cmp rax, rbx
+	setg al
+	movsx rax, al
+	mov rbx, r13
+	mov r10, 0
+	cmp rbx, r10
+	setg bl
+	movsx rbx, bl
+	and al, bl
+	cmp rax, 1
+	je .L1
+	jmp .L2
+
+.L1:
+	mov rax, r13
+	mov r10, 1
+	sub eax, r10d
 	jo _errOverflow
 	movsx rax, eax
-	pop rbx
+	mov r13, rax
+	mov rax, r14
+	mov r10, 1
+	sub eax, r10d
+	jo _errOverflow
+	movsx rax, eax
+	mov r14, rax
+	mov rax, r12
+	add eax, 1
+	jo _errOverflow
+	movsx rax, eax
+	mov r12, rax
+	jmp .L0
+
+.L2:
+	lea rax, [rip + .L.str0]
+	mov rdi, rax
+	call _prints
+	mov rax, r12
+	mov rdi, rax
+	call _printi
+	call _println
+	mov rax, 0
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	mov r13, qword ptr [rsp + 16]
+	mov r14, qword ptr [rsp + 24]
+	add rsp, 32
 	pop rbp
 	ret

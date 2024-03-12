@@ -68,7 +68,7 @@ object ast {
 
   case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
   case class Func(var typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Param(typ: Type, ident: Ident)(val pos: (Int, Int)) extends Position
+  case class Param(var typ: Option[Type], ident: Ident)(val pos: (Int, Int)) extends Position
 
   // Statements
   sealed trait Stat extends Position
@@ -116,6 +116,11 @@ object ast {
   case object AnyType extends Type with PairElemType {
     override val pos: (Int, Int) = (-1, -1)
     override def toString:String = "<Unknown Type>"
+  }
+
+  case object NoType extends Type with PairElemType {
+    override val pos: (Int, Int) = (-1, -1)
+    override def toString: String = "<Type Not Inferred>"
   }
 
   // Type traits
@@ -184,8 +189,8 @@ object ast {
     override def from(op: Parsley[_]): Parsley[(Option[Type], Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")
   }
-  object Param extends ParserBridgePos2[Type, Ident, Param] {
-    override def from(op: Parsley[_]): Parsley[(Type, Ident) => Param] = super.from(op).label("parameter")
+  object Param extends ParserBridgePos2[Option[Type], Ident, Param] {
+    override def from(op: Parsley[_]): Parsley[(Option[Type], Ident) => Param] = super.from(op).label("parameter")
   }
 
   /* Statements */
