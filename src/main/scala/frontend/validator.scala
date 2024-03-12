@@ -13,6 +13,7 @@ object validator {
   private val nullPos: (Int, Int) = (-1, -1)
   // Prefix used for generated WACC code
   val waccPrefix = "wacc_"
+  private var globalFilename: String = _
 
   // Function to determine if two types are the same or similar after certain type transformations
   private def sameType(t1: Type, t2: Type): Boolean = {
@@ -290,24 +291,45 @@ object validator {
         // Return a new NewPair expression with the corrected expressions
         new NewPair(newExp1, newExp2)(expr.pos)
       case Call(id, params) =>
-        // Check the syntactic correctness of each parameter in the function call
-        val newParams = params.map(checkExpr(_, varsInScope))
         // Create a new identifier with the WACC prefix for the function name
         val newId = Ident(waccPrefix + id.name)(id.pos)
-        // Find the function definition in the function table
-        funcTable.find(x => x.ident.name == newId.name) match {
-          case Some(funcCalled) =>
-            // Check if the number of arguments matches the number of parameters in the function definition
-            if (funcCalled.paramList.length != newParams.length) {
-              semanticErrorOccurred(s"Call to function ${id.name} has the incorrect number of arguments, expected ${funcCalled.paramList.length}, found ${newParams.length}", expr.pos)
-            }
-            // Check if the types of arguments match the types of parameters in the function definition
-            (funcCalled.paramList zip newParams).foreach({ case (x, y) =>
-              if (!sameType(x.typ, checkType(y))) {
-                semanticErrorOccurred(s"Argument ${x.ident.name} in the call to function ${id.name} has the incorrect type. Expected ${x.typ}. Received ${checkType(y)}", y.pos)
+        var newParams: List[Expr] = List.empty
+        val funcFound = funcTable.find(x => x.ident.name == newId.name)
+        if (funcFound.isEmpty) {
+          semanticErrorOccurred("Call to an undefined function: " + id.name, id.pos)
+        } else {
+          val noTypeIndices = funcFound.get.paramList.zipWithIndex.filter(p => p._1.typ.getOrElse(NoType) == NoType).map(p => p._2)
+          val paramTypes = params.map(param => checkType(param))
+
+          // Assign inferred parameter types for those that are not known
+          noTypeIndices.foreach(ind => funcFound.get.paramList(ind).typ = Option(paramTypes(ind)))
+          // Update symbol table with new parameter types
+          funcFound.get.paramList.foreach(p => {
+            val funcParamName = s"func-${newId.name}-param-${p.ident.name}"
+            symTable += funcParamName -> p.typ.getOrElse(NoType)
+          })
+
+          // Now try to infer the function return type from the new parameter types
+          val inferredFuncType = inferFuncReturnType(newId, funcFound.get.stats, globalFilename, symTable, funcTable)
+          funcFound.get.typ = Option(inferredFuncType)
+          // Check the syntactic correctness of each parameter in the function call
+          newParams = params.map(checkExpr(_, varsInScope))
+
+          // Find the function definition in the function table
+          funcFound match {
+            case Some(funcCalled) =>
+              // Check if the number of arguments matches the number of parameters in the function definition
+              if (funcCalled.paramList.length != newParams.length) {
+                semanticErrorOccurred(s"Call to function ${id.name} has the incorrect number of arguments, expected ${funcCalled.paramList.length}, found ${newParams.length}", expr.pos)
               }
-            })
-          case None => semanticErrorOccurred(s"Unrecognised function identifier ${id.name}", id.pos)
+              // Check if the types of arguments match the types of parameters in the function definition
+              (funcCalled.paramList zip newParams).foreach({ case (x, y) =>
+                if (!sameType(x.typ.getOrElse(NoTypeExists), checkType(y))) {
+                  semanticErrorOccurred(s"Argument ${x.ident.name} in the call to function ${id.name} has the incorrect type. Expected ${x.typ}. Received ${checkType(y)}", y.pos)
+                }
+              })
+            case None => semanticErrorOccurred(s"Unrecognised function identifier ${id.name}", id.pos)
+          }
         }
         // Return a new Call expression with the corrected parameters
         new Call(newId, newParams)(expr.pos)
@@ -605,19 +627,47 @@ object validator {
     var scopeIndex = 0
     implicit val funcName: Option[String] = Option(scopePrefix)
 
+    def isDeclaredOutside(newIdName: String, scopedVars: List[String]): Boolean = {
+      // Check if a variable with the same ident has been declared previously and get its index if so
+      val splitIndex = newIdName.lastIndexOf("-") + 1
+      val name = newIdName.substring(splitIndex)
+      val nameScope = newIdName.substring(0, splitIndex)
+      val sameNameIndices = scopedVars.zipWithIndex.filter(p => {
+        p._1.substring(p._1.lastIndexOf("-") + 1) == name
+      }).map(p => p._2)
+
+      // Check if it was declared in an outer scope
+      sameNameIndices.map(i => scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1)).exists(sv => {
+        nameScope.contains(sv)
+      })
+    }
+
     /* returns true if the lvalue isn't declared yet */
-    def isInferredTypeDef(lVal: LValue): Boolean = {
+    def isInferredTypeDef(lVal: LValue, newIdName: String, scopedVars: List[String]): Boolean = {
+
       lVal match {
 
         /* if its an identifier then check if its in the parent and child scope maps yet */
         case Ident(name) =>
-          !localSymTable.values.exists(_ == name)
+
+          !localSymTable.values.exists(_ == name) && !localSymTable.contains(name) && !isDeclaredOutside(newIdName, scopedVars)
         case _ => false
       }
     }
 
-    // Iterate through each statement in the list
-    for (stat <- stats) {
+    def isTypelessParam(lVal: LValue): Boolean = {
+      lVal match {
+        case Ident(name) =>
+          if (!localSymTable.values.exists(_ == name) && !localSymTable.contains(name)) {
+            false
+          } else {
+            checkType(lVal) == NoType
+          }
+        case _ => false
+      }
+    }
+
+    def checkStatement(stat: Stat) = {
       val checkedStat: Stat = stat match {
         case Skip() => stat // No action needed for Skip statement
         case Declaration(idType, id, value) =>
@@ -637,29 +687,41 @@ object validator {
           new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
 
         case AssignorInferDecl(lVal, rVal) =>
-          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
           val newRVal = checkExpr(rVal, varsInScope ++ localSymTable)
 
           var lType: Type = NoTypeExists
           var rType: Type = NoTypeExists
 
           lVal match {
-            case Ident(name) => {
-              if (isInferredTypeDef(newLVal)) {
-                val newIdName = scopePrefix ++ name
+            case id@Ident(name) =>
+              if (funcTable.map(func => func.ident.name).contains(waccPrefix + name) && !varsInScope.contains(name)) {
+                semanticErrorOccurred("Cannot assign value to a function: " + name, id.pos)
+              }
+              val newIdName = scopePrefix ++ name
+              if (isInferredTypeDef(lVal, newIdName, varsInScope.values.toList)) {
+                // If we are here then the LValue type is locally inferred
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+                rType = checkType(newRVal)
+                lType = rType
+                symTable += (newIdName -> lType)
+              } else if (isTypelessParam(lVal)) {
+                // If we are here then the LValue is a typeless parameter
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
                 symTable += (newIdName -> lType)
               } else {
-                lType = checkType(newLVal)
+                // If we are here then the LValue is being reassigned to a value following traditional WACC
+                val tempLVal = checkExpr(lVal, varsInScope ++ localSymTable)
+                lType = checkType(tempLVal)
                 rType = checkType(newRVal)
               }
-            }
             case _ =>
-              lType = checkType(newLVal)
+              lType = checkType(lVal)
               rType = checkType(newRVal)
           }
+
+          val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
 
           // Check for type mismatch in assignment
           //  !sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists
@@ -761,6 +823,12 @@ object validator {
           scopeIndex += 1
           new Scope(newBody)(stat.pos)
       }
+      checkedStat
+    }
+
+    // Iterate through each statement in the list
+    for (stat <- stats) {
+      val checkedStat = checkStatement(stat)
       newStats += checkedStat
     }
     newStats.toList // Return the list of checked statements
@@ -769,7 +837,7 @@ object validator {
   // Helper function to infer return type of a function
   private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func]): Type = {
     // Initialize inferred return type as NoTypeExists
-    var returnType: Type = NoTypeExists
+    var returnType: Type = NoType
 
     implicit val fileName: String = file
 
@@ -805,6 +873,8 @@ object validator {
           returnType = checkType(checkExpr(expr, varsInScope))
           // Exit the loop once return statement is found
           return returnType
+        case Exit(expr) =>
+          returnType = checkType(checkExpr(expr, varsInScope))
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
           val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable)
@@ -823,15 +893,27 @@ object validator {
   }
 
   // Helper function to find the most specific common type between two types
-  def findCommonType(type1: Type, type2: Type): Type = {
+  private def findCommonType(type1: Type, type2: Type): Type = {
     // Logic to determine the most specific common type
     // For simplicity, let's assume the types are compatible
-    type1
+    if (type1 != NoType && type2 != NoType && type1 == type2) {
+      type1
+    } else if (type1 == NoType && type2 != NoType) {
+      type2
+    } else if (type1 != NoType && type2 == NoType) {
+      type1
+    } else {
+      NoType
+    }
   }
 
 
   // Checks the semantics of a WACC program, including syntax correctness, type checking, and scoping rules.
   def checkSemantics(inProg: Prog, file: String): (List[WaccError], Prog, mutable.Map[String, Type]) = {
+
+    // Set global file name
+    globalFilename = file
+
     // Implicit parameters for function and file context
     implicit val funcTable: List[Func] = inProg.funcs.map {
       case x@Func(funcType, id, params, funcStats) =>
@@ -866,24 +948,160 @@ object validator {
         argList = argList :+ a
       })
       val funcScopePrefix = s"func-${x.ident.name}-"
-      x.paramList.foreach(y => symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ)
+
 
       val mBuilder = mutable.Map.newBuilder[String, String]
       mBuilder ++= x.paramList.map(y => y.ident.name -> (funcScopePrefix ++ "param-" ++ y.ident.name))
       val m: mutable.Map[String, String] = mBuilder.result()
 
-      // Check statements within the function scope
-      val inferredType: Type = inferFuncReturnType(x.ident, x.stats, file, symTable, funcTable)
-      if (x.typ.isEmpty) {
-        x.typ = Option(inferredType)
+      def trySetTypelessRParam(param: LRValue, rType: Type): Unit = {
+        param match {
+          case Ident(name) =>
+            val symName = funcScopePrefix ++ "param-" ++ name
+            symTable.get(symName) match {
+              case Some(x) =>
+                if (x == NoType) {
+                  val funcStartInd = funcScopePrefix.indexOf("func-") + "func-".length
+                  val funcEndInd = funcScopePrefix.lastIndexOf("-")
+                  val funcName = funcScopePrefix.substring(funcStartInd, funcEndInd)
+                  symTable += symName -> rType
+                  val func: Func = funcTable.find(f => f.ident.name == funcName).get
+                  func.paramList.find(p => p.ident.name == name).get.typ = Option(rType)
+                }
+              case None =>
+            }
+          case _ =>
+        }
       }
-        new Func(x.typ, x.ident, x.paramList,
-          checkStatements(x.stats, m, x.typ.getOrElse(inferredType), funcScopePrefix))(x.pos)
 
+      def inferParamType(stat: Stat, returnType: Type): Unit = {
+        stat match {
+          case Declaration(_, _, rVal) =>
+            checkRValParam(rVal)
+          case AssignorInferDecl(_, rVal) =>
+            checkRValParam(rVal)
+          case Return(exp) =>
+            trySetTypelessRParam(exp, returnType)
+            checkRValParam(exp)
+          case Exit(exp) =>
+            trySetTypelessRParam(exp, IntType()(exp.pos))
+            checkRValParam(exp)
+          case If(cond, thenStats, elseStats) =>
+            trySetTypelessRParam(cond, BoolType()(cond.pos))
+
+            thenStats.foreach(thenStat => inferParamType(thenStat, returnType))
+            elseStats.foreach(elseStat => inferParamType(elseStat, returnType))
+            checkRValParam(cond)
+          case While(cond, doStats) =>
+            trySetTypelessRParam(cond, BoolType()(cond.pos))
+
+            doStats.foreach(doStat => inferParamType(doStat, returnType))
+            checkRValParam(cond)
+          case Scope(scopeStats) =>
+            checkStatements(scopeStats, m, returnType, funcScopePrefix)
+          case _ =>
+        }
+      }
+
+      def inferSingleBinOp(exp1: Expr, exp2: Expr, typeToSet: Type): Unit = {
+        trySetTypelessRParam(exp1, typeToSet)
+        trySetTypelessRParam(exp2, typeToSet)
+      }
+
+      def inferBinOp(exp1: Expr, exp2: Expr): Unit = {
+        val type2 = checkType(exp2)
+        if (type2 != NoTypeExists) {
+          trySetTypelessRParam(exp1, type2)
+        }
+        val type1 = checkType(exp1)
+        if (type1 != NoTypeExists) {
+          trySetTypelessRParam(exp2, type1)
+        }
+      }
+
+      def checkRValParam(rVal: RValue): Unit = {
+        rVal match {
+
+          // Unary Operators
+          case Chr(inside) =>
+            trySetTypelessRParam(inside, IntType()(inside.pos))
+          case Len(inside) =>
+            trySetTypelessRParam(inside, ArrayType(AnyType)(inside.pos))
+          case Neg(inside) =>
+            trySetTypelessRParam(inside, IntType()(inside.pos))
+          case Not(inside) =>
+            trySetTypelessRParam(inside, BoolType()(inside.pos))
+          case Ord(inside) =>
+            trySetTypelessRParam(inside, CharType()(inside.pos))
+
+          // Binary Operators
+          case Sub(x, y) =>
+            inferSingleBinOp(x, y, IntType()(rVal.pos))
+          case Add(x, y) =>
+            inferSingleBinOp(x, y, IntType()(rVal.pos))
+          case Mul(x, y) =>
+            inferSingleBinOp(x, y, IntType()(rVal.pos))
+          case Div(x, y) =>
+            inferSingleBinOp(x, y, IntType()(rVal.pos))
+          case Mod(x, y) =>
+            inferSingleBinOp(x, y, IntType()(rVal.pos))
+          case And(x, y) =>
+            inferSingleBinOp(x, y, BoolType()(rVal.pos))
+          case Or(x, y) =>
+            inferSingleBinOp(x, y, BoolType()(rVal.pos))
+          case GT(x, y) =>
+            inferBinOp(x, y)
+          case GTE(x, y) =>
+            inferBinOp(x, y)
+          case LT(x, y) =>
+            inferBinOp(x, y)
+          case LTE(x, y) =>
+            inferBinOp(x, y)
+          case Eq(x, y) =>
+            inferBinOp(x, y)
+          case NEq(x, y) =>
+            inferBinOp(x, y)
+
+          case elem@ArrayElem(_, _)  =>
+            trySetTypelessRParam(elem, IntType()(elem.pos))
+
+          case _ =>
+        }
+      }
+
+      x.paramList.foreach(y => {
+        symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ.getOrElse(NoType)
+      })
+
+      // Traverse function statements for internal check on parameter types
+      x.stats.foreach(stat => inferParamType(stat, x.typ.getOrElse(NoType)))
+
+        new Func(x.typ, x.ident, x.paramList,
+          checkStatements(x.stats, m, x.typ.getOrElse(NoType), funcScopePrefix))(x.pos)
     })
 
+    val checkedStatements = checkStatements(inProg.stats, mutable.Map.empty, null, "main-")
     // Check statements within the main scope
-    val newProg = new Prog(newFuncs, checkStatements(inProg.stats, mutable.Map.empty, null, "main-"))(inProg.pos)
+    // Check that all parameter types have been inferred and throw error otherwise
+    newFuncs.foreach(f => {
+      f.paramList.foreach(y => {
+        val funcScopePrefix = s"func-${f.ident.name}-"
+        val foundType: Type = symTable(funcScopePrefix ++ "param-" ++ y.ident.name)
+        if (foundType == NoType) {
+          semanticErrorOccurred("Type of parameter could not be inferred: " + y.ident, y.pos)
+        }
+      })
+        val inferredType: Type = inferFuncReturnType(f.ident, f.stats, file, symTable, funcTable)
+        if (inferredType == NoType) {
+          semanticErrorOccurred("Return type of function could not be inferred: " + f.ident, f.pos)
+        }
+        if (f.typ.isEmpty) {
+          f.typ = Option(inferredType)
+        }
+    })
+
+    val newProg = new Prog(newFuncs, checkedStatements)(inProg.pos)
+
     (errors.toList, newProg, symTable)
   }
 

@@ -1,11 +1,8 @@
-# Trying to assign non-matching pairs to eachother.
-# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
+# find the min of two numbers
 
 # Output:
-# #semantic_error#
-
-# Exit:
-# 200
+# min value = 10
+#
 
 # Program:
 

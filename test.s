@@ -1,6 +1,9 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
+	.int 12
+.L.str0:
+	.asciz "min value = "
 .text
 main:
 	push rbp
@@ -49,6 +52,25 @@ _printb:
 .L_printb1:
 	mov esi, dword ptr [rdx - 4]
 	lea rdi, [rip + .L._printb_str2]
+	mov al, 0
+	call printf@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
+	pop rbp
+	ret
+
+.section .rodata
+	.int 2
+.L._printi_str0:
+	.asciz "%d"
+.text
+_printi:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	mov esi, edi
+	lea rdi, [rip + .L._printi_str0]
 	mov al, 0
 	call printf@plt
 	mov rdi, 0
