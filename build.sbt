@@ -11,3 +11,4 @@ lazy val root = (project in file("."))
 libraryDependencies += "com.github.j-mie6" %% "parsley" % "5.0.0-M5"
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.17"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.17" % "test"
+libraryDependencies += "org.typelevel" %% "cats-core" % "2.6.1"

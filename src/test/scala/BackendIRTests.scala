@@ -10,11 +10,12 @@ import scala.collection.mutable
 
 class BackendIRTests extends AnyFlatSpec {
 
+  val CONCURRENT_COMPILATION = false
   val nullPos = (-1, -1)
 
   "Backend" should "be able to handle declare" in {
     val decInt = new Declaration(IntType()(nullPos), Ident("myInt")(nullPos), IntLit(42)(nullPos))(nullPos)
-    val ir = new IRTranslator(new Prog(List.empty, List(decInt))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> CharType()(nullPos)))
+    val ir = new IRTranslator(new Prog(List.empty, List(decInt))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> CharType()(nullPos)), CONCURRENT_COMPILATION)
 
     ir.translate().length shouldBe 1
     ir.translate().head.label.name == "main"
@@ -30,7 +31,7 @@ class BackendIRTests extends AnyFlatSpec {
     val decIntX = new Declaration(IntType()(nullPos), Ident("x")(nullPos), IntLit(10)(nullPos))(nullPos)
     val decIntY = new Declaration(IntType()(nullPos), Ident("y")(nullPos), IntLit(5)(nullPos))(nullPos)
 
-    val ir = new IRTranslator(new Prog(List.empty, List(decIntX, decIntY))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)))
+    val ir = new IRTranslator(new Prog(List.empty, List(decIntX, decIntY))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)), CONCURRENT_COMPILATION)
 
     val translatedIR = ir.translate()
     translatedIR.length shouldBe 1
@@ -43,7 +44,7 @@ class BackendIRTests extends AnyFlatSpec {
     val funcDecl = Func(Option(IntType()(nullPos)), Ident("myFunction")(nullPos), List.empty, List.empty)(nullPos)
     val prog = Prog(List(funcDecl), List.empty)(nullPos)
 
-    val irTranslator = new IRTranslator(prog, mutable.Map.empty)
+    val irTranslator = new IRTranslator(prog, mutable.Map.empty, CONCURRENT_COMPILATION)
     val translatedIR = irTranslator.translate()
 
     translatedIR.length shouldBe 2
@@ -56,7 +57,7 @@ class BackendIRTests extends AnyFlatSpec {
     val varDecl = Declaration(CharType()(nullPos), Ident("myVar")(nullPos), CharLit('c')(nullPos))(nullPos)
     val prog = Prog(List.empty, List(varDecl))(nullPos)
 
-    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)))
+    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)), CONCURRENT_COMPILATION)
     val translatedIR = irTranslator.translate()
 
     translatedIR.length shouldBe 1
@@ -70,7 +71,7 @@ class BackendIRTests extends AnyFlatSpec {
     val decl = Declaration(ArrayType(IntType()(nullPos))(nullPos), Ident("myArray")(nullPos), arrayLit)(nullPos)
     val prog = Prog(List.empty, List(decl))(nullPos)
 
-    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)))
+    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)), CONCURRENT_COMPILATION)
     val translatedIR = irTranslator.translate()
 
     translatedIR.length shouldBe 5
@@ -81,7 +82,7 @@ class BackendIRTests extends AnyFlatSpec {
 
   "Backend" should "be able to handle declare big integers" in {
     val decInt = new Declaration(IntType()(nullPos), Ident("myInt")(nullPos), IntLit(999999)(nullPos))(nullPos)
-    val ir = new IRTranslator(new Prog(List.empty, List(decInt))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> CharType()(nullPos)))
+    val ir = new IRTranslator(new Prog(List.empty, List(decInt))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> CharType()(nullPos)), CONCURRENT_COMPILATION)
 
     ir.translate().length shouldBe 1
     ir.translate().head.label.name == "main"
@@ -97,7 +98,7 @@ class BackendIRTests extends AnyFlatSpec {
     val decIntX = new Declaration(IntType()(nullPos), Ident("x")(nullPos), IntLit(-5)(nullPos))(nullPos)
     val decIntY = new Declaration(IntType()(nullPos), Ident("y")(nullPos), IntLit(-10)(nullPos))(nullPos)
 
-    val ir = new IRTranslator(new Prog(List.empty, List(decIntX, decIntY))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)))
+    val ir = new IRTranslator(new Prog(List.empty, List(decIntX, decIntY))(nullPos), mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)), CONCURRENT_COMPILATION)
 
     val translatedIR = ir.translate()
     translatedIR.length shouldBe 1
@@ -110,7 +111,7 @@ class BackendIRTests extends AnyFlatSpec {
     val funcDecl = Func(Option(IntType()(nullPos)), Ident("myFunction")(nullPos), List.empty, List.empty)(nullPos)
     val prog = Prog(List(funcDecl), List.empty)(nullPos)
 
-    val irTranslator = new IRTranslator(prog, mutable.Map.empty)
+    val irTranslator = new IRTranslator(prog, mutable.Map.empty, CONCURRENT_COMPILATION)
     val translatedIR = irTranslator.translate()
 
     translatedIR.length shouldBe 2
@@ -123,7 +124,7 @@ class BackendIRTests extends AnyFlatSpec {
     val varDecl = Declaration(IntType()(nullPos), Ident("myVar")(nullPos), IntLit(-9999)(nullPos))(nullPos)
     val prog = Prog(List.empty, List(varDecl))(nullPos)
 
-    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)))
+    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)), CONCURRENT_COMPILATION)
     val translatedIR = irTranslator.translate()
 
     translatedIR.length shouldBe 1
@@ -137,7 +138,7 @@ class BackendIRTests extends AnyFlatSpec {
     val decl = Declaration(ArrayType(IntType()(nullPos))(nullPos), Ident("myArray")(nullPos), arrayLit)(nullPos)
     val prog = Prog(List.empty, List(decl))(nullPos)
 
-    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)))
+    val irTranslator = new IRTranslator(prog, mutable.Map("main-x" -> IntType()(nullPos), "main-y" -> IntType()(nullPos)), CONCURRENT_COMPILATION)
     val translatedIR = irTranslator.translate()
 
     translatedIR.length shouldBe 5

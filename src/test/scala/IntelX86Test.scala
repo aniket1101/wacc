@@ -62,8 +62,11 @@ class IntelX86Test extends AnyFlatSpec {
 
   val src = "src/test/scala/intelX86Examples"
 
-  new ProcessExamples(src, ".s").processFolder()
-    .foreach { case (testName, testCode) =>
+//  val src = "src/test/scala/allIntelX86Compiled"
+
+  val start = System.nanoTime()
+  val tests = new ProcessExamples(src, ".s").processFolder()
+    tests.foreach { case (testName, testCode) =>
       val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
       val inputs: List[String] = findWaccInputs(waccFile)
       val correctOutput = compileAndRunAsm(testCode.getPath, inputs)
@@ -83,6 +86,9 @@ class IntelX86Test extends AnyFlatSpec {
         formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
       }
     }
+  val end = System.nanoTime()
+  val avgTime = ((end - start) / tests.length) / 1000000
+  println("Average time: " + avgTime + "ms")
 
   def formatOutput(str: String): String = {
     val memoryAddressPattern = """0x[0-9a-fA-F]+""".r

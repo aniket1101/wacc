@@ -9,7 +9,10 @@ import backend.x86Registers._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concurrent:Boolean) {
   private val byteSize = 8
   private val regsUsed = totalRegsUsed - 1
   private val stackAlignmentMask: Int = -16
@@ -20,15 +23,36 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
   private var varRegMap: mutable.Map[IR.Register, x86Memory] = mutable.Map.empty
   private var regCounter = 0
 
-  def translate(): List[x86Block] = {
+  def translate(): Either[Future[List[x86Block]], List[x86Block]] = {
     allocateKnownRegs()
-    asmInstr.map(blockToX86IR)
+    if (concurrent) {
+      val futureBlocks: List[Future[x86Block]] = asmInstr.map(blockToX86IRConcurrent)
+      val blocksFuture: Future[List[x86Block]] = Future.sequence(futureBlocks)
+      Left(for {
+        blocks <- blocksFuture
+      } yield blocks)
+    } else {
+      Right(asmInstr.map(blockToX86IR))
+    }
+
+  }
+
+  def blockToX86IRConcurrent(block: AsmBlock): Future[x86Block] = Future {
+    new x86Block(
+      block.roData.map(new x86ReadOnlyData(_)),
+      block.directive.map(new x86Directive(_)),
+      new x86Label(block.label),
+      instrsToX86IR(block.instructions)
+    )
   }
 
   def blockToX86IR(block: AsmBlock): x86Block = {
-    new x86Block(block.roData.map(new x86ReadOnlyData(_)), block.directive.map(new x86Directive(_)),
-      new x86Label(block.label)
-      , instrsToX86IR(block.instructions))
+    new x86Block(
+      block.roData.map(new x86ReadOnlyData(_)),
+      block.directive.map(new x86Directive(_)),
+      new x86Label(block.label),
+      instrsToX86IR(block.instructions)
+    )
   }
 
   def getOperand(src: Operand): x86Operand = {
