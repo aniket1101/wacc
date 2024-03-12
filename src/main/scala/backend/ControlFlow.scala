@@ -141,7 +141,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
       for (stat <- stats) {
         stat match {
           case Declaration(_, ident, _) => paramsBuffer += ident.name
-          case Assign(lValue, _) => extractIdentFromLValue(lValue)
+          case AssignorInferDecl(lValue, _) => extractIdentFromLValue(lValue)
           case If(_, thenStat, elseStat) =>
             traverseStats(thenStat)
             traverseStats(elseStat)
@@ -183,7 +183,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
             }
           }
         }
-        case Assign(ident: Ident, rValue) => rValue match {
+        case AssignorInferDecl(ident: Ident, rValue) => rValue match {
           case expr: Expr => {
             identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
           }
@@ -302,7 +302,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
                 case Call(name, args) => List(stat)
               }
             }
-            case Assign(ident: Ident, rValue) => rValue match {
+            case AssignorInferDecl(ident: Ident, rValue) => rValue match {
               case expr: Expr => List(stat)
               case Call(name, args) => List(stat)
             }
