@@ -1,4 +1,4 @@
-import Main._
+import main.Main._
 
 import sys.process._
 import org.scalatest.flatspec.AnyFlatSpec
