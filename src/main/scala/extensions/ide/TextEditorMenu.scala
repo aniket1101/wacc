@@ -28,6 +28,8 @@ abstract class TextEditorMenu extends JFrame {
   val redoManager: ListBuffer[(String, Int)]
 
   def highlightKeywords(str: String): Unit
+  def parserCheck(): Boolean
+  def displayError(): Unit
   def addMenuBar(): Unit = {
     // Create menu bar
     val menuBar = new JMenuBar()
@@ -481,62 +483,65 @@ abstract class TextEditorMenu extends JFrame {
   }
 
   private def runFile(): Unit = {
-    val fileIsSaved = if (fileModified || openFile.isEmpty) {
-      val options: Array[Object] = Array("Save", "Cancel")
-      val option = JOptionPane.showOptionDialog(
-        this,
-        "Source file must be saved before Running.",
-        "Save File?",
-        JOptionPane.YES_NO_OPTION,
-        JOptionPane.WARNING_MESSAGE,
-        null,
-        options,
-        options(0)
-      )
-      if (option == 0) {
-        saveFile()
+    if (parserCheck()) {
+      val fileIsSaved = if (fileModified || openFile.isEmpty) {
+        val options: Array[Object] = Array("Save", "Cancel")
+        val option = JOptionPane.showOptionDialog(
+          this,
+          "Source file must be saved before Running.",
+          "Save File?",
+          JOptionPane.YES_NO_OPTION,
+          JOptionPane.WARNING_MESSAGE,
+          null,
+          options,
+          options(0)
+        )
+        if (option == 0) {
+          saveFile()
+        } else {
+          false
+        }
       } else {
-        false
+        true
+      }
+
+      if (fileIsSaved) {
+        openFile match {
+          case Some(file) =>
+            val osName = sys.props("os.name")
+            val outputName = removeFileExt(file.getName)
+
+            val runInTerminalCMD: String = osName match {
+              case windowsOS if windowsOS.toLowerCase.contains("windows") =>
+                val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
+                s"""cmd /c "start wsl bash -c "$runCMD && read -p '0 e' key"""""
+              case _ =>
+                // Linux and other OS specific commands
+                val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
+                s"""gnome-terminal -- /bin/bash -c "$runCMD; read -p 'Press Enter to close' key" """.!!
+            }
+
+            try {
+              // Perform compilation
+              val output = compileProgram(file.getPath)
+
+              // Execute run command
+              output match {
+                case 0 => runInTerminalCMD.!!
+                case _ => JOptionPane.showMessageDialog(null, "Compilation Failed.",
+                  "Error", JOptionPane.ERROR_MESSAGE)
+              }
+            } catch {
+              case ex: Exception =>
+                ex.printStackTrace()
+            }
+
+          case None =>
+        }
       }
     } else {
-      true
+      displayError()
     }
-
-    if (fileIsSaved) {
-      openFile match {
-        case Some(file) =>
-          val osName = sys.props("os.name")
-          val outputName = removeFileExt(file.getName)
-
-          val runInTerminalCMD: String = osName match {
-            case windowsOS if windowsOS.toLowerCase.contains("windows") =>
-              val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
-              s"""cmd /c "start wsl bash -c "$runCMD && read -p '0 e' key"""""
-            case _ =>
-              // Linux and other OS specific commands
-              val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
-              s"""gnome-terminal -- /bin/bash -c "$runCMD; read -p 'Press Enter to close' key" """.!!
-          }
-
-          try {
-            // Perform compilation
-            val output = compileProgram(file.getPath)
-
-            // Execute run command
-            output match {
-              case 0 => runInTerminalCMD.!!
-              case _ => JOptionPane.showMessageDialog(null, "Compilation Failed.",
-                "Error", JOptionPane.ERROR_MESSAGE)
-            }
-          } catch {
-            case ex: Exception =>
-              ex.printStackTrace()
-          }
-
-        case None =>
-      }
-    }
-
   }
 
   def getPreviousLineIndentation: String = {

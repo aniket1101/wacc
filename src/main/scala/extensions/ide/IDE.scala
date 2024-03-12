@@ -4,6 +4,7 @@ import frontend.parser.parse
 import main.Main.writeToFile
 
 import java.awt._
+import java.awt.event.{MouseAdapter, MouseEvent}
 import java.io._
 import javax.swing._
 import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener}
@@ -43,6 +44,11 @@ class IDE extends TextEditorMenu {
   private val errorStyle = new SimpleAttributeSet()
   private val ERROR_COLOR: Color = new Color(240, 2, 57)
   private val ERROR_HIGHLIGHT: Color = new Color(255, 200, 200)
+  private var highlightExists = false
+  private var highlightedStart = 0
+  private var highlightedEnd = 0
+  private var errorMsg = ""
+  private var errorType = ""
 
   var textEditor: JTextPane = new JTextPane()
   val undoManager: ListBuffer[(String, Int)] = ListBuffer()
@@ -135,9 +141,26 @@ class IDE extends TextEditorMenu {
       }
     })
 
+    // Add MouseListener to JTextPane
+    textEditor.addMouseListener(new MouseAdapter() {
+      override def mouseClicked(e: MouseEvent): Unit = {
+        val clickPosition = textEditor.viewToModel2D(e.getPoint)
+
+        if (highlightExists && clickPosition > highlightedStart && clickPosition < highlightedEnd
+        && !isAtEndOfLine(clickPosition)) {
+          displayError()
+        }
+      }
+    })
+
     setSize(800, 600)
     setLocationRelativeTo(null)
     setVisible(true)
+  }
+
+  def displayError(): Unit = {
+    JOptionPane.showMessageDialog(textEditor, errorMsg,
+      s"$errorType Error", JOptionPane.INFORMATION_MESSAGE)
   }
 
   private def textModified(typedChar: Option[Char]): Unit = {
@@ -195,11 +218,12 @@ class IDE extends TextEditorMenu {
     SwingUtilities.invokeLater(doHighlight)
   }
 
-  override def highlightKeywords(text: String): Unit = {
+  def highlightKeywords(text: String): Unit = {
     StyleConstants.setForeground(keywordStyle, KEYWORD_COLOR)
     StyleConstants.setForeground(typesAndFuncsStyle, TYPES_AND_FUNCS_COLOR)
     StyleConstants.setForeground(commentStyle, COMMENT_COLOR)
     StyleConstants.setForeground(stringStyle, STRING_COLOR)
+    highlightExists = false
 
     val doc = textEditor.getStyledDocument
     val lines = text.replace("\r", "").split("\n")
@@ -249,7 +273,7 @@ class IDE extends TextEditorMenu {
     }
   }
 
-  private def parserCheck(): Unit = {
+  def parserCheck(): Boolean = {
     // Temporarily save the file
     val text = editorText()
     val tempFile = new File("temp.wacc")
@@ -262,10 +286,15 @@ class IDE extends TextEditorMenu {
           case parsley.Success(_) =>
           case parsley.Failure(err) =>
             val pos = err.pos
+            errorType = "Syntax"
+            errorMsg = err.displayForIDE
             highlightLastWordWithErrorStyle(pos._1, pos._2)
+            return false
         }
       case Failure(_) =>
+        return false
     }
+    true
   }
 
   private def highlightLastWordWithErrorStyle(row: Int, column: Int): Unit = {
@@ -287,15 +316,36 @@ class IDE extends TextEditorMenu {
       if (lastWhitespaceIndex == -1) {
         ("", text.substring(caretPosition).takeWhile(!_.isWhitespace))
       } else {
-        (text.substring(lastWhitespaceIndex + 1, caretPosition), text.substring(caretPosition))
+        (text.substring(lastWhitespaceIndex + 1, caretPosition), text.substring(caretPosition).takeWhile(!_.isWhitespace))
       }
     }
 
     // 3. Apply error style to the last word
     StyleConstants.setForeground(errorStyle, ERROR_COLOR)
     StyleConstants.setBackground(errorStyle, ERROR_HIGHLIGHT)
-    doc.setCharacterAttributes(caretPosition - errorWords._1.length(),
-      errorWords._1.length() + errorWords._2.length(), errorStyle, true)
+    val start = caretPosition - errorWords._1.length()
+    val size = errorWords._1.length() + errorWords._2.length()
+    doc.setCharacterAttributes(start, size, errorStyle, true)
+
+    highlightExists = true
+    highlightedStart = start
+    highlightedEnd = start + size
+  }
+
+  private def isAtEndOfLine(caretPosition: Int): Boolean = {
+    val doc = textEditor.getStyledDocument
+    val length = doc.getLength
+
+    // If caret position is at the end of the document, return true
+    if (caretPosition >= length) {
+      true
+    } else {
+      // Get the character at the caret position
+      val text = doc.getText(caretPosition, 1)
+
+      // Return true if the character is a newline character, false otherwise
+      text == "\n"
+    }
   }
 }
 
