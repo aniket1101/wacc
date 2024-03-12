@@ -69,7 +69,10 @@ object Main {
     parseProgram(file) match {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
+        val controlFlow = new ControlFlow(prog, symbolTable)
         val irTranslator = new IRTranslator(prog, symbolTable)
+        // To add some control flow analysis, you need to uncomment the below part and comment above, however, currently has array + pair issues
+        // val irTranslator = new IRTranslator(controlFlow.CFProgram(), symbolTable)
         val asmInstr = irTranslator.translate()
         val totalRegsUsed = irTranslator.getRegsUsed()
         val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
