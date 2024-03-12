@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
+class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], val concurrent:Boolean) {
 
   var mainState:State = null
 
@@ -27,9 +27,14 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
   var roData: ReadOnlyData = new ReadOnlyData("")
 
   def translate():List[AsmBlock] = {
-    translateFuncs(prog.funcs)
-    translateProgram(prog.stats)
-    blocks.toList
+    if (concurrent) {
+      ???
+    } else {
+      translateFuncs(prog.funcs)
+      translateProgram(prog.stats)
+      blocks.toList
+    }
+
   }
 
   private def translateFuncs(funcs:List[Func]): Unit = {

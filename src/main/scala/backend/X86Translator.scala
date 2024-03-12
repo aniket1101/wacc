@@ -13,7 +13,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import cats.implicits._
 
-class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
+class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concurrent:Boolean) {
   private val byteSize = 8
   private val regsUsed = totalRegsUsed - 1
   private val stackAlignmentMask: Int = -16
@@ -24,12 +24,17 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
   private var varRegMap: mutable.Map[IR.Register, x86Memory] = mutable.Map.empty
   private var regCounter = 0
 
-  def translate(): Future[List[x86Block]] = {
+  def translate(): Either[Future[List[x86Block]], List[x86Block]] = {
     allocateKnownRegs()
-    asmInstr.map(blockToX86IR).sequence[Future, x86Block]
+    if (concurrent) {
+      Left(asmInstr.map(blockToX86IRConcurrent).sequence[Future, x86Block])
+    } else {
+      Right(asmInstr.map(blockToX86IR))
+    }
+
   }
 
-  def blockToX86IR(block: AsmBlock): Future[x86Block] = {
+  def blockToX86IRConcurrent(block: AsmBlock): Future[x86Block] = {
     Future.successful(
       new x86Block(
         block.roData.map(new x86ReadOnlyData(_)),
@@ -37,6 +42,15 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int) {
         new x86Label(block.label),
         instrsToX86IR(block.instructions)
       )
+    )
+  }
+
+  def blockToX86IR(block: AsmBlock): x86Block = {
+    new x86Block(
+      block.roData.map(new x86ReadOnlyData(_)),
+      block.directive.map(new x86Directive(_)),
+      new x86Label(block.label),
+      instrsToX86IR(block.instructions)
     )
   }
 
