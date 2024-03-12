@@ -1,6 +1,5 @@
-package extensions
+package extensions.library
 
-import backend.IR
 import backend.IR._
 import backend.IRRegisters._
 import backend.Size.BIT_32

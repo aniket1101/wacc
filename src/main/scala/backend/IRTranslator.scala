@@ -1,10 +1,10 @@
 package backend
 
-import backend.IR.{LeaInstr, _}
+import backend.IR._
 import frontend.ast._
 import backend.IRRegisters._
 import backend.Size._
-import extensions.lib
+import extensions.library.lib
 import frontend.validator.checkType
 
 import scala.collection.mutable

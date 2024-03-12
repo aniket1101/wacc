@@ -1,7 +1,8 @@
-// Import necessary packages and modules
+package main
+
 import backend._
-import extensions.dfs.getTopologicalSorting
-import extensions.lib
+import extensions.library.dfs.getTopologicalSorting
+import extensions.library.lib
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.{checkSemantics, fileExists}

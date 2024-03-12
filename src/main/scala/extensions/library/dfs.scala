@@ -1,4 +1,4 @@
-package extensions
+package extensions.library
 
 import frontend.ast.Prog
 
