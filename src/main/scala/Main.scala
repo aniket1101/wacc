@@ -17,6 +17,7 @@ object Main {
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
   private val FAIL: Int = -1
+  val CONTROL_FLOW_OPTIMISATION: Boolean = true
 
   // Main function of the program
   def main(args: Array[String]): Unit = {
@@ -70,9 +71,14 @@ object Main {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
         val controlFlow = new ControlFlow(prog, symbolTable)
-        //val irTranslator = new IRTranslator(prog, symbolTable)
+        val irTranslator = {
+          if (CONTROL_FLOW_OPTIMISATION) {
+            new IRTranslator(controlFlow.CFProgram(), symbolTable)
+          } else {
+            new IRTranslator(prog, symbolTable)
+          }
+        }
         // To add some control flow analysis, you need to uncomment the below part and comment above, however, currently has array + pair issues
-        val irTranslator = new IRTranslator(controlFlow.CFProgram(), symbolTable)
         val asmInstr = irTranslator.translate()
         val totalRegsUsed = irTranslator.getRegsUsed()
         val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
