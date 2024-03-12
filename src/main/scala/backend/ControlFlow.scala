@@ -201,21 +201,27 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         case Declaration(typ, ident, y) => {
           y match {
             case expr: Expr => {
-              identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
+              identTable(ident.name) = evaluateExpr(Option(expr), identTable)
             }
+            // case ArrayLit
+//            case NewPair(fst, snd)
+//            case PairFst(_)
+//            case PairSnd(_)
             case Call(name, args) => {
               val funcParams = args.map(Some(_)).map(arg => evaluateExpr(arg, identTable)) : List[Option[Expr]]
               funcAllArgs.get(name) match {
                 case Some(listbuffer) => funcAllArgs(name) = listbuffer += ListBuffer(funcParams: _*)
                 case None => funcAllArgs(name) = ListBuffer(ListBuffer(funcParams: _*))
               }
-              identTable(ident.toString) = Option.empty
+              identTable(ident.name) = Option.empty
             }
+            case _ =>
+              identTable(ident.name) = Option.empty
           }
         }
         case AssignorInferDecl(ident: Ident, rValue) => rValue match {
           case expr: Expr => {
-            identTable(ident.toString) = evaluateExpr(Option(expr), identTable)
+            identTable(ident.name) = evaluateExpr(Option(expr), identTable)
           }
           case Call(name, args) => {
             val funcParams = args.map(Some(_)).map(arg => evaluateExpr(arg, identTable)) : List[Option[Expr]]
@@ -223,8 +229,9 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
               case Some(listbuffer) => funcAllArgs(name) = listbuffer += ListBuffer(funcParams: _*)
               case None => funcAllArgs(name) = ListBuffer(ListBuffer(funcParams: _*))
             }
-            identTable(ident.toString) = Option.empty
+            identTable(ident.name) = Option.empty
           }
+          case _ => identTable(ident.name) = Option.empty
         }
         case Free(_) => {
 
@@ -236,7 +243,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
 
         }
         case Read(ident: Ident) => {
-          identTable(ident.toString) = Option.empty
+          identTable(ident.name) = Option.empty
         }
 
         // TODO: REMOVE DUPLICATION IN IF AND WHILE WITH A FUNCTION
