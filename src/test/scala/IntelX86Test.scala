@@ -62,8 +62,6 @@ class IntelX86Test extends AnyFlatSpec {
 
   val src = "src/test/scala/intelX86Examples"
 
-//  val src = "src/test/scala/allIntelX86Compiled"
-
   new ProcessExamples(src, ".s").processFolder()
     .foreach { case (testName, testCode) =>
       val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
@@ -82,9 +80,16 @@ class IntelX86Test extends AnyFlatSpec {
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode
-        output.output shouldBe correctOutput.output
+        formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
       }
     }
+
+  def formatOutput(str: String): String = {
+    val memoryAddressPattern = """0x[0-9a-fA-F]+""".r
+    val formattedStr = memoryAddressPattern.replaceAllIn(str, "[memAddress]")
+    formattedStr
+  }
+
 
   def deleteFile(filePath: String): Int = {
     val file = new File(filePath)
@@ -111,3 +116,4 @@ class IntelX86Test extends AnyFlatSpec {
     inputs
   }
 }
+
