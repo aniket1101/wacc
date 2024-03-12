@@ -13,7 +13,7 @@ object validator {
   private val nullPos: (Int, Int) = (-1, -1)
   // Prefix used for generated WACC code
   val waccPrefix = "wacc_"
-  var globalFilename: String = _
+  private var globalFilename: String = _
 
   // Function to determine if two types are the same or similar after certain type transformations
   private def sameType(t1: Type, t2: Type): Boolean = {
@@ -627,13 +627,30 @@ object validator {
     var scopeIndex = 0
     implicit val funcName: Option[String] = Option(scopePrefix)
 
+    def isDeclaredOutside(newIdName: String, scopedVars: List[String]): Boolean = {
+      // Check if a variable with the same ident has been declared previously and get its index if so
+      val splitIndex = newIdName.lastIndexOf("-") + 1
+      val name = newIdName.substring(splitIndex)
+      val nameScope = newIdName.substring(0, splitIndex)
+      val sameNameIndices = scopedVars.zipWithIndex.filter(p => {
+        p._1.substring(p._1.lastIndexOf("-") + 1) == name
+      }).map(p => p._2)
+
+      // Check if it was declared in an outer scope
+      sameNameIndices.map(i => scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1)).exists(sv => {
+        nameScope.contains(sv)
+      })
+    }
+
     /* returns true if the lvalue isn't declared yet */
-    def isInferredTypeDef(lVal: LValue): Boolean = {
+    def isInferredTypeDef(lVal: LValue, newIdName: String, scopedVars: List[String]): Boolean = {
+
       lVal match {
 
         /* if its an identifier then check if its in the parent and child scope maps yet */
         case Ident(name) =>
-          !localSymTable.values.exists(_ == name) && !localSymTable.contains(name)
+
+          !localSymTable.values.exists(_ == name) && !localSymTable.contains(name) && !isDeclaredOutside(newIdName, scopedVars)
         case _ => false
       }
     }
@@ -680,19 +697,21 @@ object validator {
               if (funcTable.map(func => func.ident.name).contains(waccPrefix + name) && !varsInScope.contains(name)) {
                 semanticErrorOccurred("Cannot assign value to a function: " + name, id.pos)
               }
-              if (isInferredTypeDef(lVal)) {
-                val newIdName = scopePrefix ++ name
+              val newIdName = scopePrefix ++ name
+              if (isInferredTypeDef(lVal, newIdName, varsInScope.values.toList)) {
+                // If we are here then the LValue type is locally inferred
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
                 symTable += (newIdName -> lType)
               } else if (isTypelessParam(lVal)) {
-                val newIdName = scopePrefix ++ name
+                // If we are here then the LValue is a typeless parameter
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
                 symTable += (newIdName -> lType)
               } else {
+                // If we are here then the LValue is being reassigned to a value following traditional WACC
                 val tempLVal = checkExpr(lVal, varsInScope ++ localSymTable)
                 lType = checkType(tempLVal)
                 rType = checkType(newRVal)
@@ -874,7 +893,7 @@ object validator {
   }
 
   // Helper function to find the most specific common type between two types
-  def findCommonType(type1: Type, type2: Type): Type = {
+  private def findCommonType(type1: Type, type2: Type): Type = {
     // Logic to determine the most specific common type
     // For simplicity, let's assume the types are compatible
     if (type1 != NoType && type2 != NoType && type1 == type2) {

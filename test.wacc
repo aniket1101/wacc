@@ -1,27 +1,20 @@
-# Trying to return two different types from a function.
-# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
+# find the min of two numbers
 
 # Output:
-# #semantic_error#
-
-# Exit:
-# 200
+# min value = 10
+#
 
 # Program:
 
 begin
-  int f(bool b) is
-    if b then
-      return 'c';
-      while true do
-        return 'd'
-      done
-    else
-      skip
-    fi;
-
-    return 10
-  end
-
-  int a = call f(false)
+  int i = 0 ;
+  int x = 10 ;
+  int y = 17 ;
+  while y > 0 && x > 0 do
+    x = x - 1 ;
+    y = y - 1 ;
+    i = i + 1
+  done ;
+  print "min value = " ;
+  println i
 end
