@@ -155,10 +155,10 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
         case Skip() => List.empty
         case Declaration(typ, x, y) => translateDeclaration(typ, x, y, state)
         case AssignorInferDecl(Ident(x), rValue) =>
-          if (!variableMap.contains(x)) {
-            val newReg = varRegs(varCounter + 1)
-            varCounter += 1
-            variableMap.addOne((x, newReg))
+          if (!state.getVarMap().contains(x)) {
+            val newReg = state.getVarRegs()(state.getVarCounter() + 1)
+            state.incrementVarCounter()
+            state.getVarMap().addOne((x, newReg))
           }
           rValue match {
           case expr: Expr => evaluateExpr(expr, ReturnRegister(), BIT_64, state).concat(ListBuffer(MovInstr(ReturnRegister(), state.getVarMap()(x))))
