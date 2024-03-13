@@ -742,10 +742,13 @@ object validator {
               globalScopePrefix = scopePrefix
               val name = identFromIdentArray(identArray)
               val newIdName = scopePrefix ++ name
-              localSymTable = localSymTable.concat(Map(name -> newIdName))
               val tempLVal: LValue = Ident(newIdName)(lVal.pos)
               lType = checkType(elem: LValue)
               rType = checkType(newRVal)
+
+              if (!isDeclaredOutside(newIdName, symTable.keys.toList)._2) {
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+              }
           }
 
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
