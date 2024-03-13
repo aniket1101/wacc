@@ -1,7 +1,7 @@
 package backend
 
 import backend.IR.{Directive, Label, ReadOnlyData}
-import backend.x86IR.InstrSize.InstrSize
+import backend.x86IR.InstrSize.{InstrSize, fullReg}
 
 object x86IR {
   object InstrSize extends Enumeration {
@@ -337,6 +337,10 @@ object x86IR {
 
     def apply(src:x86Immediate, dst:x86Memory, srcSize: InstrSize, dstSize: InstrSize): MoveSX = new MoveSX(src, dst, srcSize, dstSize) {}
   }
+
+  case class CMovL(register: x86Registers, register1: x86Registers, size: InstrSize = fullReg) extends x86Instruction
+
+  case class CMovGE(register: x86Registers, register1: x86Registers, size: InstrSize = fullReg) extends x86Instruction
 
   case class CDQ() extends x86Instruction
   case class Return() extends x86Instruction

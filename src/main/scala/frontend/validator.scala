@@ -14,6 +14,7 @@ object validator {
   // Prefix used for generated WACC code
   val waccPrefix = "wacc_"
   private var globalFilename: String = _
+  private var globalScopePrefix: String = _
 
   // Function to determine if two types are the same or similar after certain type transformations
   private def sameType(t1: Type, t2: Type): Boolean = {
@@ -57,10 +58,7 @@ object validator {
       // If it's an identifier, get its type from the symbol table
       case Ident(name) => symTable.getOrElse(name, NoTypeExists)
       // If it's an array element, get the type of the array
-      case ArrayElem(id, _) => checkType(id: Expr) match {
-        case ArrayType(arrTyp) => arrTyp
-        case _ => NoTypeExists
-      }
+      case ArrayElem(id: Ident, exprs) => removeArrayWrapper(checkType(Ident(globalScopePrefix++id.name)(id.pos): Expr), exprs.length)
       // If it's a pair first element, get the type of the first element
       case PairFst(value) => pairOperation(value, isFirst = true)
       // If it's a pair second element, get the type of the second element
@@ -161,10 +159,7 @@ object validator {
       case Chr(_) => CharType()(nullPos)
 
       // Array element access returns the type of the elements inside the array
-      case ArrayElem(id, _) => checkType(id: Expr) match {
-        case ArrayType(insideType) => insideType
-        case _ => NoTypeExists
-      }
+      case ArrayElem(id, exprs) => removeArrayWrapper(checkType(id: Expr), exprs.length)
 
       // Literal expressions return their corresponding types
       case BoolLit(_) => BoolType()(nullPos)
@@ -174,10 +169,43 @@ object validator {
       case PairLiter() => PairType(AnyType, AnyType)(nullPos)
 
       // Identifiers return their type from the symbol table or NoTypeExists if not found
-      case Ident(name) => symTable.getOrElse(name, NoTypeExists)
+      case Ident(name) =>
+        val newIdName = name.substring(name.lastIndexOf("-") + 1)
+        val identCheck = isDeclaredOutside(name, symTable.keys.toList)
+        if (identCheck._2) {
+          symTable.getOrElse(identCheck._1.get + newIdName, NoTypeExists)
+        } else {
+          NoTypeExists
+        }
 
       // Atomic expressions, unary operations, and binary operations are not directly supported and return NoTypeExists
       case _: Atom | _: UnOpp | _: BinOpp => NoTypeExists
+    }
+  }
+
+  def isDeclaredOutside(newIdName: String, scopedVars: List[String]): (Option[String], Boolean) = {
+    // Check if a variable with the same ident has been declared previously and get its index if so
+    val splitIndex = newIdName.lastIndexOf("-") + 1
+    val name = newIdName.substring(splitIndex)
+    val nameScope = newIdName.substring(0, splitIndex)
+    val sameNameIndices = scopedVars.zipWithIndex.filter(p => {
+      p._1.substring(p._1.lastIndexOf("-") + 1) == name
+    }).map(p => p._2)
+
+    // Check if it was declared in an outer scope
+    val result = sameNameIndices.map(i => scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1))
+    val scopeCheckFunc = sv => nameScope.contains(sv)
+    (result.find(scopeCheckFunc), result.exists(scopeCheckFunc))
+  }
+
+  private def removeArrayWrapper(typ: Type, dimensions: Int)(implicit symTable: mutable.Map[String, Type]): Type = {
+    if (dimensions <= 0) {
+      typ
+    } else {
+      typ match {
+        case ArrayType(arrTyp) => removeArrayWrapper(arrTyp, dimensions - 1)
+        case _ => NoTypeExists
+      }
     }
   }
 
@@ -608,6 +636,15 @@ object validator {
     }
   }
 
+  private def identFromIdentArray(identArray: IdentArray): String = {
+    identArray match {
+      case Ident(name) =>
+        name
+      case ArrayElem(elem, _) =>
+        identFromIdentArray(elem)
+    }
+  }
+
   // Checks a list of statements for syntactic correctness according to the WACC specification.
   private def checkStatements(stats: List[Stat],
                               varsInScope: mutable.Map[String, String],
@@ -627,21 +664,6 @@ object validator {
     var scopeIndex = 0
     implicit val funcName: Option[String] = Option(scopePrefix)
 
-    def isDeclaredOutside(newIdName: String, scopedVars: List[String]): Boolean = {
-      // Check if a variable with the same ident has been declared previously and get its index if so
-      val splitIndex = newIdName.lastIndexOf("-") + 1
-      val name = newIdName.substring(splitIndex)
-      val nameScope = newIdName.substring(0, splitIndex)
-      val sameNameIndices = scopedVars.zipWithIndex.filter(p => {
-        p._1.substring(p._1.lastIndexOf("-") + 1) == name
-      }).map(p => p._2)
-
-      // Check if it was declared in an outer scope
-      sameNameIndices.map(i => scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1)).exists(sv => {
-        nameScope.contains(sv)
-      })
-    }
-
     /* returns true if the lvalue isn't declared yet */
     def isInferredTypeDef(lVal: LValue, newIdName: String, scopedVars: List[String]): Boolean = {
 
@@ -650,7 +672,7 @@ object validator {
         /* if its an identifier then check if its in the parent and child scope maps yet */
         case Ident(name) =>
 
-          !localSymTable.values.exists(_ == name) && !localSymTable.contains(name) && !isDeclaredOutside(newIdName, scopedVars)
+          !localSymTable.values.exists(_ == name) && !localSymTable.contains(name) && !isDeclaredOutside(newIdName, scopedVars)._2
         case _ => false
       }
     }
@@ -716,8 +738,13 @@ object validator {
                 lType = checkType(tempLVal)
                 rType = checkType(newRVal)
               }
-            case _ =>
-              lType = checkType(lVal)
+            case elem@ArrayElem(identArray, exprs) =>
+              globalScopePrefix = scopePrefix
+              val name = identFromIdentArray(identArray)
+              val newIdName = scopePrefix ++ name
+              localSymTable = localSymTable.concat(Map(name -> newIdName))
+              val tempLVal: LValue = Ident(newIdName)(lVal.pos)
+              lType = checkType(elem: LValue)
               rType = checkType(newRVal)
           }
 

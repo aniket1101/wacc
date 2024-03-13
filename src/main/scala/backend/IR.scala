@@ -37,10 +37,6 @@ object IR {
 
     def this(primReg: Register, secReg: Register) = this(Some(primReg), Some(secReg), None, None)
 
-    def this(primReg: Register, secReg: Register, multiplier: Int) = {
-      this(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None)
-    }
-
     def this(secReg: Register, multiplier: Int, offset: Int) = {
       this(None, Some(secReg), if (multiplier != 1) Some(multiplier) else None, if (offset != 0) Some(OffsetInt(offset)) else None)
     }
@@ -51,6 +47,11 @@ object IR {
   }
 
   object Memory {
+
+    def apply(primReg: Register, secReg: Register, multiplier: Int):Memory = {
+      new Memory(Some(primReg), Some(secReg), if (multiplier != 1) Some(multiplier) else None, None) {}
+    }
+
     def apply(primReg: Register): Memory = new Memory(Some(primReg), None, None, None) {}
 
     def apply(primReg: Register, offset: Int): Memory = new Memory(Some(primReg), None, None, Some(OffsetInt(offset))) {}
@@ -80,6 +81,30 @@ object IR {
     def apply(src: Immediate, dst: Register): AddInstr = new AddInstr(src, dst) {}
 
     def apply(src: Immediate, dst: Memory): AddInstr = new AddInstr(src, dst) {}
+  }
+
+  // Add no Carry (won't check for overflow)
+  sealed abstract case class AddNC(src: Operand, dst: Operand, var size: Size = BIT_64) extends Instruction {
+    def changeSize(size: Size): AddNC = {
+      this.size = size
+      this
+    }
+  }
+
+  object AddNC {
+    def apply(src: Register, dst: Register): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Register, dst: Memory): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Register, dst: Immediate): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Memory, dst: Register): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Memory, dst: Immediate): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Immediate, dst: Register): AddNC = new AddNC(src, dst) {}
+
+    def apply(src: Immediate, dst: Memory): AddNC = new AddNC(src, dst) {}
   }
 
   case class AndInstr(register: Register, register2: Register, size: Size) extends Instruction
@@ -146,13 +171,13 @@ object IR {
 
     def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
 
-//    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+    //    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
+    //
+    //    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+    //
+    //    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
+    //
+    //    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
   }
 
   // Mod Instruction
@@ -344,11 +369,6 @@ object IR {
 
   case class MoveNEq(reg: Register, size: Size = BIT_64) extends Instruction
 
-  case class SaveCalleeRegs() extends Instruction
-  case class RecoverCalleeRegs() extends Instruction
-  case class StackVarAlloc() extends Instruction
-  case class StackVarReAlloc() extends Instruction
-
   case class Push(reg: Register, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): Push = {
       this.size = size
@@ -373,6 +393,42 @@ object IR {
   case class Ret() extends Instruction
 
   sealed trait Block
+
+  sealed class arrLoad(bytes:Int) extends AsmBlock("text", s"_arrLoad$bytes", List(
+    Push(BaseRegister()),
+    CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovL(ArrayIndexRegister(), SourceRegister()),
+    JlInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
+    CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovGE(ArrayIndexRegister(), SourceRegister()),
+    JgeInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), ArrayIndexRegister(), bytes), ArrayPtrRegister()).changeSize(getWordType(bytes)),
+    Pop(BaseRegister()),
+    Ret()
+  ))
+
+  sealed class arrStore(bytes: Int) extends AsmBlock("text", s"_arrStore$bytes", List(
+    Push(BaseRegister()),
+    CmpInstr(Immediate(0), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovL(ArrayIndexRegister(), SourceRegister()),
+    JlInstr(Label("_errOutOfBounds")),
+    MovInstr(Memory(ArrayPtrRegister(), -4), BaseRegister()).changeSize(BIT_32),
+    CmpInstr(BaseRegister(), ArrayIndexRegister()).changeSize(BIT_32),
+    CMovGE(ArrayIndexRegister(), SourceRegister()),
+    JgeInstr(Label("_errOutOfBounds")),
+    MovInstr(ReturnRegister(), Memory(ArrayPtrRegister(), ArrayIndexRegister(), bytes)).changeSize(getWordType(bytes)),
+    Pop(BaseRegister()),
+    Ret()
+  ))
+
+  case class arrLoad1() extends arrLoad(1)
+  case class arrLoad4() extends arrLoad(4)
+  case class arrLoad8() extends arrLoad(8)
+  case class arrStore1() extends arrStore(1)
+  case class arrStore4() extends arrStore(4)
+  case class arrStore8() extends arrStore(8)
+
 
   class AsmBlock(var roData: Option[ReadOnlyData], val directive: Option[Directive], val label: Label, var instructions: List[Instruction]) extends Block {
     def this(label: String, instructions: List[Instruction]) = this(Option.empty, Option.empty, Label(label), instructions)
@@ -552,7 +608,7 @@ object IR {
       CallInstr(Label("fflush@plt")),
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt"))
-  ))
+    ))
 
   case class errDivZero() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero\\n"),
     "text", "_errDivZero", List(
@@ -572,17 +628,17 @@ object IR {
       CallInstr(Label("exit@plt"))
     ))
 
-    case class MallocBlock() extends AsmBlock("text", "_malloc", List(
-      Push(BasePointer()),
-      MovInstr(StackPointer(), BasePointer()),
-      Align(StackPointer()),
-      CallInstr(Label("malloc@plt")),
-      CmpInstr(Immediate(0), ReturnRegister()),
-      JeInstr(Label("_errOutOfMemory")),
-      MovInstr(BasePointer(), StackPointer()),
-      Pop(BasePointer()),
-      Ret()
-    ))
+  case class MallocBlock() extends AsmBlock("text", "_malloc", List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    CallInstr(Label("malloc@plt")),
+    CmpInstr(Immediate(0), ReturnRegister()),
+    JeInstr(Label("_errOutOfMemory")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
 
   case class errOutOfMemory() extends AsmBlock(new ReadOnlyData("errOutOfMemory", 27, "fatal error: out of memory\\n"),
     "text", "_errOutOfMemory", List(
@@ -592,6 +648,17 @@ object IR {
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt"))
     ))
+
+  case class errOutOfBounds() extends AsmBlock(new ReadOnlyData("errOutOfBounds", 42, "fatal error: array index %d out of bounds\\n"), "text", "_errOutOfBounds", List(
+    Align(StackPointer()),
+    LeaInstr(Memory(InstrPtrRegister(), Label(".L._errOutOfBounds_str0")), DestinationRegister()),
+    MovInstr(Immediate(0), ReturnRegister()).changeSize(BIT_8),
+    CallInstr(Label("printf@plt")),
+    MovInstr(Immediate(0), DestinationRegister()),
+    CallInstr(Label("fflush@plt")),
+    MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
+    CallInstr(Label("exit@plt"))
+  ))
 
   class ReadOnlyData(val labelName: String, val data: ListBuffer[(Int, String)]) extends Block {
     def this(readOnlyData: ReadOnlyData) = this(readOnlyData.labelName, readOnlyData.data)
@@ -615,4 +682,7 @@ object IR {
 
     def get(n:Int): Label = Label(s".L.str${n}")
   }
+
+  case class CMovL(register: Register, register1: Register, size: Size = BIT_64) extends Instruction
+  case class CMovGE(register: Register, register1: Register, size: Size = BIT_64) extends Instruction
 }
