@@ -1,6 +1,6 @@
 package extensions.ide
 
-import main.Main.{compileProgram, removeFileExt}
+import main.Main.{FAIL, compileProgram, removeFileExt}
 
 import java.awt.datatransfer.{DataFlavor, UnsupportedFlavorException}
 import java.awt.event.{ActionEvent, InputEvent, KeyEvent}
@@ -482,7 +482,7 @@ abstract class TextEditorMenu extends JFrame {
     }).mkString("\n"))
   }
 
-  private def runFile(): Unit = {
+  def runFile(): Option[Int] = {
     if (parserCheck()) {
       val fileIsSaved = if (fileModified || openFile.isEmpty) {
         val options: Array[Object] = Array("Save", "Cancel")
@@ -499,7 +499,7 @@ abstract class TextEditorMenu extends JFrame {
         if (option == 0) {
           saveFile()
         } else {
-          false
+          return Option.empty
         }
       } else {
         true
@@ -527,7 +527,7 @@ abstract class TextEditorMenu extends JFrame {
 
               // Execute run command
               output match {
-                case 0 => runInTerminalCMD.!!
+                case 0 => return Option(runInTerminalCMD.!)
                 case _ => JOptionPane.showMessageDialog(null, "Compilation Failed.",
                   "Error", JOptionPane.ERROR_MESSAGE)
               }
@@ -542,6 +542,7 @@ abstract class TextEditorMenu extends JFrame {
     } else {
       displayError()
     }
+    Option(FAIL)
   }
 
   def getPreviousLineIndentation: String = {

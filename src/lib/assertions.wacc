@@ -1,6 +1,13 @@
 begin
-	bool assertTrue(bool cond) is
+  # Asserts that the condition is True
+	bool True(bool cond) is
+	  if !cond then
+	    exit -1
+	  else
+	    skip
+	  fi;
 		return cond
 	end
+
 	skip
 end

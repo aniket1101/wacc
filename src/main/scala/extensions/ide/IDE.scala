@@ -2,7 +2,7 @@ package extensions.ide
 
 import frontend.parser.parse
 import frontend.validator.checkSemantics
-import main.Main.writeToFile
+import main.Main.{removeFileExt, writeToFile}
 
 import java.awt._
 import java.awt.event.{MouseAdapter, MouseEvent}
@@ -23,8 +23,12 @@ class IDE extends TextEditorMenu {
 
   val defaultStyle = new SimpleAttributeSet()
   private val IDE_FONT = new Font("Monospaced", Font.PLAIN, 14)
+  private val WINDOW_SIZE: (Int, Int) = (800, 600)
 
-  val keywords: Set[String] = Set("begin", "end", "import", "is", "skip", "return",
+  private val BEGIN: String = "begin"
+  private var beginLineNo = -1
+
+  val keywords: Set[String] = Set(BEGIN, "end", "import", "is", "skip", "return",
     "if", "then", "else", "fi", "while", "do", "done", "call", "true", "false", "null")
   private val keywordStyle = new SimpleAttributeSet()
   private val KEYWORD_COLOR: Color = new Color(227, 110, 0)
@@ -68,7 +72,7 @@ class IDE extends TextEditorMenu {
   private val UNDO_TIME_INTERVAL: Int = 1000
 
   private val MAX_BTN_CNT = 1000
-  private val sideButtons: Array[RunSingleTestBtn] = new Array[RunSingleTestBtn](MAX_BTN_CNT)
+  private val sideButtons: Array[TestBtn] = new Array[TestBtn](MAX_BTN_CNT)
   private var sideButtonsInitialised = false
 
   private val INIT_PROGRAM: String =
@@ -92,10 +96,11 @@ class IDE extends TextEditorMenu {
   }
 
   private def importAssertTypes(): Set[String] = {
+    val libName = removeFileExt(assertLibrary.getName)
     parse(assertLibrary) match {
       case Success(value) => value match {
         case parsley.Success(prog) =>
-          prog.funcs.map(_.ident.name).toSet
+          prog.funcs.map(_.ident.name).map(func => s"$libName.$func").toSet
         case _: parsley.Failure[_] =>
           println("Error in Compiling Assertion Library")
           Set()
@@ -136,7 +141,7 @@ class IDE extends TextEditorMenu {
     val lineCount = MAX_BTN_CNT
     val buttonPanel = new JPanel(new GridLayout(lineCount, 1))
     for (lineNumber <- 1 to lineCount) {
-      val button = new RunSingleTestBtn(lineNumber, IDE_FONT)
+      val button = new TestBtn(IDE_FONT, runFile, sideButtons)
       buttonPanel.add(button)
       sideButtons(lineNumber-1) = button
     }
@@ -156,6 +161,9 @@ class IDE extends TextEditorMenu {
 
       def insertUpdate(e: DocumentEvent): Unit = {
         if (!formattingInProgress && !errorHighlightingInProgress) {
+          fileModified = true
+          setTitle(s"*$windowTitle")
+
           val document = e.getDocument
           val changeOffset = e.getOffset
           val changeLength = e.getLength
@@ -194,9 +202,12 @@ class IDE extends TextEditorMenu {
       }
     })
 
-    setSize(800, 600)
+    setSize(WINDOW_SIZE._1, WINDOW_SIZE._2)
     setLocationRelativeTo(null)
     setVisible(true)
+    if (openFile.isDefined) {
+      textModified(Option.empty)
+    }
   }
 
   def displayError(): Unit = {
@@ -210,20 +221,18 @@ class IDE extends TextEditorMenu {
       override def run(): Unit = {
         formattingInProgress = true
         var caretPosition = textEditor.getCaretPosition
-        fileModified = true
-        setTitle(s"*$windowTitle")
-        var text = textEditor.getText
+        var text = textEditor.getText.replace("\r", "")
 
         typedChar match {
           case Some(value) => value match {
             case '\n' =>
               val tab = getPreviousLineIndentation
-              text = insertSubstring(text, caretPosition + 3, tab)
+              text = insertSubstring(text, caretPosition, tab)
               caretPosition += tab.length
             case char if stringEncl.contains(char) =>
-              text = insertSubstring(text, caretPosition + 2, char.toString)
+              text = insertSubstring(text, caretPosition, char.toString)
             case openBracket if brackets.contains(openBracket) =>
-              text = insertSubstring(text, caretPosition + 3, brackets(openBracket).toString)
+              text = insertSubstring(text, caretPosition, brackets(openBracket).toString)
             case _ =>
           }
           case None =>
@@ -241,7 +250,7 @@ class IDE extends TextEditorMenu {
           undoTimer = currentTime
         }
 
-        highlightKeywords(text)
+        highlightKeywords(text.replace("\n", "\r\n"))
 
         typedChar match {
           case Some(value) => value match {
@@ -266,6 +275,8 @@ class IDE extends TextEditorMenu {
     StyleConstants.setForeground(stringStyle, STRING_COLOR)
     StyleConstants.setForeground(assertStyle, ASSERT_COLOR)
     highlightExists = false
+    var beginFound = false
+    beginLineNo = -1
 
     val doc = textEditor.getStyledDocument
     val lines = text.split("\n").map(_.replace("\r", ""))
@@ -304,12 +315,20 @@ class IDE extends TextEditorMenu {
             // Non-string cases
             if (keywords.contains(token.trim())) {
               doc.insertString(doc.getLength, token, keywordStyle)
+              if (token.trim() == BEGIN && !beginFound) {
+                beginLineNo = n
+                beginFound = true
+              }
             } else if (typesAndFuncs.contains(token.trim())) {
               doc.insertString(doc.getLength, token, typesAndFuncsStyle)
             } else if (assertTypes.contains(token.trim())) {
               doc.insertString(doc.getLength, token, assertStyle)
-              if (sideButtonsInitialised && n < MAX_BTN_CNT)
+              if (sideButtonsInitialised && n < MAX_BTN_CNT && beginLineNo != -1) {
+                sideButtons(n).changeToSingleTestType()
                 sideButtons(n).setTestBtn(true)
+                sideButtons(beginLineNo).changeToAllTestType()
+                sideButtons(beginLineNo).setTestBtn(true)
+              }
             } else {
               doc.insertString(doc.getLength, token, defaultStyle)
             }
@@ -333,17 +352,17 @@ class IDE extends TextEditorMenu {
         value match {
           case parsley.Success(prog) =>
             // 2. Check for Semantic Errors
-            checkSemantics(prog, tempFile.getPath) match {
-              case (errors, _, _) =>
-                if (errors.nonEmpty) {
-                  val err = errors.head
-                  val pos = err.pos
-                  errorMsg = err.displayForIDE
-                  errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
-                  highlightErrorAt(pos._1, pos._2)
-                  return false
-                }
-            }
+//            checkSemantics(prog, tempFile.getPath) match {
+//              case (errors, _, _) =>
+//                if (errors.nonEmpty) {
+//                  val err = errors.head
+//                  val pos = err.pos
+//                  errorMsg = err.displayForIDE
+//                  errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
+//                  highlightErrorAt(pos._1, pos._2)
+//                  return false
+//                }
+//            }
 
           case parsley.Failure(err) =>
             val pos = err.pos

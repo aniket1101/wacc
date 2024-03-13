@@ -18,7 +18,7 @@ object Main {
   val VALID_EXIT_STATUS: Int = 0
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
-  private val FAIL: Int = -1
+  val FAIL: Int = -1
   private val nullPos: (Int, Int) = (-1, -1)
 
   // Main function of the program
