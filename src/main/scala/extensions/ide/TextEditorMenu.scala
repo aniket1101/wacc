@@ -1,6 +1,9 @@
 package extensions.ide
 
-import main.Main.{FAIL, compileProgram, removeFileExt}
+import extensions.ide.runIDE.importAssertTypes
+import frontend.ast
+import frontend.ast.{Prog, Stat}
+import main.Main.{FAIL, VALID_EXIT_STATUS, compileProgram, generateAsm, parseProgram, removeFileExt, writeToFile}
 
 import java.awt.datatransfer.{DataFlavor, UnsupportedFlavorException}
 import java.awt.event.{ActionEvent, InputEvent, KeyEvent}
@@ -10,6 +13,8 @@ import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
 import javax.swing.text.{DefaultEditorKit, Highlighter, SimpleAttributeSet}
 import javax.swing._
+import scala.annotation.unused
+import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.sys.process._
@@ -482,7 +487,12 @@ abstract class TextEditorMenu extends JFrame {
     }).mkString("\n"))
   }
 
-  def runFile(): Option[Int] = {
+  private def runFile(): Option[Int] = compileAndRun(Option.empty)
+
+  def runAllTests(@unused no: Int): Option[Int] = compileAndRun(Option.empty)
+  def parseUnitTest(no: Int): Option[Int] = compileAndRun(Option(no))
+
+  private def compileAndRun(upToNo: Option[Int]): Option[Int] = {
     if (parserCheck()) {
       val fileIsSaved = if (fileModified || openFile.isEmpty) {
         val options: Array[Object] = Array("Save", "Cancel")
@@ -523,7 +533,24 @@ abstract class TextEditorMenu extends JFrame {
 
             try {
               // Perform compilation
-              val output = compileProgram(file.getPath)
+              val output = upToNo match {
+                case Some(no) => println(s"Unit test Number: ${no+1}")
+                  parseProgram(file) match {
+                  case Right((prog, symTable)) =>
+                    // Compile program
+                    val upToStats = upToNthTest(prog.stats, no + 1)
+                    val upToProg: Prog = new Prog(prog.imports, prog.funcs, upToStats)(prog.pos)
+                    val asmCode = generateAsm(upToProg, symTable)
+                    writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
+                      case VALID_EXIT_STATUS => VALID_EXIT_STATUS
+                      case err =>
+                        println("Failed to write to output file")
+                        err
+                    }
+                  case Left(err) => err
+                }
+                case None => compileProgram(file.getPath)
+              }
 
               // Execute run command
               output match {
@@ -543,6 +570,33 @@ abstract class TextEditorMenu extends JFrame {
       displayError()
     }
     Option(FAIL)
+  }
+
+  private def upToNthTest(stats: immutable.List[Stat], n: Int): immutable.List[Stat] = {
+    val newStats: ListBuffer[Stat] = ListBuffer()
+    val assertTypes: Set[String] = importAssertTypes()
+    var testCounter = n
+
+    for (stat <- stats) {
+      stat match {
+        case ast.Declaration(_, _, rValue) => rValue match {
+          case ast.Call(func, _) =>
+            if (assertTypes.exists({s => func.name.contains(s)})) {
+              testCounter -= 1
+              newStats.addOne(stat)
+              if (testCounter <= 0) {
+                return newStats.toList
+              }
+            } else {
+              newStats.addOne(stat)
+            }
+          case _ => newStats.addOne(stat)
+        }
+        case _ => newStats.addOne(stat)
+      }
+    }
+
+    newStats.toList
   }
 
   def getPreviousLineIndentation: String = {

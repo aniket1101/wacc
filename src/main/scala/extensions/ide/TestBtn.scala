@@ -6,17 +6,17 @@ import javax.swing.{ImageIcon, JButton}
 
 abstract class TestType(var tests: Array[TestBtn]) {
   var iconSet: ImageIcon
-  def whenClicked(): Boolean
+  def whenClicked(): Unit
 }
 
-case class SingleTest(action: () => Option[Int], testBtns: Array[TestBtn]) extends TestType(testBtns) {
+case class SingleTest(var testNo: Int, action: Int => Option[Int], testBtns: Array[TestBtn]) extends TestType(testBtns) {
   private val RUN_ICON = new ImageIcon("img/Single Test Run.png")
   private val PASS_ICON = new ImageIcon("img/Single Test Passed.png")
   private val FAIL_ICON = new ImageIcon("img/Single Test Failed.png")
   var iconSet: ImageIcon = RUN_ICON
-  def whenClicked(): Boolean = {
+  def whenClicked(): Unit = {
     println(s"Run Single Test")
-    action() match {
+    action(testNo) match {
       case Some(value) => value match {
         case 0 =>
           println("Test was successful")
@@ -33,35 +33,38 @@ case class SingleTest(action: () => Option[Int], testBtns: Array[TestBtn]) exten
   }
 }
 
-case class AllTests(action: () => Option[Int], testBtns: Array[TestBtn]) extends TestType(testBtns) {
+case class AllTests(action: Int => Option[Int], testBtns: Array[TestBtn]) extends TestType(testBtns) {
   private val RUN_ICON = new ImageIcon("img/Multiple Tests Run.png")
   private val PASS_ICON = new ImageIcon("img/Multiple Tests Passed.png")
   private val FAIL_ICON = new ImageIcon("img/Multiple Tests Failed.png")
   var iconSet: ImageIcon = RUN_ICON
-  def whenClicked(): Boolean = {
+  def whenClicked(): Unit = {
     println(s"Run All Tests")
-    var allPassed = true
-    for (testBtn <- tests) {
-      if (testBtn.isEnabled && testBtn.testType.isInstanceOf[SingleTest])
-        allPassed &= testBtn.whenClicked()
-    }
-    iconSet = if (allPassed) PASS_ICON else FAIL_ICON
+    action(0) match {
+      case Some(value) => value match {
+        case 0 =>
+          iconSet = PASS_ICON
 
-    true
+        case _ =>
+          println("Test was unsuccessful")
+          iconSet = FAIL_ICON
+      }
+      case None =>
+    }
+
   }
 }
 
-class TestBtn(val fontStyle: Font, val action: () => Option[Int], testBtns: Array[TestBtn]) extends JButton() {
+class TestBtn(val fontStyle: Font, var action: Int => Option[Int], testBtns: Array[TestBtn]) extends JButton() {
   private val ICON_SIZE = 0.7
-  var testType: TestType = SingleTest(action, testBtns)
+  var testType: TestType = SingleTest(-1, action, testBtns)
 
   addActionListener((_: ActionEvent) => whenClicked())
   reset()
 
-  def whenClicked(): Boolean = {
-    val output = testType.whenClicked()
+  def whenClicked(): Unit = {
+    testType.whenClicked()
     setIcon(resizeIcon(testType.iconSet))
-    output
   }
 
 
@@ -102,6 +105,13 @@ class TestBtn(val fontStyle: Font, val action: () => Option[Int], testBtns: Arra
     setEnabled(bool)
   }
 
+  def setTestNum(no: Int): Unit = {
+    testType match {
+      case s: SingleTest => s.testNo = no
+      case _ =>
+    }
+  }
+
   override def getPreferredSize: Dimension = {
     val fm = getFontMetrics(getFont)
     val height = fm.getHeight
@@ -110,6 +120,6 @@ class TestBtn(val fontStyle: Font, val action: () => Option[Int], testBtns: Arra
   }
 
   def changeToAllTestType(): Unit = testType = AllTests(action, testBtns)
-  def changeToSingleTestType(): Unit = testType = SingleTest(action, testBtns)
+  def changeToSingleTestType(): Unit = testType = SingleTest(-1, action, testBtns)
 
 }

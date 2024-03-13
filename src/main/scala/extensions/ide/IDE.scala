@@ -1,7 +1,7 @@
 package extensions.ide
 
+import extensions.ide.runIDE.importAssertTypes
 import frontend.parser.parse
-import frontend.validator.checkSemantics
 import main.Main.{removeFileExt, writeToFile}
 
 import java.awt._
@@ -47,7 +47,6 @@ class IDE extends TextEditorMenu {
   private val typesAndFuncsStyle = new SimpleAttributeSet()
   private val TYPES_AND_FUNCS_COLOR: Color = new Color(145, 0, 200)
 
-  private val assertLibrary: File = new File("src/lib/assertions.wacc")
   private val assertTypes: Set[String] = importAssertTypes()
   private val assertStyle = new SimpleAttributeSet()
   private val ASSERT_COLOR: Color = new Color(0, 0, 255)
@@ -95,21 +94,6 @@ class IDE extends TextEditorMenu {
     })
   }
 
-  private def importAssertTypes(): Set[String] = {
-    val libName = removeFileExt(assertLibrary.getName)
-    parse(assertLibrary) match {
-      case Success(value) => value match {
-        case parsley.Success(prog) =>
-          prog.funcs.map(_.ident.name).map(func => s"$libName.$func").toSet
-        case _: parsley.Failure[_] =>
-          println("Error in Compiling Assertion Library")
-          Set()
-      }
-      case Failure(_) => println("Error in Compiling Assertion Library")
-        Set()
-    }
-  }
-
   private def createAndShowGUI(fileContents: String): Unit = {
     setTitle(windowTitle)
     setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
@@ -141,7 +125,7 @@ class IDE extends TextEditorMenu {
     val lineCount = MAX_BTN_CNT
     val buttonPanel = new JPanel(new GridLayout(lineCount, 1))
     for (lineNumber <- 1 to lineCount) {
-      val button = new TestBtn(IDE_FONT, runFile, sideButtons)
+      val button = new TestBtn(IDE_FONT, parseUnitTest, sideButtons)
       buttonPanel.add(button)
       sideButtons(lineNumber-1) = button
     }
@@ -280,6 +264,7 @@ class IDE extends TextEditorMenu {
 
     val doc = textEditor.getStyledDocument
     val lines = text.split("\n").map(_.replace("\r", ""))
+    var unitTestCounter = 0
 
     textEditor.setText("")
     for (n <- lines.indices) {
@@ -326,8 +311,16 @@ class IDE extends TextEditorMenu {
               if (sideButtonsInitialised && n < MAX_BTN_CNT && beginLineNo != -1) {
                 sideButtons(n).changeToSingleTestType()
                 sideButtons(n).setTestBtn(true)
-                sideButtons(beginLineNo).changeToAllTestType()
-                sideButtons(beginLineNo).setTestBtn(true)
+                sideButtons(n).setTestNum(unitTestCounter)
+
+                if (unitTestCounter == 0) {
+                  sideButtons(beginLineNo).changeToAllTestType()
+                  sideButtons(beginLineNo).setTestBtn(true)
+                  sideButtons(beginLineNo).action = runAllTests
+                  sideButtons(beginLineNo).changeToAllTestType()
+                }
+
+                unitTestCounter += 1
               }
             } else {
               doc.insertString(doc.getLength, token, defaultStyle)
