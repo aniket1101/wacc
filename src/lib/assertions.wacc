@@ -1,0 +1,6 @@
+begin
+	bool assertTrue(bool cond) is
+		return cond
+	end
+	skip
+end
