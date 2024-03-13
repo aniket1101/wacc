@@ -18,6 +18,10 @@ main:
 	mov rdi, rax
 	call wacc_assertions.True
 	mov r13, rax
+	mov rax, 1
+	mov rdi, rax
+	call wacc_assertions.True
+	mov r14, rax
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]

@@ -2,7 +2,8 @@ package extensions.ide
 
 import extensions.ide.runIDE.importAssertTypes
 import frontend.parser.parse
-import main.Main.{removeFileExt, writeToFile}
+import frontend.validator.checkSemantics
+import main.Main.writeToFile
 
 import java.awt._
 import java.awt.event.{MouseAdapter, MouseEvent}
@@ -125,7 +126,7 @@ class IDE extends TextEditorMenu {
     val lineCount = MAX_BTN_CNT
     val buttonPanel = new JPanel(new GridLayout(lineCount, 1))
     for (lineNumber <- 1 to lineCount) {
-      val button = new TestBtn(IDE_FONT, parseUnitTest, sideButtons)
+      val button = new TestBtn(IDE_FONT, parseUnitTest)
       buttonPanel.add(button)
       sideButtons(lineNumber-1) = button
     }
@@ -345,17 +346,18 @@ class IDE extends TextEditorMenu {
         value match {
           case parsley.Success(prog) =>
             // 2. Check for Semantic Errors
-//            checkSemantics(prog, tempFile.getPath) match {
-//              case (errors, _, _) =>
-//                if (errors.nonEmpty) {
-//                  val err = errors.head
-//                  val pos = err.pos
-//                  errorMsg = err.displayForIDE
-//                  errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
-//                  highlightErrorAt(pos._1, pos._2)
-//                  return false
-//                }
-//            }
+            checkSemantics(prog, tempFile.getPath) match {
+              case (errors, _, _) =>
+                val errs = errors.filter(e => !e.errorLines.lines.toString().contains("assertions."))
+                if (errs.nonEmpty) {
+                  val err = errs.head
+                  val pos = err.pos
+                  errorMsg = err.displayForIDE
+                  errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
+                  highlightErrorAt(pos._1, pos._2)
+                  return false
+                }
+            }
 
           case parsley.Failure(err) =>
             val pos = err.pos

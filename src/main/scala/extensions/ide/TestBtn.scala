@@ -4,12 +4,12 @@ import java.awt.{Color, Cursor, Dimension, Font, Image}
 import java.awt.event.{ActionEvent, MouseAdapter, MouseEvent}
 import javax.swing.{ImageIcon, JButton}
 
-abstract class TestType(var tests: Array[TestBtn]) {
+abstract class TestType() {
   var iconSet: ImageIcon
   def whenClicked(): Unit
 }
 
-case class SingleTest(var testNo: Int, action: Int => Option[Int], testBtns: Array[TestBtn]) extends TestType(testBtns) {
+case class SingleTest(var testNo: Int, action: Int => Option[Int]) extends TestType() {
   private val RUN_ICON = new ImageIcon("img/Single Test Run.png")
   private val PASS_ICON = new ImageIcon("img/Single Test Passed.png")
   private val FAIL_ICON = new ImageIcon("img/Single Test Failed.png")
@@ -21,19 +21,17 @@ case class SingleTest(var testNo: Int, action: Int => Option[Int], testBtns: Arr
         case 0 =>
           println("Test was successful")
           iconSet = PASS_ICON
-          true
 
         case _ =>
           println("Test was unsuccessful")
           iconSet = FAIL_ICON
-          false
       }
-      case None => true
+      case None =>
     }
   }
 }
 
-case class AllTests(action: Int => Option[Int], testBtns: Array[TestBtn]) extends TestType(testBtns) {
+case class AllTests(action: Int => Option[Int]) extends TestType() {
   private val RUN_ICON = new ImageIcon("img/Multiple Tests Run.png")
   private val PASS_ICON = new ImageIcon("img/Multiple Tests Passed.png")
   private val FAIL_ICON = new ImageIcon("img/Multiple Tests Failed.png")
@@ -55,14 +53,14 @@ case class AllTests(action: Int => Option[Int], testBtns: Array[TestBtn]) extend
   }
 }
 
-class TestBtn(val fontStyle: Font, var action: Int => Option[Int], testBtns: Array[TestBtn]) extends JButton() {
+class TestBtn(val fontStyle: Font, var action: Int => Option[Int]) extends JButton() {
   private val ICON_SIZE = 0.7
-  var testType: TestType = SingleTest(-1, action, testBtns)
+  private var testType: TestType = SingleTest(-1, action)
 
   addActionListener((_: ActionEvent) => whenClicked())
   reset()
 
-  def whenClicked(): Unit = {
+  private def whenClicked(): Unit = {
     testType.whenClicked()
     setIcon(resizeIcon(testType.iconSet))
   }
@@ -119,7 +117,7 @@ class TestBtn(val fontStyle: Font, var action: Int => Option[Int], testBtns: Arr
     new Dimension(width, height)
   }
 
-  def changeToAllTestType(): Unit = testType = AllTests(action, testBtns)
-  def changeToSingleTestType(): Unit = testType = SingleTest(-1, action, testBtns)
+  def changeToAllTestType(): Unit = testType = AllTests(action)
+  def changeToSingleTestType(): Unit = testType = SingleTest(-1, action)
 
 }
