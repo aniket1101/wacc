@@ -344,6 +344,11 @@ object IR {
 
   case class MoveNEq(reg: Register, size: Size = BIT_64) extends Instruction
 
+  case class SaveCalleeRegs() extends Instruction
+  case class RecoverCalleeRegs() extends Instruction
+  case class StackVarAlloc() extends Instruction
+  case class StackVarReAlloc() extends Instruction
+
   case class Push(reg: Register, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): Push = {
       this.size = size

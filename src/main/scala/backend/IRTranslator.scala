@@ -100,26 +100,23 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
   }
 
   private def setUpScope(scopePrefix: String, state:State): Unit = {
-    val instructions: ListBuffer[Instruction] = ListBuffer(Push(BasePointer()))
-    state.setUsedRegs(symbolTable.keys.count(_.startsWith(scopePrefix)) - state.getParamCount())
+    // Calculates how many variable registers we'll need
+    val varRegs = symbolTable.keys.count(_.startsWith(scopePrefix)) - state.getParamCount()
+    state.setUsedRegs(varRegs)
 
-    if (state.getUsedRegs() == 0) {
-      val rbx = BaseRegister()
-      instructions.addOne(Push(BaseRegister()))
-      state.addToVarRegs(rbx)
-    } else {
-      instructions.addOne(SubInstr(Immediate(8 * (state.getUsedRegs() + 1)), StackPointer()))
-      val rbx = BaseRegister()
-      state.addToVarRegs(rbx)
-      instructions.addOne(MovInstr(BaseRegister(), Memory(StackPointer())))
-      for (regNo <- 1 to state.getUsedRegs()) {
-        val newVarReg = new varReg(state.getVarRegs().length)
-        instructions.addOne(MovInstr(newVarReg, Memory(StackPointer(), 8 * regNo)))
-        state.addToVarRegs(newVarReg)
-      }
+    state.addToVarRegs(BaseRegister())
+    for (i <- 0 until varRegs) {
+      val newVarReg = new varReg(state.getVarRegs().length)
+      state.addToVarRegs(newVarReg)
     }
 
+    // Make space for callee saved regs
+    val instructions: ListBuffer[Instruction] = ListBuffer(Push(BasePointer()))
+
+    instructions += SaveCalleeRegs()
     instructions += MovInstr(StackPointer(), BasePointer())
+    instructions += StackVarAlloc()
+
     state.curBlock.instructions = instructions.toList
   }
 
@@ -129,15 +126,9 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
       instructions += MovInstr(Immediate(0), ReturnRegister())
     }
 
-    if (state.usedRegs == 0) {
-      instructions.addOne(Pop(state.getVarRegs().head))
-    } else {
-      instructions.addOne(MovInstr(Memory(StackPointer()), state.getVarRegs().head))
-      for (regNo <- 1 to state.usedRegs) {
-        instructions.addOne(MovInstr(Memory(StackPointer(), 8 * regNo), state.getVarRegs()(regNo)))
-      }
-      instructions.addOne(AddInstr(Immediate(8 * (state.usedRegs + 1)), StackPointer()))
-    }
+    instructions += StackVarReAlloc()
+    instructions += MovInstr(StackPointer(), BasePointer())
+    instructions += RecoverCalleeRegs()
 
     // Finalise code
     instructions += Pop(BasePointer())
