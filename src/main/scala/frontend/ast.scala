@@ -143,7 +143,7 @@ object ast {
   case class StringType()(val pos: (Int, Int)) extends BaseType {
     override def toString: String = "<string>"
   }
-  case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type {
+  case class PairType(fstType: PairElemType, sndType: PairElemType)(val pos: (Int, Int)) extends Type with PairElemType {
     override def toString: String = s"pair($fstType, $sndType)"
   }
 

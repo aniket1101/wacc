@@ -4,6 +4,7 @@ import frontend.ast._
 import frontend.waccErrors.{SemanticError, WaccError}
 
 import java.io.File
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.io.Source
 
@@ -166,10 +167,14 @@ object validator {
       case IntLit(_) => IntType()(nullPos)
       case CharLit(_) => CharType()(nullPos)
       case StrLit(_) => StringType()(nullPos)
-      case PairLiter() => PairType(AnyType, AnyType)(nullPos)
+      case PairLiter() => AnyType
 
       // Identifiers return their type from the symbol table or NoTypeExists if not found
-      case Ident(name) =>
+      case Ident(checkName) =>
+        var name = checkName
+        if (!checkName.contains("-")) {
+          name = globalScopePrefix + name
+        }
         val newIdName = name.substring(name.lastIndexOf("-") + 1)
         val identCheck = isDeclaredOutside(name, symTable.keys.toList)
         if (identCheck._2) {
@@ -198,6 +203,7 @@ object validator {
     (result.find(scopeCheckFunc), result.exists(scopeCheckFunc))
   }
 
+  @tailrec
   private def removeArrayWrapper(typ: Type, dimensions: Int)(implicit symTable: mutable.Map[String, Type]): Type = {
     if (dimensions <= 0) {
       typ
@@ -636,6 +642,7 @@ object validator {
     }
   }
 
+  @tailrec
   private def identFromIdentArray(identArray: IdentArray): String = {
     identArray match {
       case Ident(name) =>
@@ -689,10 +696,126 @@ object validator {
       }
     }
 
+    def pairElemToFullType(rVal: RValue, isFst: Boolean): PairElemType = {
+      var fullElemType: PairElemType = AnyType
+
+          rVal match {
+            case NewPair(npFst: Expr, npSnd: Expr) =>
+              var tempElemType: Type = AnyType
+              if (isFst) {
+                tempElemType = checkType(npFst)
+              } else {
+                tempElemType = checkType(npSnd)
+              }
+              tempElemType match {
+                case pElem: PairElemType =>
+                  fullElemType = pElem
+                // Should never be reached
+                case _ =>
+              }
+            case Ident(name) =>
+              val tempElemType = symTable(localSymTable(name))
+              tempElemType match {
+                case pElem: PairElemType =>
+                  pElem match {
+                    case PairType(fst, snd) =>
+                      if (isFst) {
+                        fullElemType = fst
+                      } else {
+                        fullElemType = snd
+                      }
+                    case _ =>
+                      fullElemType = pElem
+                  }
+                // Should never be reached
+                case _ =>
+              }
+            case pf@PairFst(_) =>
+              val fullPairType = fullInnerPairElem(pf, isFst)
+            case ps@PairSnd(_) =>
+              fullElemType = fullInnerPairElem(ps, isFst)
+
+
+            // TODO:
+            case Call(x, _) =>
+              val funcCalled = funcTable.find(f => f.ident.name == waccPrefix + x)
+              funcCalled match {
+                case Some(called) =>
+                  val returnType = inferFuncReturnType(called.ident, called.stats, globalFilename, symTable, funcTable)
+                  returnType match {
+                    case checkPType: PairElemType =>
+                      fullElemType = checkPType
+                  }
+                case None =>
+              }
+            case _ =>
+          }
+      fullElemType
+    }
+
+    def fullInnerPairElem(lVal: LValue, isFst: Boolean): PairElemType = {
+      lVal match {
+        case id@Ident(_) =>
+          pairElemToFullType(id, isFst)
+        case PairFst(pf) =>
+          fullInnerPairElem(pf, isFst) match {
+            case elemType: PairElemType =>
+              elemType match {
+                case PairType(fst, _) =>
+                  fst
+                case _ =>
+                  elemType
+              }
+
+          }
+        case PairSnd(ps) =>
+          fullInnerPairElem(ps, isFst) match {
+            case elemType: PairElemType =>
+              elemType match {
+                case PairType(_, snd) =>
+                  snd
+                case _ =>
+                  elemType
+              }
+          }
+        case ArrayElem(identArray, exprs) =>
+          val arrIdent = identFromIdentArray(identArray)
+          val arrType: Type = removeArrayWrapper(checkType(lVal), exprs.length)
+          arrType match {
+            case _: PairElemType =>
+              fullInnerPairElem(Ident(arrIdent)(identArray.pos), isFst)
+            case _ =>
+              AnyType
+          }
+        case _ =>
+          // Will never reach here
+          AnyType
+      }
+    }
+
+    def toFullPair(typ: PairType, rVal: RValue): PairType = {
+
+      typ match {
+        case PairType(_, _) =>
+          PairType(pairElemToFullType(rVal, isFst = true), pairElemToFullType(rVal, isFst = false))(typ.pos)
+        case _ =>
+          typ
+      }
+    }
+
     def checkStatement(stat: Stat) = {
       val checkedStat: Stat = stat match {
         case Skip() => stat // No action needed for Skip statement
         case Declaration(idType, id, value) =>
+
+          var newIdType = idType
+          idType match {
+            case p@PairType(_, _) =>
+                globalScopePrefix = scopePrefix
+                newIdType = toFullPair(p, value)
+            case _ =>
+          }
+
           val newValue = checkExpr(value, varsInScope ++ localSymTable)
           val newIdName = scopePrefix ++ id.name
 
@@ -705,7 +828,7 @@ object validator {
 
           // Add the variable to the local symbol table and the global symbol table
           localSymTable = localSymTable.concat(Map(id.name -> newIdName))
-          symTable += (newIdName -> idType)
+          symTable += (newIdName -> newIdType)
           new Declaration(idType, new Ident(newIdName)(id.pos), newValue)(stat.pos)
 
         case AssignorInferDecl(lVal, rVal) =>
@@ -725,7 +848,16 @@ object validator {
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
-                symTable += (newIdName -> lType)
+
+                var newIdType = lType
+                lType match {
+                  case p@PairType(_, _) =>
+                    globalScopePrefix = scopePrefix
+                    newIdType = toFullPair(p, rVal)
+                  case _ =>
+                }
+
+                symTable += (newIdName -> newIdType)
               } else if (isTypelessParam(lVal)) {
                 // If we are here then the LValue is a typeless parameter
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
@@ -737,12 +869,14 @@ object validator {
                 val tempLVal = checkExpr(lVal, varsInScope ++ localSymTable)
                 lType = checkType(tempLVal)
                 rType = checkType(newRVal)
+                if (rType == NoType) {
+                  rType = checkType(newRVal)
+                }
               }
             case elem@ArrayElem(identArray, exprs) =>
               globalScopePrefix = scopePrefix
               val name = identFromIdentArray(identArray)
               val newIdName = scopePrefix ++ name
-              val tempLVal: LValue = Ident(newIdName)(lVal.pos)
               lType = checkType(elem: LValue)
               rType = checkType(newRVal)
 

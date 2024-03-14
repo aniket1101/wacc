@@ -1,32 +1,22 @@
-# moderate complexity array manipulations
+# create and print a linked list using pairs
 
 # Output:
-# #addrs# = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+# list = {1, 2, 4, 11}
 #
 
 # Program:
 
 begin
-  int[] a = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] ;
-  int i = 0 ;
-  while i < 10
-  do
-    a[i] = i ;
-    i = i + 1
-  done ;
-  print a ;
-  print " = {" ;
-  i = 0 ;
-  while i < 10
-  do
-    print a[i] ;
-    if i < 9
-    then
-      print ", "
-    else
-      skip
-    fi ;
-    i = i + 1
-  done ;
-  println "}"
+
+makePair(int x, int y) is
+    pair(int, int) p = newpair(x, y);
+    pair(int, pair) a = newpair(x, p);
+    return a
+end
+
+  pair(int, pair) p = newpair(11, null) ;
+    pair(int, pair) q = newpair(4, p) ;
+    pair(int, pair) r = newpair(2, q) ;
+    pair(int, pair) s = newpair(1, r) ;
+    pair(int, pair) b = call makePair(3, 4)
 end
