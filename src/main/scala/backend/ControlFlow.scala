@@ -176,7 +176,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
     var funcCallCounters: mutable.Map[Ident, Int] = mutable.Map().withDefaultValue(0)
     val RECURSION_LIMIT = 5
     var allStats = mutable.Stack[Stat]()
-    allStats.pushAll(prog.stats)
+    allStats.pushAll(prog.stats.reverse)
     while (allStats.nonEmpty) {
       val stat = allStats.pop
       stat match {
@@ -203,7 +203,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
                   if (RECURSION_LEVEL >= RECURSION_LIMIT) {
                     identTable(ident.name) = Option.empty
                   } else {
-                    val (optimisedBody, givenReturnValue, givenSideEffects) = 
+                    val (optimisedBody, givenReturnValue, givenSideEffects) =
                       optimiseProg(prog.copy(stats = func.stats)(prog.pos), localIdentTable, RECURSION_LEVEL + 1)
                     identTable(ident.name) = givenReturnValue
                     funcAllData.get(name) match {
@@ -232,7 +232,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
                   if (RECURSION_LEVEL >= RECURSION_LIMIT) {
                     identTable(ident.name) = Option.empty
                   } else {
-                    val (optimisedBody, givenReturnValue, givenSideEffects) = 
+                    val (optimisedBody, givenReturnValue, givenSideEffects) =
                       optimiseProg(prog.copy(stats = func.stats)(prog.pos), localIdentTable, RECURSION_LEVEL + 1)
                     identTable(ident.name) = givenReturnValue
                     funcAllData.get(name) match {
@@ -275,8 +275,8 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
           }
           loopConds.getOrElseUpdate(stat.pos, ListBuffer.empty[Option[Boolean]]) += calcBool
           calcBool match {
-            case Some(true) => allStats.pushAll(thenStat)
-            case Some(false) => allStats.pushAll(elseStat)
+            case Some(true) => allStats.pushAll(thenStat.reverse)
+            case Some(false) => allStats.pushAll(elseStat.reverse)
             case _ =>  {
               for (param <- findParams(thenStat)) {
                 identTable(param) = Option.empty
@@ -300,8 +300,8 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
           loopConds.getOrElseUpdate(stat.pos, ListBuffer.empty[Option[Boolean]]) += calcBool
           calcBool match {
             case Some(true) => {
-              allStats.pushAll(doStat)
               allStats.push(stat)
+              allStats.pushAll(doStat.reverse)
             }
             case Some(false) =>
             case _ => {
