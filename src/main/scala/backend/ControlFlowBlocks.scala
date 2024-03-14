@@ -76,31 +76,41 @@ class ControlFlowBlocks(x86blocks: List[x86IR.x86Block]) {
 
         var blocks = x86blocks.filterNot(block => unusedLabels.toList.contains(block.label))
 
-        /**edgeJumps.foreach {
-            case edge@((src, dst), jumps) if directlyLinkedLabels.contains((src, dst)) 
-                && jumps.size == 1 
-                && jumps.head == "Jump" =>
-                (blocksMap.get(src), blocksMap.get(dst)) match {
-                    case (Some(sourceBlock), Some(destBlock)) =>
-                        val jumpIndex = sourceBlock.instructions.indexWhere {
-                            case Jump(label) if label == dst => true
-                            case _ => false
-                        }
+        edgeJumps.foreach {
+            case edge@((src, dst), jumps) if directlyLinkedLabels.contains((src, dst)) &&
+                jumps.size == 1 && jumps.head == "Jump" =>
 
-                        if (jumpIndex != -1) {
-                            val updatedInstructions = sourceBlock.instructions.take(jumpIndex) ++
-                                                        destBlock.instructions ++ 
-                                                        sourceBlock.instructions.drop(jumpIndex + 1)
-                            sourceBlock.instructions = updatedInstructions
-                        }
-                    case _ => 
+                val sourceBlockIndex = blocks.indexWhere(_.label == src)
+                val destBlockIndex = blocks.indexWhere(_.label == dst)
+
+                if (sourceBlockIndex != -1 && destBlockIndex != -1) {
+                    val sourceBlock = blocks(sourceBlockIndex)
+                    val destBlock = blocks(destBlockIndex)
+
+                    val jumpIndex = sourceBlock.instructions.indexWhere {
+                        case Jump(`dst`) => true
+                        case _ => false
+                    }
+
+                    if (jumpIndex != -1) {
+                        val updatedInstructions = sourceBlock.instructions.take(jumpIndex) ++
+                                                destBlock.instructions ++
+                                                sourceBlock.instructions.drop(jumpIndex + 1)
+
+                        sourceBlock.instructions = updatedInstructions
+
+                        // blocks which are being merged are still being left in place due to possible
+                        // other uses so once that is improved, remove comment below to remove blocks
+                        // blocks = blocks.patch(destBlockIndex, Nil, 1)
+                        
+                    }
                 }
+
             case _ => 
         }
-        val updatedBlocks = blocksMap.values.toList
-        updatedBlocks
-        **/
+
         blocks
+
 
     }    
 }
