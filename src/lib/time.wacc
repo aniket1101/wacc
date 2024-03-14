@@ -1,0 +1,16 @@
+begin
+  # Returns EPOCH time in seconds
+  int time()
+
+  # Sleeps for the specific number of seconds
+  int sleep(int seconds)
+
+  # Returns the current year
+  int currentYear()
+
+  # Returns the current month of the year as an int (starting from 1)
+  int currentMonth()
+
+  # Returns the current day of the month as an int (starting from 1)
+  int currentDay()
+end

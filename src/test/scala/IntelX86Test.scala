@@ -1,4 +1,4 @@
-import Main._
+import main.Main._
 
 import sys.process._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -83,6 +83,7 @@ class IntelX86Test extends AnyFlatSpec {
 
       s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
         output.exitCode shouldBe correctOutput.exitCode
+        formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
         formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
       }
     }

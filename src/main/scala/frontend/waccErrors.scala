@@ -32,6 +32,11 @@ object waccErrors {
          |${errorLines.lineInfo.toSeq.mkString("\n")}
             """.stripMargin
     }
+
+    def displayForIDE: String = {
+      errorLines.lines.map(_.capitalize).mkString("\n")
+        .replace("<", "⟨").replace(">", "⟩")
+    }
   }
 
   /**

@@ -907,6 +907,10 @@ object validator {
     }
   }
 
+  def fileExists(filePath: String): Boolean = {
+    new File(filePath).exists()
+  }
+
 
   // Checks the semantics of a WACC program, including syntax correctness, type checking, and scoping rules.
   def checkSemantics(inProg: Prog, file: String): (List[WaccError], Prog, mutable.Map[String, Type]) = {
@@ -932,6 +936,18 @@ object validator {
 
     // Initialize main scope
     implicit val mainScope: Option[String] = Option.empty
+
+    // Check that the files imports are wacc files and that they exists
+    inProg.imports match {
+      case Some(imports) =>
+        for (file <- imports) {
+          if (!fileExists(file.s) && !new File("src/lib", file.s).exists())
+            semanticErrorOccurred(s"File '${file.s}' does not exist.", file.pos)
+          else if (getFileExtension(file.s) != "wacc")
+            semanticErrorOccurred(s"File '${file.s}' is not a wacc file.", file.pos)
+        }
+      case None =>
+    }
 
     // Check for duplicated function declarations and arguments
     var tempFuncTable: List[Func] = Nil
@@ -1103,6 +1119,15 @@ object validator {
     val newProg = new Prog(newFuncs, checkedStatements)(inProg.pos)
 
     (errors.toList, newProg, symTable)
+  }
+
+  def getFileExtension(fileName: String): String = {
+    val lastDotIndex = fileName.lastIndexOf('.')
+    if (lastDotIndex > 0 && lastDotIndex < fileName.length - 1) {
+      fileName.substring(lastDotIndex + 1).toLowerCase
+    } else {
+      ""
+    }
   }
 
 }

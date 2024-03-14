@@ -12,7 +12,7 @@ import parsley.{Parsley, character}
 // Object containing lexer-related functionality
 object lexer {
     // Set of keywords recognized by the lexer
-    private final val keywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print",
+    private final val keywords = Set("begin", "end", "import", "is", "skip", "read", "free", "return", "exit", "print",
         "println", "if", "then", "else", "fi", "while", "do", "done", "newpair", "call", "fst",
         "snd", "int", "bool", "char", "string", "pair", "true", "false", "null", "len", "ord", "chr")
 
@@ -23,9 +23,9 @@ object lexer {
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(
             // Predicate for first character of an identifier
-            identifierStart = Basic((c: Char) => c.isLetter || c == '_'),
+            identifierStart = Basic((c: Char) => c.isLetter || c == '_' || c == '.'),
             // Predicate for rest of characters of an identifier
-            identifierLetter = Basic((c: Char) => c.isLetterOrDigit || c == '_'),
+            identifierLetter = Basic((c: Char) => c.isLetterOrDigit || c == '_' || c == '.'),
         ),
         symbolDesc = SymbolDesc.plain.copy(
             hardKeywords = keywords,

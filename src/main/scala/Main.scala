@@ -1,9 +1,11 @@
-// Import necessary packages and modules
-import backend.X86Translator
+package main
+
 import backend._
+import extensions.library.dfs.getTopologicalSorting
+import extensions.library.lib
 import frontend.ast._
 import frontend.parser._
-import frontend.validator.checkSemantics
+import frontend.validator.{checkSemantics, fileExists}
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
@@ -20,8 +22,9 @@ object Main {
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
   val CONCURRENT_COMPILATION: Boolean = true
-  private val FAIL: Int = -1
+  val FAIL: Int = -1
   val CONTROL_FLOW_OPTIMISATION: Boolean = true
+  private val nullPos: (Int, Int) = (-1, -1)
 
   // Main function of the program
   def main(args: Array[String]): Unit = {
@@ -34,31 +37,82 @@ object Main {
     }
   }
 
-  // Function to parse the program file
-  def parseProgram(source: File): Either[Int, (Prog, mutable.Map[String, Type])] = {
-    val result = parse(source)
+  def compileProgram(source: String): Int = {
+    val mainFile = new File(source)
+    parseProgram(mainFile) match {
+      case Right((prog, symTable)) =>
+        // Compile program
+        val asmCode = generateAsm(prog, symTable)
+        writeToFile(asmCode, removeFileExt(mainFile.getName) + ".s") match {
+          case VALID_EXIT_STATUS => VALID_EXIT_STATUS
+          case err =>
+            println("Failed to write to output file")
+            err
+        }
+      case Left(err) => err
+    }
+  }
+
+  def parseProgram(mainFile: File): Either[Int, (Prog, mutable.Map[String, Type])] = {
+    // Combines multiple wacc programs into a map of file to its ast
+    parseImports(mainFile) match {
+      case Right(importGraph) =>
+        var outputFunc: List[Func] = List()
+
+        // Combine other ASTs
+        getTopologicalSorting(importGraph).foreach { case (filename, (_, prog)) =>
+          val renamedFuncs = if (filename == mainFile) {
+            prog.funcs
+          } else {
+            prog.funcs.map(_.addLibraryPrefix(removeFileExt(filename.getName)))
+          }
+          outputFunc = outputFunc.concat(renamedFuncs)
+        }
+
+        // Perform semantic check
+        val combinedProg = new Prog(Option.empty, outputFunc, importGraph(mainFile)._2.stats)(nullPos)
+        checkSemantics(combinedProg, mainFile.toString) match {
+          // If there are no semantic errors
+          case (errors, outputProg, symbolTable) =>
+            if (errors.isEmpty) {
+              Right((outputProg, symbolTable))
+            } else {
+              // Print semantic errors and exit with semantic error status
+              println(errors.map(err => err.display).mkString("\n"))
+              Left(SEMANTIC_ERROR_EXIT_STATUS)
+            }
+        }
+
+      case Left(exitCode) => Left(exitCode)
+    }
+  }
+
+  private def parseProgramToAST(source: File): Either[Int, Prog] = {
+    val filepath = if (lib.getLibs.contains(source.getName)) {
+      return Right(new Prog(Option.empty, lib.getLibs(source.getName).getFuncs, List())(nullPos))
+    } else if (!fileExists(source.getPath)) {
+      new File("src/lib", source.getPath)
+    } else {
+      source
+    }
+
+    if (!filepath.exists()) {
+      println(s"Import Error: File '${filepath.getPath}' does not exist.")
+      return Left(FAIL)
+    }
+
+    val result = parse(filepath)
     result match {
       // If parsing is successful
       case Success(value) =>
         value match {
           // If parsing is successful according to the Parsley parser
           case parsley.Success(newValue) =>
-            // Check semantics of the parsed program
-            checkSemantics(newValue:Prog, source.toString) match {
-              // If there are no semantic errors
-              case (errors, prog, symbolTable) =>
-                if (errors.isEmpty) {
-                  Right((prog, symbolTable))
-                } else {
-                  // Print semantic errors and exit with semantic error status
-                  println(errors.map(err => err.display).mkString("\n"))
-                  Left(SEMANTIC_ERROR_EXIT_STATUS)
-                }
-            }
+            Right(newValue)
           // If parsing fails according to the Parsley parser
           case parsley.Failure(err) =>
             // Print syntax error and exit with syntax error status
-            println(err)
+            println(err.display)
             Left(SYNTAX_ERROR_EXIT_STATUS)
         }
       // If parsing fails
@@ -69,32 +123,48 @@ object Main {
     }
   }
 
-  def compileProgram(source: String): Int = {
-    val file = new File(source)
-    parseProgram(file) match {
-      case Left(exitCode) => exitCode
-      case Right((prog, symbolTable)) =>
+  def parseImports(initialFile: File): Either[Int, mutable.Map[File, (Set[File], Prog)]] = {
+    val importGraph = mutable.Map[File, (Set[File], Prog)]()
+    val visited = mutable.Set[File]()
+    var exitCode = VALID_EXIT_STATUS
+
+    def processFile(file: File): Unit = {
+      if (!visited.contains(file)) {
+        parseProgramToAST(file) match {
+          case Right(prog) =>
+            visited.add(file)
+            val imports = extractFiles(prog.imports)
+            importGraph(file) = (imports, prog)
+            imports.foreach(processFile)
+          case Left(code) => exitCode = code
+        }
+      }
+    }
+
+    processFile(initialFile)
+
+    exitCode match {
+      case VALID_EXIT_STATUS => Right(importGraph)
+      case _ => Left(exitCode)
+    }
+
+  }
+
+  def generateAsm(prog: Prog, symbolTable: mutable.Map[String, Type]): String = {
         val startTime = System.nanoTime()
-        val irTranslator = new IRTranslator(prog, symbolTable, CONCURRENT_COMPILATION)
-        val asmInstr = irTranslator.translate()
-        val totalRegsUsed = irTranslator.getRegsUsed()
-        val x86Code = new X86Translator(asmInstr, totalRegsUsed, CONCURRENT_COMPILATION).translate() match {
+    val irTranslator = new IRTranslator(prog, symbolTable, CONCURRENT_COMPILATION)
+    val asmInstr = irTranslator.translate()
+    val totalRegsUsed = irTranslator.getRegsUsed()
+    val x86Code = new X86Translator(asmInstr, totalRegsUsed, CONCURRENT_COMPILATION).translate() match {
           case Left(value) => Await.result(value, Duration.Inf)
           case Right(value) => value
         }
-        val asmCode = IntelX86Formatter.translate(x86Code)
+    IntelX86Formatter.translate(x86Code)
         val endTime = System.nanoTime()
 //        println(endTime - startTime)
-        writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
-          case VALID_EXIT_STATUS => VALID_EXIT_STATUS
-          case err =>
-            println("Failed to write to output file")
-            err
-        }
-    }
   }
 
-  private def writeToFile(contents: String, filename: String): Int = {
+  def writeToFile(contents: String, filename: String): Int = {
     try {
       val writer = new PrintWriter(new File(filename))
       writer.write(contents)
@@ -110,5 +180,12 @@ object Main {
     val index = file.lastIndexOf('.')
     if (index > 0) file.substring(0, index)
     else file
+  }
+
+  private def extractFiles(files: Option[List[StrLit]]): Set[File] = {
+    files match {
+      case Some(imports) => imports.map({x => new File(x.s)}).toSet
+      case None => Set.empty
+    }
   }
 }

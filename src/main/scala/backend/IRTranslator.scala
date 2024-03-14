@@ -1,9 +1,10 @@
 package backend
 
-import backend.IR.{LeaInstr, _}
+import backend.IR._
 import frontend.ast._
 import backend.IRRegisters._
 import backend.Size._
+import extensions.library.lib
 import frontend.validator.checkType
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -637,5 +638,11 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
 
   private def addString(str: String): Unit = synchronized {
     strMap = strMap.addOne((str, strCounter.getAndIncrement()))
+  }
+
+  def getLibName(func: Func): (String, String) = {
+    val funcName = func.ident.name.stripPrefix("wacc_")
+    val libFunc = funcName.split('.')
+    (libFunc(0) + ".wacc", libFunc(1))
   }
 }

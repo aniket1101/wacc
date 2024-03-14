@@ -4,12 +4,13 @@ import frontend.ast._
 import frontend.lexer._
 import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
+import frontend.waccErrors.SemanticError.genError
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.{option, sepBy, sepBy1}
+import parsley.combinator.{option, option, sepBy, sepBy1}
 import parsley.errors.combinator._
 import parsley.expr._
-import parsley.{Parsley, Result}
+import parsley.{Failure, Parsley, Result, Success}
 
 import java.io.File
 import scala.util.Try
@@ -19,7 +20,9 @@ object parser {
     implicit val waccErrorBuilder: WaccErrorBuilder = new WaccErrorBuilder
 
     // Function to parse a file and return a result
-    def parse(file: File): Try[Result[WaccError, Prog]] = parser.parseFile(file)
+    def parse(file: File): Try[Result[WaccError, Prog]] = {
+        parser.parseFile(file)
+    }
 
     // Lazy initialization of parser
     private lazy val parser = fully(prog)
@@ -27,13 +30,13 @@ object parser {
     // Lazy initialization of the main program parser
     private lazy val prog: Parsley[Prog] =
     // Parsing a complete program
-        fully("begin" ~> Prog(many(func), sepBy1(singleStat, ";")) <~ "end")
+        fully(Prog(option("import" ~> sepBy1(StrLit(stringLiterals), ",")), "begin" ~> many(func), sepBy1(singleStat, ";")) <~ "end")
 
     // Lazy initialization of function parser
     private lazy val func: Parsley[Func] = atomic(
         Func(
             option(typ), // Function return type
-            ident, // Function identifier
+            funcIdent, // Function identifier
             "(" ~> sepBy(param, ",") <~ ")", // Function parameters
             "is" ~> sepBy1(singleStat, ";").filter(stmts => functionExits(stmts.last)) <~ "end"
         )
@@ -64,7 +67,8 @@ object parser {
     private lazy val assign: Parsley[AssignorInferDecl] = AssignorInferDecl(lvalue, "=" ~> rvalue)
 
     // Parser for identifier
-    private lazy val ident: Parsley[Ident] = Ident(identifier)
+    private lazy val ident: Parsley[Ident] = Ident(identifier).filter(i => !i.name.contains("."))
+    private lazy val funcIdent: Parsley[Ident] = Ident(identifier)
 
     // Parser for type
     private lazy val typ: Parsley[Type] =
@@ -131,7 +135,7 @@ object parser {
 
     // Parser for rvalues
     private lazy val rvalue: Parsley[RValue] =
-        atomic(expr) | Call("call" ~> ident, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
+        atomic(expr) | Call("call" ~> funcIdent, "(" ~> sepBy(expr, ",") <~ ")") | arrayLit |
           NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")") | pairElem
 
     // Parser for array literals

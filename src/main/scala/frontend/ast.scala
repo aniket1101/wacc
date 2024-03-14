@@ -66,9 +66,17 @@ object ast {
     val pos: (Int, Int)
   }
 
-  case class Prog(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Func(var typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position
-  case class Param(var typ: Option[Type], ident: Ident)(val pos: (Int, Int)) extends Position
+  case class Prog(imports: Option[List[StrLit]], funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends Position
+  case class Func(var typ: Option[Type], ident: Ident, paramList: List[Param], stats: List[Stat])(val pos: (Int, Int)) extends Position {
+    def addLibraryPrefix(str: String): Func = {
+      ident.name = s"$str.${ident.name}"
+      this
+    }
+  }
+  case class Param(var typ: Option[Type], ident: Ident)(val pos: (Int, Int)) extends Position {
+    def updateIdent(str: String): Param = Param(typ, new Ident(str)(ident.pos))(pos)
+
+  }
 
   // Statements
   sealed trait Stat extends Position
@@ -92,7 +100,7 @@ object ast {
   sealed class Atom(val pos:(Int,Int)) extends Expr
 
   sealed trait IdentArray extends LValue with Expr
-  case class Ident(name: String)(override val pos: (Int, Int)) extends IdentArray {
+  case class Ident(var name: String)(override val pos: (Int, Int)) extends IdentArray {
     override def toString: String = name
   }
   case class ArrayElem(ident: IdentArray, exprs: List[Expr])(override val pos: (Int, Int)) extends IdentArray
@@ -184,7 +192,7 @@ object ast {
   /* PARSER BRIDGE CONNECTIONS */
 
   /* Core */
-  object Prog extends ParserBridgePos2[List[Func], List[Stat], Prog]
+  object Prog extends ParserBridgePos3[Option[List[StrLit]], List[Func], List[Stat], Prog]
   object Func extends ParserBridgePos4[Option[Type], Ident, List[Param], List[Stat], Func] {
     override def from(op: Parsley[_]): Parsley[(Option[Type], Ident, List[Param], List[Stat]) => Func] =
       super.from(op).label("function declaration")

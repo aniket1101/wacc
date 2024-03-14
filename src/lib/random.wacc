@@ -1,0 +1,10 @@
+begin
+  # Returns a random unsigned integer
+   int randseed()
+
+  # Returns a random integer between a and b inclusive
+  int randint(int a, int b)
+
+  # Returns a random integer between a and b exclusive
+   int randrange(int a, int b)
+end

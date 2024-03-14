@@ -1,0 +1,23 @@
+begin
+  # Returns whether an integer is even
+  bool is_even(int n) is
+    return n % 2 == 0
+  end
+
+  # Computes the square of an integer
+  int square(int n) is
+     return n * n
+   end
+
+  # Returns whether an integer is a multiple of the other
+  bool is_factor(int a, int b) is
+    return a % b == 0
+  end
+
+  # Returns the exclusive XOR operation on Bools a, b
+  bool xor(bool a, bool b) is
+    return !a && b || a && !b
+  end
+
+  skip
+end

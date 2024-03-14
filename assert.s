@@ -1,35 +1,44 @@
-<<<<<<< HEAD
-=======
 .intel_syntax noprefix
 .globl main
 .section .rodata
+	.int 16
+.L.str0:
+	.asciz "Assertion Failed"
 .text
 main:
 	push rbp
-	sub rsp, 32
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
 	mov rbp, rsp
 	mov rax, 1
 	mov rdi, rax
-	call wacc_assertions.True
+	call wacc_assert
 	mov r12, rax
-	mov rax, 1
-	mov rdi, rax
-	call wacc_assertions.True
-	mov r13, rax
-	mov rax, 1
-	mov rdi, rax
-	call wacc_assertions.True
-	mov r14, rax
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	add rsp, 32
+	add rsp, 16
+	pop rbp
+	ret
+
+.section .rodata
+	.int 4
+.L._prints_str0:
+	.asciz "%.*s"
+.text
+_prints:
+	push rbp
+	mov rbp, rsp
+	and rsp, -16
+	mov rdx, rdi
+	mov esi, dword ptr [rdi - 4]
+	lea rdi, [rip + .L._prints_str0]
+	mov al, 0
+	call printf@plt
+	mov rdi, 0
+	call fflush@plt
+	mov rsp, rbp
 	pop rbp
 	ret
 
@@ -43,6 +52,9 @@ _exit:
 	ret
 
 .L0:
+	lea rax, [rip + .L.str0]
+	mov rdi, rax
+	call _prints
 	mov rax, -1
 	push rdi
 	mov rdi, rax
@@ -53,7 +65,7 @@ _exit:
 .L1:
 	mov rax, rdi
 
-wacc_assertions.True:
+wacc_assert:
 	push rbp
 	push rbx
 	mov rbp, rsp
@@ -67,4 +79,3 @@ wacc_assertions.True:
 	pop rbx
 	pop rbp
 	ret
->>>>>>> ide

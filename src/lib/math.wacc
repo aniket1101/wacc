@@ -1,0 +1,35 @@
+import "basicMath.wacc"
+
+begin
+  # Returns whether an integer is odd
+  bool is_odd(int n) is
+    bool isEven = call basicMath.is_even(n);
+    return !isEven
+  end
+
+  # Computes the cube of an integer
+  int cube(int n) is
+   int sq = call basicMath.square(n);
+   return sq * n
+  end
+
+  # Computes the nth triangular number
+  int triangular_number(int n) is
+    return n * (n + 1) / 2
+  end
+
+  # Computes the sum of squares
+  int sum_of_squares(int a, int b) is
+    int aSq = call basicMath.square(a);
+    int bSq = call basicMath.square(b);
+    return aSq + bSq
+  end
+
+  # Returns the exclusive XAND operation on Bools a, b
+  bool xand(bool a, bool b) is
+    bool x = call basicMath.xor(a, b);
+    return !x
+  end
+
+  skip
+end
