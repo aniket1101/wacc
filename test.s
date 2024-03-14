@@ -1,9 +1,9 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-	.int 12
+	.int 3
 .L.str0:
-	.asciz "min value = "
+	.asciz "yes"
 .text
 main:
 	push rbp
@@ -13,9 +13,9 @@ main:
 	mov rbp, rsp
 	mov rax, 1
 	mov r12, rax
-	mov rax, r12
+	lea rax, [rip + .L.str0]
 	mov rdi, rax
-	call _printb
+	call _prints
 	call _println
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
@@ -25,52 +25,17 @@ main:
 	ret
 
 .section .rodata
-	.int 5
-.L._printb_str0:
-	.asciz "false"
 	.int 4
-.L._printb_str1:
-	.asciz "true"
-	.int 4
-.L._printb_str2:
+.L._prints_str0:
 	.asciz "%.*s"
 .text
-_printb:
+_prints:
 	push rbp
 	mov rbp, rsp
 	and rsp, -16
-	cmp dil, 0
-	jne .L_printb0
-	lea rdx, [rip + .L._printb_str0]
-	jmp .L_printb1
-
-.text
-.L_printb0:
-	lea rdx, [rip + .L._printb_str1]
-
-.text
-.L_printb1:
-	mov esi, dword ptr [rdx - 4]
-	lea rdi, [rip + .L._printb_str2]
-	mov al, 0
-	call printf@plt
-	mov rdi, 0
-	call fflush@plt
-	mov rsp, rbp
-	pop rbp
-	ret
-
-.section .rodata
-	.int 2
-.L._printi_str0:
-	.asciz "%d"
-.text
-_printi:
-	push rbp
-	mov rbp, rsp
-	and rsp, -16
-	mov esi, edi
-	lea rdi, [rip + .L._printi_str0]
+	mov rdx, rdi
+	mov esi, dword ptr [rdi - 4]
+	lea rdi, [rip + .L._prints_str0]
 	mov al, 0
 	call printf@plt
 	mov rdi, 0
@@ -93,20 +58,5 @@ _println:
 	mov rdi, 0
 	call fflush@plt
 	mov rsp, rbp
-	pop rbp
-	ret
-
-wacc_f:
-	push rbp
-	sub rsp, 16
-	mov qword ptr [rsp], rbx
-	mov qword ptr [rsp + 8], r12
-	mov rbp, rsp
-	mov rax, 1
-	mov r12, rax
-	mov rax, r12
-	mov rbx, qword ptr [rsp]
-	mov r12, qword ptr [rsp + 8]
-	add rsp, 16
 	pop rbp
 	ret

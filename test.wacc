@@ -12,7 +12,12 @@ begin
     return x
   end
 
-  bool x = true;
-  println x
+  bool x = call f(5);
+  if x == true
+  then
+    println "yes"
+  else
+    println "no"
+  fi
 
 end

@@ -171,6 +171,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
    var funcAllData: mutable.Map[Ident, ListBuffer[(Option[Expr], ListBuffer[Option[Stat]])]] =
       mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[(Option[Expr], ListBuffer[Option[Stat]])]): _*)
     var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
+    var funcToChange: mutable.ListBuffer[(Int, Int)] = ListBuffer.empty
     var sideEffects = ListBuffer.empty[Option[Stat]] // currently only assumed to be print and println given wacc spec
     var returnValue : Option[Expr] = None
     var funcCallCounters: mutable.Map[Ident, Int] = mutable.Map().withDefaultValue(0)
@@ -207,7 +208,10 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
                       optimiseProg(prog.copy(stats = func.stats)(prog.pos), localIdentTable, RECURSION_LEVEL + 1)
                     identTable(ident.name) = givenReturnValue
                     funcAllData.get(name) match {
-                      case Some(listbuffer) => funcAllData(name) = listbuffer += ((givenReturnValue, givenSideEffects))
+                      case Some(listbuffer) =>  {
+                        funcToChange += stat.pos
+                        funcAllData(name) = listbuffer += ((givenReturnValue, givenSideEffects))
+                      }
                       case None => funcAllData(name) = ListBuffer((givenReturnValue, givenSideEffects))
                     }
                   }
@@ -236,7 +240,10 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
                       optimiseProg(prog.copy(stats = func.stats)(prog.pos), localIdentTable, RECURSION_LEVEL + 1)
                     identTable(ident.name) = givenReturnValue
                     funcAllData.get(name) match {
-                      case Some(listbuffer) => funcAllData(name) = listbuffer += ((givenReturnValue, givenSideEffects))
+                      case Some(listbuffer) =>  {
+                        funcToChange += stat.pos
+                        funcAllData(name) = listbuffer += ((givenReturnValue, givenSideEffects))
+                      }
                       case None => funcAllData(name) = ListBuffer((givenReturnValue, givenSideEffects))
                     }
                   }
@@ -343,7 +350,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
     }
     var modifiedStats = prog.stats.flatMap {
       stat =>
-        if (statsToChange.contains(stat.pos)) {
+        if (statsToChange.contains(stat.pos) | funcToChange.contains(stat.pos)) {
           stat match {
             case If(cond, thenStat, elseStat) => {
               if (statsToChange(stat.pos)) {
