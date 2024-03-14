@@ -11,15 +11,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import java.{util => ju}
 
-object FuncCallType extends Enumeration {
-  val NoCall, SingleCall, MultiCallIdent, MultiCallDiff = Value
-}
-
 class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val MAX_UNROLLS: Int) {
 
   def CFProgram(): (Prog) = {
     val variables: mutable.Map[String, Option[Expr]] = mutable.Map(symbolTable.keys.map(key => key -> None).toSeq: _*)
-    optimiseProg(prog, variables)
+    optimiseMainProg(prog, variables)
   }
 
   def checkBoolList(bools: List[Option[Boolean]]): Boolean = {
@@ -162,33 +158,23 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
     paramsBuffer.toList
   }
 
-  def analyseFuncCalls(funcAllArgs: mutable.Map[Ident, ListBuffer[ListBuffer[Option[Expr]]]]) 
-    : Map[Ident, FuncCallType.Value] = {
-
-    funcAllArgs.map { case (funcIdent, callArgs) =>
-      val funcCallsType = callArgs match {
-        case calls if calls.isEmpty =>
-          FuncCallType.NoCall
-        case calls if calls.size == 1 =>
-          FuncCallType.SingleCall
-        case calls =>
-          val allCallsIdentical = calls.forall(_ == calls.head)
-          if (allCallsIdentical) {
-            FuncCallType.MultiCallIdent
-          } else {
-            FuncCallType.MultiCallDiff
-          }
-      }
-      (funcIdent, funcCallsType)
-    }.toMap
+  def findFunctionByIdent(ident: Ident): Option[Func] = {
+    prog.funcs.find(_.ident == ident)
   }
 
+  def optimiseMainProg(prog: Prog, variables:mutable.Map[String, Option[Expr]]) : (Prog) = {
+    val RECURSION_LEVEL = 0
+    optimiseProg(prog, variables, RECURSION_LEVEL)._1
+  }
 
-
-  def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]]) : (Prog) = {
-    var funcAllArgs : mutable.Map[Ident, ListBuffer[ListBuffer[Option[Expr]]]] =
-      mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[ListBuffer[Option[Expr]]]): _*)
+  def optimiseProg(prog: Prog, identTable:mutable.Map[String, Option[Expr]], RECURSION_LEVEL: Int) : (Prog, Option[Expr], ListBuffer[Option[Stat]]) = {
+   var funcAllData: mutable.Map[Ident, ListBuffer[(Option[Expr], ListBuffer[Option[Stat]])]] =
+      mutable.Map(prog.funcs.map(func => func.ident -> ListBuffer.empty[(Option[Expr], ListBuffer[Option[Stat]])]): _*)
     var loopConds : mutable.Map[(Int, Int), ListBuffer[Option[Boolean]]] = mutable.Map()
+    var sideEffects = ListBuffer.empty[Option[Stat]] // currently only assumed to be print and println given wacc spec
+    var returnValue : Option[Expr] = None
+    var funcCallCounters: mutable.Map[Ident, Int] = mutable.Map().withDefaultValue(0)
+    val RECURSION_LIMIT = 5
     var allStats = mutable.Stack[Stat]()
     allStats.pushAll(prog.stats)
     while (allStats.nonEmpty) {
@@ -208,12 +194,25 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
 //            case PairFst(_)
 //            case PairSnd(_)
             case Call(name, args) => {
-              val funcParams = args.map(Some(_)).map(arg => evaluateExpr(arg, identTable)) : List[Option[Expr]]
-              funcAllArgs.get(name) match {
-                case Some(listbuffer) => funcAllArgs(name) = listbuffer += ListBuffer(funcParams: _*)
-                case None => funcAllArgs(name) = ListBuffer(ListBuffer(funcParams: _*))
-              }
-              identTable(ident.name) = Option.empty
+              findFunctionByIdent(name) match {
+                case Some(func) =>
+                  val localIdentTable = mutable.Map[String, Option[Expr]]()
+                  args.zip(func.paramList).foreach { case (arg, param) =>
+                    localIdentTable(param.ident.name) = evaluateExpr(Some(arg), identTable)
+                  }
+                  if (RECURSION_LEVEL >= RECURSION_LIMIT) {
+                    identTable(ident.name) = Option.empty
+                  } else {
+                    val (optimisedBody, givenReturnValue, givenSideEffects) = 
+                      optimiseProg(prog.copy(stats = func.stats)(prog.pos), localIdentTable, RECURSION_LEVEL + 1)
+                    identTable(ident.name) = givenReturnValue
+                    funcAllData.get(name) match {
+                      case Some(listbuffer) => funcAllData(name) = listbuffer += ((givenReturnValue, givenSideEffects))
+                      case None => funcAllData(name) = ListBuffer((givenReturnValue, givenSideEffects))
+                    }
+                  }
+                case _ => identTable(ident.name) = Option.empty
+                }
             }
             case _ =>
               identTable(ident.name) = Option.empty
@@ -224,23 +223,44 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
             identTable(ident.name) = evaluateExpr(Option(expr), identTable)
           }
           case Call(name, args) => {
-            val funcParams = args.map(Some(_)).map(arg => evaluateExpr(arg, identTable)) : List[Option[Expr]]
-            funcAllArgs.get(name) match {
-              case Some(listbuffer) => funcAllArgs(name) = listbuffer += ListBuffer(funcParams: _*)
-              case None => funcAllArgs(name) = ListBuffer(ListBuffer(funcParams: _*))
+              findFunctionByIdent(name) match {
+                case Some(func) =>
+                  val localIdentTable = mutable.Map[String, Option[Expr]]()
+                  args.zip(func.paramList).foreach { case (arg, param) =>
+                    localIdentTable(param.ident.name) = evaluateExpr(Some(arg), identTable)
+                  }
+                  if (RECURSION_LEVEL >= RECURSION_LIMIT) {
+                    identTable(ident.name) = Option.empty
+                  } else {
+                    val (optimisedBody, givenReturnValue, givenSideEffects) = 
+                      optimiseProg(prog.copy(stats = func.stats)(prog.pos), localIdentTable, RECURSION_LEVEL + 1)
+                    identTable(ident.name) = givenReturnValue
+                    funcAllData.get(name) match {
+                      case Some(listbuffer) => funcAllData(name) = listbuffer += ((givenReturnValue, givenSideEffects))
+                      case None => funcAllData(name) = ListBuffer((givenReturnValue, givenSideEffects))
+                    }
+                  }
+                case _ => identTable(ident.name) = Option.empty
+                }
             }
-            identTable(ident.name) = Option.empty
-          }
           case _ => identTable(ident.name) = Option.empty
         }
         case Free(_) => {
 
         }
         case Print(expr) => {
-
+          val printStat = evaluateExpr(Some(expr), identTable) match {
+            case Some(printVal) => Option(Print(printVal)(stat.pos))
+            case _ => None
+          }
+          sideEffects.addOne(printStat)
         }
         case Println(expr) => {
-
+          val printStat = evaluateExpr(Some(expr), identTable) match {
+            case Some(printVal) => Option(Println(printVal)(stat.pos))
+            case _ => None
+          }
+          sideEffects.addOne(printStat)
         }
         case Read(ident: Ident) => {
           identTable(ident.name) = Option.empty
@@ -294,7 +314,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
           }
         }
         case Return(expr) => {
-
+          returnValue = evaluateExpr(Some(expr), identTable)
         }
         case Exit(expr) => {
 
@@ -342,15 +362,67 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
                   List(stat)
               }
             }
-            case Declaration(typ, ident, y) => {
-              y match {
+            case Declaration(typ, ident, rValue) => {
+              rValue match {
                 case expr: Expr => List(stat)
-                case Call(name, args) => List(stat)
+                case Call(name, args) => {
+                  if (RECURSION_LEVEL >= RECURSION_LIMIT) {
+                    List(stat)
+                  } else {
+                    val currentCount = funcCallCounters.getOrElse(name, 0)
+                    funcCallCounters.update(name, currentCount + 1)
+                    funcAllData.get(name) match {
+                      case Some(callData) if currentCount < callData.size =>
+                        val (returnValueOpt, sideEffectsOpt) = callData(currentCount)
+                        val allSideEffectsDefined = sideEffectsOpt.forall(_.isDefined)
+                        
+                        if (returnValueOpt.isDefined && allSideEffectsDefined) {
+                          val returnValue = returnValueOpt.get
+                          val extractedSideEffects = sideEffectsOpt.flatMap {
+                            case Some(Print(expr)) => List(Print(expr)(stat.pos))
+                            case Some(Println(expr)) => List(Println(expr)(stat.pos))
+                            case _ => None
+                          }
+                          extractedSideEffects.toList :+ AssignorInferDecl(ident, returnValue)(stat.pos)
+                        } else {
+                          List(stat)
+                        }
+                      case _ => List(stat)
+                    }
+                  }
+                }
+                case _ => List(stat)
               }
             }
             case AssignorInferDecl(ident: Ident, rValue) => rValue match {
               case expr: Expr => List(stat)
-              case Call(name, args) => List(stat)
+              case Call(name, args) => {
+                  if (RECURSION_LEVEL >= 1) {
+                    List(stat)
+                  } else {
+                    val currentCount = funcCallCounters.getOrElse(name, 0)
+                    funcCallCounters.update(name, currentCount + 1)
+                    funcAllData.get(name) match {
+                      case Some(callData) if currentCount < callData.size =>
+                        val (returnValueOpt, sideEffectsOpt) = callData(currentCount)
+                        val allSideEffectsDefined = sideEffectsOpt.forall(_.isDefined)
+                        
+                        if (returnValueOpt.isDefined && allSideEffectsDefined) {
+                          val returnValue = returnValueOpt.get
+                          val extractedSideEffects = sideEffectsOpt.flatMap {
+                            case Some(Print(expr)) => List(Print(expr)(stat.pos))
+                            case Some(Println(expr)) => List(Println(expr)(stat.pos))
+                            case _ => None
+                          }
+                          extractedSideEffects.toList :+ AssignorInferDecl(ident, returnValue)(stat.pos)
+                        } else {
+                          List(stat)
+                        }
+                      case _ => List(stat)
+                    }
+                  }
+                }
+              case _ => List(stat)
             }
 
             case _ => List(stat)
@@ -359,47 +431,6 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
         else List(stat)
     }
 
-    val funcCallsAnalysed = analyseFuncCalls(funcAllArgs)
-
-    val modifiedFuncs = prog.funcs.flatMap { func =>
-      funcCallsAnalysed(func.ident) match {
-        case FuncCallType.NoCall =>
-          None
-        case FuncCallType.SingleCall =>
-          // Optimise for single call of function to replace with result + side effects
-          Some(func)
-
-        case FuncCallType.MultiCallIdent =>
-          // this can be optimised by treating it like the single call case
-          Some(func)
-
-        case FuncCallType.MultiCallDiff =>
-          // here you need to check if the return value or part of the function
-          // can be optimised such an if loop possibly by recursively calling ControlFlow
-          Some(func)
-      }
-    }
-    prog.copy(stats = modifiedStats, funcs = modifiedFuncs)(0, 0)
-  }
-
-  def optimiseFunc(func:Func, symbolTable:mutable.Map[String, Type], identTables:List[mutable.Map[String, Expr]]): Unit = {
-    var controls = ListBuffer.empty
-    for (arg <- func.paramList) {
-
-    }
-    for (stat <- func.stats) {
-      stat match {
-        //case If(cond, thenStat, elseStat) =>
-          //evalCond(cond) match {
-            //None =>
-          //}
-
-      case While(cond, doStat) =>
-
-      case _ =>
-        // Add handling for calls
-      }
-    }
-
+    (prog.copy(stats = modifiedStats)(0, 0), returnValue, sideEffects)
   }
 }
