@@ -82,7 +82,11 @@ object Main {
         // To add some control flow analysis, you need to uncomment the below part and comment above, however, currently has array + pair issues
         val asmInstr = irTranslator.translate()
         val totalRegsUsed = irTranslator.getRegsUsed()
-        val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
+        var x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
+        if (CONTROL_FLOW_OPTIMISATION) {
+          val controlFlowBlocks = new ControlFlowBlocks(x86Code)
+          x86Code = controlFlowBlocks.CFProgram()
+        }
         val asmCode = IntelX86Formatter.translate(x86Code)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS
