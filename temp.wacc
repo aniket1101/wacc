@@ -2,7 +2,5 @@ import "assertions.wacc"
 
 begin
 	# Enter your code here
-	bool temp = call assertions.True(true);
-	bool temp2 = call assertions.True(true);
-	bool temp3 = call assertions.True(true); 
+	bool assert = call assertions.True(true)
 end

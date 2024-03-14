@@ -528,7 +528,7 @@ abstract class TextEditorMenu extends JFrame {
               case _ =>
                 // Linux and other OS specific commands
                 val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
-                s"""gnome-terminal -- /bin/bash -c "$runCMD; read -p 'Press Enter to close' key" """.!!
+                s"""gnome-terminal -- /bin/bash -c "$runCMD; read -p 'Press Enter to close' key" """
             }
 
             try {
