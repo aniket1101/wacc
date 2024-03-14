@@ -1,6 +1,0 @@
-import "assertions.wacc"
-
-begin
-	# Enter your code here
-	bool assert = call assertions.True(true)
-end

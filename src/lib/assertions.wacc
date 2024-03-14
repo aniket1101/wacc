@@ -1,10 +1,10 @@
 begin
   # Asserts that the condition is True
 	bool True(bool cond) is
-	  if !cond then
-	    exit -1
-	  else
+	  if cond then
 	    skip
+	  else
+	    exit -1
 	  fi;
 		return cond
 	end

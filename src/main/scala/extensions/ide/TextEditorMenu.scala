@@ -18,6 +18,7 @@ import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.sys.process._
+import scala.util.{Failure, Success, Try}
 
 abstract class TextEditorMenu extends JFrame {
   var textEditor: JTextPane
@@ -520,15 +521,16 @@ abstract class TextEditorMenu extends JFrame {
           case Some(file) =>
             val osName = sys.props("os.name")
             val outputName = removeFileExt(file.getName)
+            val exitCodeFile = "exit_code.txt"
 
-            val runInTerminalCMD: String = osName match {
+            val runInTerminalCMD: ProcessBuilder = osName match {
               case windowsOS if windowsOS.toLowerCase.contains("windows") =>
                 val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
                 s"""cmd /c "start wsl bash -c "$runCMD && read -p '0 e' key"""""
               case _ =>
                 // Linux and other OS specific commands
                 val runCMD = s"gcc -o $outputName $outputName.s && ./$outputName"
-                s"""gnome-terminal -- /bin/bash -c "$runCMD; read -p 'Press Enter to close' key" """
+                Process(Seq("gnome-terminal", "--", "/bin/bash", "-c", runCMD + "; echo $? > " + exitCodeFile + "; read -p 'Press Enter to close' key"))
             }
 
             try {
@@ -554,7 +556,10 @@ abstract class TextEditorMenu extends JFrame {
 
               // Execute run command
               output match {
-                case 0 => return Option(runInTerminalCMD.!)
+                case 0 => runInTerminalCMD.!!
+                  val code = getExitCode(exitCodeFile)
+                  println(s"Process exited with exit code: $code")
+                  return Option(getExitCode(exitCodeFile))
                 case _ => JOptionPane.showMessageDialog(null, "Compilation Failed.",
                   "Error", JOptionPane.ERROR_MESSAGE)
               }
@@ -571,6 +576,20 @@ abstract class TextEditorMenu extends JFrame {
     }
     Option(FAIL)
   }
+
+  private def getExitCode(file: String): Int = {
+    Thread.sleep(1000)
+    Try {
+      val exitCodeSource = Source.fromFile(file)
+      val exitCode = exitCodeSource.getLines().toList.headOption.getOrElse("0").toInt
+      exitCodeSource.close()
+      exitCode
+    } match {
+      case Success(exitCode) => exitCode
+      case Failure(_) => 0
+    }
+  }
+
 
   private def upToNthTest(stats: immutable.List[Stat], n: Int): immutable.List[Stat] = {
     val newStats: ListBuffer[Stat] = ListBuffer()
