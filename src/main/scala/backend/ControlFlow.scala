@@ -307,13 +307,18 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
     }
 
     val statsToChange : mutable.Map[(Int, Int), Boolean] = mutable.Map.empty
+    val statsToUnroll: mutable.Map[(Int, Int), Int] = mutable.Map.empty
 
     for (loopCond <- loopConds) {
-      if (checkBoolList(loopCond._2.toList)) {
-        // This loop is always true or always false
-        val posToChange = loopCond._1
-        val loopValue = loopCond._2.head.get
-        statsToChange(posToChange) = loopValue
+      val posToChange = loopCond._1
+      val conditions = loopCond._2.toList
+      if (checkBoolList(conditions)) {
+        statsToChange(posToChange) = conditions.head.get
+      } else {
+        val trueCount = conditions.takeWhile(_.contains(true)).size
+        if (trueCount > 0 && conditions.size == trueCount + 1 && conditions.last.contains(false)) {
+          statsToUnroll(posToChange) = trueCount
+        }
       }
     }
     var modifiedStats = prog.stats.flatMap {
@@ -328,10 +333,13 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
               }
             }
             case While(cond, doStat) => {
-              if (statsToChange(stat.pos)) {
-                doStat
-              } else {
-                List.empty
+              statsToUnroll.get(stat.pos) match {
+                case Some(iterationCount) => 
+                  (1 to iterationCount).flatMap(_ => doStat).toList
+                case None if !statsToChange(stat.pos) =>
+                  List.empty
+                case _ =>
+                  List(stat)
               }
             }
             case Declaration(typ, ident, y) => {
