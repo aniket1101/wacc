@@ -9,6 +9,9 @@ project/
 .idea/
 wacc-compiler
 .bloop/
-test.wacc
-test.s
+/*.s
+/*.txt
+/*.wacc
+/*.
+
 .attach_pid*
