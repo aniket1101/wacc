@@ -18,17 +18,11 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
     optimiseMainProg(prog, variables)
   }
 
-  def checkBoolList(bools: List[Option[Boolean]]): Boolean = {
+  def checkBoolList(bools: List[Option[Boolean]]): Boolean =
     bools match {
-      case Nil => false
-      case _ => {
-        val allTrue = bools.forall(_.contains(true))
-        val allFalse = bools.forall(_.contains(false))
-        if (allTrue || allFalse) allTrue
-        else false
-      }
+      case Nil => true
+      case x :: xs => xs.forall(_.contains(x.getOrElse(!x.get)))
     }
-  }
   def evalCond(cond: Expr, identTables:List[mutable.Map[String, Option[Expr]]]): Option[Boolean] = {
     val condValues = ListBuffer.empty : ListBuffer[Option[Boolean]]
     for (identTable <- identTables) {
@@ -199,7 +193,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
                 case Some(func) =>
                   val localIdentTable = mutable.Map[String, Option[Expr]]()
                   args.zip(func.paramList).foreach { case (arg, param) =>
-                    localIdentTable(param.ident.name) = evaluateExpr(Some(arg), identTable)
+                    localIdentTable("func-" + name + "-param-" + param.ident.name) = evaluateExpr(Some(arg), identTable)
                   }
                   if (RECURSION_LEVEL >= RECURSION_LIMIT) {
                     identTable(ident.name) = Option.empty
