@@ -6,6 +6,7 @@ import extensions.library.lib
 import frontend.ast._
 import frontend.parser._
 import frontend.validator.{checkSemantics, fileExists}
+import frontend.waccErrors.WaccError
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
@@ -48,11 +49,11 @@ object Main {
             println("Failed to write to output file")
             err
         }
-      case Left(err) => err
+      case Left((err, _)) => err
     }
   }
 
-  def parseProgram(mainFile: File): Either[Int, (Prog, mutable.Map[String, Type])] = {
+  def parseProgram(mainFile: File): Either[(Int, Option[WaccError]), (Prog, mutable.Map[String, Type])] = {
     // Combines multiple wacc programs into a map of file to its ast
     parseImports(mainFile) match {
       case Right(importGraph) =>
@@ -78,7 +79,7 @@ object Main {
             } else {
               // Print semantic errors and exit with semantic error status
               println(errors.map(err => err.display).mkString("\n"))
-              Left(SEMANTIC_ERROR_EXIT_STATUS)
+              Left((SEMANTIC_ERROR_EXIT_STATUS, Option(errors.head)))
             }
         }
 
@@ -86,7 +87,7 @@ object Main {
     }
   }
 
-  private def parseProgramToAST(source: File): Either[Int, Prog] = {
+  private def parseProgramToAST(source: File): Either[(Int, Option[WaccError]), Prog] = {
     val filepath = if (lib.getLibs.contains(source.getName)) {
       return Right(new Prog(Option.empty, lib.getLibs(source.getName).getFuncs, List())(nullPos))
     } else if (!fileExists(source.getPath)) {
@@ -97,7 +98,7 @@ object Main {
 
     if (!filepath.exists()) {
       println(s"Import Error: File '${filepath.getPath}' does not exist.")
-      return Left(FAIL)
+      return Left((FAIL, Option.empty))
     }
 
     val result = parse(filepath)
@@ -112,20 +113,21 @@ object Main {
           case parsley.Failure(err) =>
             // Print syntax error and exit with syntax error status
             println(err.display)
-            Left(SYNTAX_ERROR_EXIT_STATUS)
+            Left((SYNTAX_ERROR_EXIT_STATUS, Option(err)))
         }
       // If parsing fails
       case Failure(err) =>
         // Print parsing failure error and exit with general failure status
         println(err)
-        Left(FAIL)
+        Left((FAIL, Option.empty))
     }
   }
 
-  def parseImports(initialFile: File): Either[Int, mutable.Map[File, (Set[File], Prog)]] = {
+  def parseImports(initialFile: File): Either[(Int, Option[WaccError]), mutable.Map[File, (Set[File], Prog)]] = {
     val importGraph = mutable.Map[File, (Set[File], Prog)]()
     val visited = mutable.Set[File]()
     var exitCode = VALID_EXIT_STATUS
+    var error: Option[WaccError] = Option.empty
 
     def processFile(file: File): Unit = {
       if (!visited.contains(file)) {
@@ -135,7 +137,9 @@ object Main {
             val imports = extractFiles(prog.imports)
             importGraph(file) = (imports, prog)
             imports.foreach(processFile)
-          case Left(code) => exitCode = code
+          case Left((code, err)) =>
+            exitCode = code
+            error = err
         }
       }
     }
@@ -144,7 +148,7 @@ object Main {
 
     exitCode match {
       case VALID_EXIT_STATUS => Right(importGraph)
-      case _ => Left(exitCode)
+      case _ => Left((exitCode, error))
     }
 
   }

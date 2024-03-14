@@ -1,9 +1,7 @@
 package extensions.ide
 
 import extensions.ide.runIDE.importAssertTypes
-import frontend.parser.parse
-import frontend.validator.checkSemantics
-import main.Main.writeToFile
+import main.Main.{SYNTAX_ERROR_EXIT_STATUS, parseProgram, writeToFile}
 
 import java.awt._
 import java.awt.event.{MouseAdapter, MouseEvent}
@@ -12,7 +10,6 @@ import javax.swing._
 import javax.swing.event.{CaretEvent, DocumentEvent, DocumentListener}
 import javax.swing.text.{SimpleAttributeSet, StyleConstants}
 import scala.collection.mutable.ListBuffer
-import scala.util.{Failure, Success}
 
 
 class IDE extends TextEditorMenu {
@@ -41,7 +38,6 @@ class IDE extends TextEditorMenu {
   private val stringEncl: Set[Char] = Set('\"', '\'')
   private val stringStyle = new SimpleAttributeSet()
   private val STRING_COLOR: Color = new Color(0, 170, 0)
-  private val brackets: Map[Char, Char] = Map('(' -> ')', '[' -> ']')
 
   private val typesAndFuncs: Set[String] = Set("read", "exit", "print", "free", "println",
     "newpair", "fst", "snd", "int", "bool", "char", "string", "pair", "len", "ord", "chr")
@@ -214,10 +210,6 @@ class IDE extends TextEditorMenu {
               val tab = getPreviousLineIndentation
               text = insertSubstring(text, caretPosition, tab)
               caretPosition += tab.length
-            case char if stringEncl.contains(char) =>
-              text = insertSubstring(text, caretPosition, char.toString)
-            case openBracket if brackets.contains(openBracket) =>
-              text = insertSubstring(text, caretPosition, brackets(openBracket).toString)
             case _ =>
           }
           case None =>
@@ -341,35 +333,23 @@ class IDE extends TextEditorMenu {
     writeToFile(text, tempFile.getPath)
 
     // 1. Check for Syntax Errors
-    parse(tempFile) match {
-      case Success(value) =>
-        value match {
-          case parsley.Success(prog) =>
-            // 2. Check for Semantic Errors
-            checkSemantics(prog, tempFile.getPath) match {
-              case (errors, _, _) =>
-                val errs = errors.filter(e => !e.errorLines.lines.toString().contains("undefined function"))
-                if (errs.nonEmpty) {
-                  val err = errs.head
-                  val pos = err.pos
-                  errorMsg = err.displayForIDE
-                  errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
-                  highlightErrorAt(pos._1, pos._2)
-                  return false
-                }
-            }
-
-          case parsley.Failure(err) =>
-            val pos = err.pos
-            errorType = "Syntax"
-            errorMsg = err.displayForIDE
-            highlightErrorAt(pos._1, pos._2)
-            return false
-        }
-      case Failure(_) =>
-        return false
+    parseProgram(tempFile) match {
+      case Left((exitCode, Some(err))) => exitCode match {
+        case SYNTAX_ERROR_EXIT_STATUS =>
+          val pos = err.pos
+          errorType = "Syntax"
+          errorMsg = err.displayForIDE
+          highlightErrorAt(pos._1, pos._2)
+          false
+        case _ =>
+          val pos = err.pos
+          errorMsg = err.displayForIDE
+          errorType = if (errorMsg.contains(fileNotFound)) "FileNotFound" else "Semantic"
+          highlightErrorAt(pos._1, pos._2)
+          false
+      }
+      case Right(_) => true
     }
-    true
   }
 
   private def highlightErrorAt(row: Int, column: Int): Unit = {

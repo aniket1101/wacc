@@ -724,7 +724,6 @@ object validator {
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
 
           // Check for type mismatch in assignment
-          //  !sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists
           if ((lType != rType && rType != lType) || !sameType(lType, rType)) {
             semanticErrorOccurred(s"Type mismatch in assignment: expected $lType, found $rType", stat.pos)
           } else if (lType == AnyType && rType == AnyType) {
