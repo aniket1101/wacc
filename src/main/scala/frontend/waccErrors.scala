@@ -122,13 +122,17 @@ object waccErrors {
      * Creates a LineInfo object based on the given position in the file and the content of the file.
      *
      */
-    def getFrom(pos: (Int, Int))(implicit waccLines: Array[String]): LineInfo = pos match {
-      case (row, col) if row >= 1 => LineInfo(
-        waccLines(row - 1),
-        if (row > 1) Seq(waccLines(row - 2)) else Nil,
-        if (row < waccLines.length) Seq(waccLines(row)) else Nil, col,
-        row
-      )
+    def getFrom(pos: (Int, Int))(implicit waccLines: Array[String]): LineInfo = {
+      val realRow = Math.min(pos._1, waccLines.length)
+      pos match {
+        case (-1, -1) => LineInfo("", Seq(), Seq(), 0, 0)
+        case (_, col) if realRow >= 1 => LineInfo(
+          waccLines(Math.min(waccLines.length - 1, realRow - 1)),
+          if (realRow > 1) Seq(waccLines(realRow - 2)) else Nil,
+          if (realRow < waccLines.length) Seq(waccLines(realRow)) else Nil, col,
+          realRow
+        )
+    }
     }
   }
 

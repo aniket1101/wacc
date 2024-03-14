@@ -310,7 +310,7 @@ object validator {
           })
 
           // Now try to infer the function return type from the new parameter types
-          val inferredFuncType = inferFuncReturnType(newId, funcFound.get.stats, globalFilename, symTable, funcTable)
+          val inferredFuncType = inferFuncReturnType(newId, funcFound.get.stats, globalFilename, symTable, funcTable, funcFound.get.typ)
           funcFound.get.typ = Option(inferredFuncType)
           // Check the syntactic correctness of each parameter in the function call
           newParams = params.map(checkExpr(_, varsInScope))
@@ -835,9 +835,12 @@ object validator {
   }
 
   // Helper function to infer return type of a function
-  private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func]): Type = {
+  private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func], statedType: Option[Type]): Type = {
     // Initialize inferred return type as NoTypeExists
     var returnType: Type = NoType
+
+    if (stats.isEmpty)
+      return statedType.get
 
     implicit val fileName: String = file
 
@@ -877,13 +880,13 @@ object validator {
           returnType = checkType(checkExpr(expr, varsInScope))
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
-          val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable)
-          val elseReturnType = inferFuncReturnType(ident, elseStats, file, symTable, funcTable)
+          val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable, statedType)
+          val elseReturnType = inferFuncReturnType(ident, elseStats, file, symTable, funcTable, statedType)
           // Update inferred return type based on the most specific common type
           returnType = findCommonType(thenReturnType, elseReturnType)
         case While(_, whileStats) =>
           // While loop: recursively infer return type from the loop body
-          returnType = inferFuncReturnType(ident, whileStats, file, symTable, funcTable)
+          returnType = inferFuncReturnType(ident, whileStats, file, symTable, funcTable, statedType)
         case _ => // For other statements, continue traversing
       }
     }
@@ -1107,7 +1110,7 @@ object validator {
           semanticErrorOccurred("Type of parameter could not be inferred: " + y.ident, y.pos)
         }
       })
-        val inferredType: Type = inferFuncReturnType(f.ident, f.stats, file, symTable, funcTable)
+        val inferredType: Type = inferFuncReturnType(f.ident, f.stats, file, symTable, funcTable, f.typ)
         if (inferredType == NoType) {
           semanticErrorOccurred("Return type of function could not be inferred: " + f.ident, f.pos)
         }
@@ -1116,7 +1119,7 @@ object validator {
         }
     })
 
-    val newProg = new Prog(newFuncs, checkedStatements)(inProg.pos)
+    val newProg = new Prog(inProg.imports, newFuncs, checkedStatements)(inProg.pos)
 
     (errors.toList, newProg, symTable)
   }

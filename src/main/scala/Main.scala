@@ -9,7 +9,6 @@ import frontend.validator.{checkSemantics, fileExists}
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.sys.exit
@@ -21,7 +20,7 @@ object Main {
   val VALID_EXIT_STATUS: Int = 0
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
-  val CONCURRENT_COMPILATION: Boolean = true
+  val CONCURRENT_COMPILATION: Boolean = false
   val FAIL: Int = -1
   val CONTROL_FLOW_OPTIMISATION: Boolean = true
   private val nullPos: (Int, Int) = (-1, -1)
@@ -151,7 +150,6 @@ object Main {
   }
 
   def generateAsm(prog: Prog, symbolTable: mutable.Map[String, Type]): String = {
-        val startTime = System.nanoTime()
     val irTranslator = new IRTranslator(prog, symbolTable, CONCURRENT_COMPILATION)
     val asmInstr = irTranslator.translate()
     val totalRegsUsed = irTranslator.getRegsUsed()
@@ -160,8 +158,6 @@ object Main {
           case Right(value) => value
         }
     IntelX86Formatter.translate(x86Code)
-        val endTime = System.nanoTime()
-//        println(endTime - startTime)
   }
 
   def writeToFile(contents: String, filename: String): Int = {

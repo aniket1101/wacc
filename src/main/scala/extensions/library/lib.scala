@@ -8,13 +8,13 @@ import frontend.ast._
 object lib {
   val nullPos: (Int, Int) = (-1, -1)
   private val intType = IntType()(nullPos)
-  private val intParam = Param(intType, new Ident("a")(nullPos))(nullPos)
+  private val intParam = Param(Option(intType), new Ident("a")(nullPos))(nullPos)
 
   trait Lib {
     val libName: String
     val libFuncs: List[LibFunc]
     def getFuncs: List[Func] = {
-      libFuncs.map(f => new Func(f.returnType, new Ident(f.funcName)(nullPos), f.params, List())(nullPos))
+      libFuncs.map(f => new Func(Option(f.returnType), new Ident(f.funcName)(nullPos), f.params, List())(nullPos))
     }
 
     def getBlocks: Map[String, AsmBlock] = {

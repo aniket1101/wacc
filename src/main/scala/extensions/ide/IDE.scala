@@ -348,7 +348,7 @@ class IDE extends TextEditorMenu {
             // 2. Check for Semantic Errors
             checkSemantics(prog, tempFile.getPath) match {
               case (errors, _, _) =>
-                val errs = errors.filter(e => !e.errorLines.lines.toString().contains("assertions."))
+                val errs = errors.filter(e => !e.errorLines.lines.toString().contains("undefined function"))
                 if (errs.nonEmpty) {
                   val err = errs.head
                   val pos = err.pos

@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 import "time.wacc", "random.wacc"
 
 begin
@@ -46,4 +44,3 @@ begin
   print year;
   println "%"
 end
->>>>>>> ide

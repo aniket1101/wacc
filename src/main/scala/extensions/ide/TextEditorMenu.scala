@@ -201,10 +201,6 @@ abstract class TextEditorMenu extends JFrame {
     val filter = new FileNameExtensionFilter("WACC Files (*.wacc, *.txt)", "wacc", "txt")
     fileChooser.setFileFilter(filter)
 
-    // TODO: Temporary for testing. Remove this
-    val defaultDirectory = new File("C:\\Users\\Alexa\\Downloads")
-    fileChooser.setCurrentDirectory(defaultDirectory)
-
     val returnValue = fileChooser.showOpenDialog(null)
     if (returnValue == JFileChooser.APPROVE_OPTION) {
       val selectedFile = fileChooser.getSelectedFile
@@ -245,10 +241,6 @@ abstract class TextEditorMenu extends JFrame {
     fileChooser.setDialogTitle("Save As")
     val fileFilter = new FileNameExtensionFilter("WACC files (*.wacc)", "wacc")
     fileChooser.setFileFilter(fileFilter)
-
-    // TODO: Temporary for testing. Remove this
-    val defaultDirectory = new File("C:\\Users\\Alexa\\Downloads")
-    fileChooser.setCurrentDirectory(defaultDirectory)
 
     val result = fileChooser.showSaveDialog(this)
     if (result == JFileChooser.APPROVE_OPTION) {

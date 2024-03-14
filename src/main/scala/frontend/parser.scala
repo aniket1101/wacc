@@ -4,13 +4,12 @@ import frontend.ast._
 import frontend.lexer._
 import frontend.lexer.implicits.implicitSymbol
 import frontend.lexer.lexer.fully
-import frontend.waccErrors.SemanticError.genError
 import frontend.waccErrors.{WaccError, WaccErrorBuilder}
 import parsley.Parsley.{atomic, many, some}
-import parsley.combinator.{option, option, sepBy, sepBy1}
+import parsley.combinator.{option, sepBy, sepBy1}
 import parsley.errors.combinator._
 import parsley.expr._
-import parsley.{Failure, Parsley, Result, Success}
+import parsley.{Parsley, Result}
 
 import java.io.File
 import scala.util.Try

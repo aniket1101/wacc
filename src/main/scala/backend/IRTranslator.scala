@@ -54,7 +54,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
     blocks
   }
 
-  private def translateFuncs(funcs:List[Func]): Unit = {
+  private def translateFuncs(funcs: List[Func]): Unit = {
     funcs.foreach(fun => translateFun(fun.stats, setUpFun(fun)))
   }
 
@@ -63,6 +63,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
     translateStatements(stats, state)
     revertSetUp(state)
   }
+
 
   private def setUpFun(fun:Func): State = {
     val varMap: mutable.Map[String, Register] = mutable.Map.empty
@@ -74,7 +75,34 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
       funState.getVarMap().addOne(s"$scopePrefix-param-${arg.ident.name}", paramReg)
     }
     funState.paramCount = 0
-    addBlock(funBlock)
+
+    fun.stats match {
+      case Nil => {
+        // Predefined Library Function
+        getLibName(fun) match {
+          case (libName, funcName) =>
+            val block: AsmBlock = lib.getLibs(libName).getBlocks(funcName)
+            addBlock(block)
+
+            if (block.instructions.exists {
+              case _: AddInstr => true
+              case _: SubInstr => true
+              case _: MulInstr => true
+              case _ => false
+            })
+              addBlock(errOverflow())
+
+            if (block.instructions.exists {
+              case _: DivInstr => true
+              case _: ModInstr => true
+              case _ => false
+            })
+              addBlock(errDivZero())
+        }
+      }
+      case _ => addBlock(funBlock)
+    }
+
     funState
   }
 
