@@ -70,7 +70,8 @@ object Main {
     parseProgram(file) match {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
-        val controlFlow = new ControlFlow(prog, symbolTable)
+        val MAX_UNROLLS = 10
+        val controlFlow = new ControlFlow(prog, symbolTable, MAX_UNROLLS)
         val irTranslator = {
           if (CONTROL_FLOW_OPTIMISATION) {
             new IRTranslator(controlFlow.CFProgram(), symbolTable)

@@ -15,7 +15,7 @@ object FuncCallType extends Enumeration {
   val NoCall, SingleCall, MultiCallIdent, MultiCallDiff = Value
 }
 
-class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
+class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val MAX_UNROLLS: Int) {
 
   def CFProgram(): (Prog) = {
     val variables: mutable.Map[String, Option[Expr]] = mutable.Map(symbolTable.keys.map(key => key -> None).toSeq: _*)
@@ -316,7 +316,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type]) {
         statsToChange(posToChange) = conditions.head.get
       } else {
         val trueCount = conditions.takeWhile(_.contains(true)).size
-        if (trueCount > 0 && conditions.size == trueCount + 1 && conditions.last.contains(false)) {
+        if (trueCount > 0 && conditions.size == trueCount + 1 && conditions.last.contains(false) && trueCount < MAX_UNROLLS) {
           statsToUnroll(posToChange) = trueCount
         }
       }
