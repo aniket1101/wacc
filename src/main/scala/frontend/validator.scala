@@ -772,7 +772,7 @@ object validator {
               val funcCalled = funcTable.find(f => f.ident.name == waccPrefix + x)
               funcCalled match {
                 case Some(called) =>
-                  val returnType = inferFuncReturnType(called.ident, called.stats, globalFilename, symTable, funcTable)
+                  val returnType = inferFuncReturnType(called.ident, called.stats, globalFilename, symTable, funcTable, called.typ)
                   returnType match {
                     case checkPType: PairElemType =>
                       fullElemType = checkPType
@@ -1002,7 +1002,7 @@ object validator {
             val funcCalled = funcTable.find(f => f.ident.name == funcCalledName)
             funcCalled match {
               case Some(x) =>
-                checkReturn = inferFuncReturnType(x.ident, x.stats, globalFilename, symTable, funcTable)
+                checkReturn = inferFuncReturnType(x.ident, x.stats, globalFilename, symTable, funcTable, x.typ)
               case None =>
             }
 
@@ -1079,7 +1079,7 @@ object validator {
   }
 
   // Helper function to infer return type of a function
-  private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func]): Type = {
+  private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func], statedType: Option[Type]): Type = {
     // Initialize inferred return types as empty list buffer
     val returnTypes: ListBuffer[Type] = ListBuffer.empty
 
@@ -1123,11 +1123,11 @@ object validator {
           returnTypes.addOne(checkType(checkExpr(expr, varsInScope)))
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
-          returnTypes.addOne(inferFuncReturnType(ident, thenStats, file, symTable, funcTable))
-          returnTypes.addOne(inferFuncReturnType(ident, elseStats, file, symTable, funcTable))
+          returnTypes.addOne(inferFuncReturnType(ident, thenStats, file, symTable, funcTable, Option.empty))
+          returnTypes.addOne(inferFuncReturnType(ident, elseStats, file, symTable, funcTable, Option.empty))
         case While(_, whileStats) =>
           // While loop: recursively infer return type from the loop body
-          returnTypes.addOne(inferFuncReturnType(ident, whileStats, file, symTable, funcTable))
+          returnTypes.addOne(inferFuncReturnType(ident, whileStats, file, symTable, funcTable, Option.empty))
         case _ => // For other statements, continue traversing
       }
     }
