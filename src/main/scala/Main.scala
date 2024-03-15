@@ -154,7 +154,16 @@ object Main {
   }
 
   def generateAsm(prog: Prog, symbolTable: mutable.Map[String, Type]): String = {
-    val irTranslator = new IRTranslator(prog, symbolTable, CONCURRENT_COMPILATION)
+    val MAX_UNROLLS = 5
+    val controlFlow = new ControlFlow(prog, symbolTable, MAX_UNROLLS)
+    val optimisedProg = {
+      if (CONTROL_FLOW_OPTIMISATION) {
+        controlFlow.CFProgram()
+      } else {
+        prog
+      }
+    }
+    val irTranslator = new IRTranslator(optimisedProg, symbolTable, CONCURRENT_COMPILATION)
     val asmInstr = irTranslator.translate()
     val totalRegsUsed = irTranslator.getRegsUsed()
     val x86Code = new X86Translator(asmInstr, totalRegsUsed, CONCURRENT_COMPILATION).translate() match {
