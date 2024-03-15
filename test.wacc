@@ -1,41 +1,5 @@
-# find the min of two numbers
-
-# Output:
-# min value = 10
-#
-
-# Program:
-
 begin
-  bool f(bool x) is
-    bool y = x ;
-    return y
-  end
-
-  bool x = call f(false);
-  if x == true
-  then
-    println "yes"
-  else
-    println "no"
-  fi ;
-
-  int a = 5 ;
-  int d = 5 * a + 70 ;
-
-  if d < 50
-  then
-    d = d - 100
-  else
-    d = d + 100
-  fi ;
-
-  print d ;
-
-  while a < 4 do
-    print 5
-  done
-
-
-
+    int[] x = [1,2,4];
+    x[0] = 1;
+    println x[0]
 end

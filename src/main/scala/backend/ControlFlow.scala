@@ -182,6 +182,8 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
               }
               case AssignorInferDecl(givenIdent: Ident, givenRValue) =>
                 (givenIdent, givenRValue)
+              case _ =>
+                (Ident("arrayTemp")(stat.pos), Option.empty)
             }
           rvalue match {
             case expr: Expr => {
