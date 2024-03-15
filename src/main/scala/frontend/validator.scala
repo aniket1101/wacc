@@ -173,7 +173,7 @@ object validator {
       case IntLit(_) => IntType()(nullPos)
       case CharLit(_) => CharType()(nullPos)
       case StrLit(_) => StringType()(nullPos)
-      case PairLiter() => AnyType
+      case PairLiter() => PairType(AnyType, AnyType)(nullPos)
 
       // Identifiers return their type from the symbol table or NoTypeExists if not found
       case Ident(checkName) =>
@@ -1135,7 +1135,7 @@ object validator {
       NoType
     } else {
       val firstType = returnTypes.head
-      if (returnTypes.tail.forall(_ == firstType)) {
+      if (returnTypes.tail.map(typ => sameType(typ, firstType)).forall(_ == true)) {
         firstType
       } else {
         val func = funcTbl.find(f => f.ident.name == funcName.get)
