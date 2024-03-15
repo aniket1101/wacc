@@ -22,7 +22,7 @@ begin
     println " day(s) remaining to finish the WACC Project."
   else
     print "It has been ";
-    print WACC_DUE_DATE - day;
+    print day - WACC_DUE_DATE;
     println " day(s) since you finished the WACC Project."
   fi;
 

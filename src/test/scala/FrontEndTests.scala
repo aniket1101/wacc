@@ -18,14 +18,18 @@ class FrontEndTests extends AnyFlatSpec {
     new ProcessExamples(s"$src/invalidSyntax", ext).processFolder()
       .foreach { case (testName, testCode) =>
         s"Parser should not parse: $testName" should "not parse correctly" in {
-          parseProgram(testCode) shouldBe Left(SYNTAX_ERROR_EXIT_STATUS)
+          parseProgram(testCode) match {
+            case Left((err, _)) => err shouldBe SYNTAX_ERROR_EXIT_STATUS
+          }
         }
       }
 
     new ProcessExamples(s"$src/invalidSemantics", ext).processFolder()
       .foreach { case (testName, testCode) =>
         s"Parser should not parse $testName" should "not parse correctly" in {
-          parseProgram(testCode) shouldBe Left(SEMANTIC_ERROR_EXIT_STATUS)
+          parseProgram(testCode) match {
+            case Left((err, _)) => err shouldBe SEMANTIC_ERROR_EXIT_STATUS
+          }
         }
     }
   }
