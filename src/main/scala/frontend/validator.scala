@@ -180,7 +180,7 @@ object validator {
         if (identCheck._2) {
           symTable.getOrElse(identCheck._1.get + newIdName, NoTypeExists)
         } else {
-          NoTypeExists
+          symTable.getOrElse(identCheck._1.get + newIdName, NoTypeExists)
         }
 
       // Atomic expressions, unary operations, and binary operations are not directly supported and return NoTypeExists
@@ -198,9 +198,22 @@ object validator {
     }).map(p => p._2)
 
     // Check if it was declared in an outer scope
-    val result = sameNameIndices.map(i => scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1))
-    val scopeCheckFunc = sv => nameScope.contains(sv)
-    (result.find(scopeCheckFunc), result.exists(scopeCheckFunc))
+    val result = sameNameIndices.map(i => {
+      var isParam = false
+      var preParam = scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1)
+      if (preParam.contains("param-")) {
+        isParam = true
+        preParam = preParam.replace("param-", "")
+      }
+      (preParam, isParam)
+    })
+//    val scopeCheckFunc: String => Boolean =
+    var scopeFound = result.find(sv => nameScope.contains(sv._1))
+    if (scopeFound.getOrElse(("", false))._2) {
+      scopeFound = Option(scopeFound.get._1 + "param-", scopeFound.get._2)
+    }
+    val resultScope = Option(scopeFound.getOrElse("", false)._1)
+    (resultScope, resultScope.get != "")
   }
 
   @tailrec
@@ -925,10 +938,25 @@ object validator {
           val newExpr = checkExpr(expr, varsInScope ++ localSymTable)
 
           // Check for return statement outside of a function or type mismatch in return type
-          if (returnType == null) {
+          var checkReturn = returnType
+          if (checkReturn == null) {
             semanticErrorOccurred("Return statement outside of a function is not allowed", stat.pos)
-          } else if (!sameType(checkType(newExpr), returnType) && checkType(newExpr) != NoTypeExists) {
-            semanticErrorOccurred(s"Type mismatch in Return: expected $returnType, found ${checkType(expr)}", stat.pos)
+          } else if (!sameType(checkType(newExpr), checkReturn)) {
+            // Try to infer the function type one last time
+            val funcCalledName = funcName match {
+              case Some(x) =>
+                x.substring(x.indexOf("-") + 1, x.lastIndexOf("-"))
+              case None =>
+            }
+            val funcCalled = funcTable.find(f => f.ident.name == funcCalledName)
+            funcCalled match {
+              case Some(x) =>
+                checkReturn = inferFuncReturnType(x.ident, x.stats, globalFilename, symTable, funcTable)
+              case None =>
+            }
+
+          } else if (!sameType(checkType(newExpr), checkReturn) && checkType(newExpr) != NoTypeExists) {
+            semanticErrorOccurred(s"Type mismatch in Return: expected $checkReturn, found ${checkType(expr)}", stat.pos)
           }
 
           new Return(newExpr)(stat.pos)
@@ -994,6 +1022,7 @@ object validator {
     for (stat <- stats) {
       val checkedStat = checkStatement(stat)
       newStats += checkedStat
+
     }
     newStats.toList // Return the list of checked statements
   }
@@ -1229,6 +1258,10 @@ object validator {
           case elem@ArrayElem(_, _)  =>
             trySetTypelessRParam(elem, IntType()(elem.pos))
 
+          case NewPair(fst, snd) =>
+            trySetTypelessRParam(fst, checkType(fst))
+            trySetTypelessRParam(snd, checkType(snd))
+
           case _ =>
         }
       }
@@ -1236,6 +1269,8 @@ object validator {
       x.paramList.foreach(y => {
         symTable += (funcScopePrefix ++ "param-" ++ y.ident.name) -> y.typ.getOrElse(NoType)
       })
+
+      globalScopePrefix = funcScopePrefix
 
       // Traverse function statements for internal check on parameter types
       x.stats.foreach(stat => inferParamType(stat, x.typ.getOrElse(NoType)))

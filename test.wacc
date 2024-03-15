@@ -7,16 +7,22 @@
 # Program:
 
 begin
-
-makePair(int x, int y) is
-    pair(int, int) p = newpair(x, y);
-    pair(int, pair) a = newpair(x, p);
-    return a
-end
-
   pair(int, pair) p = newpair(11, null) ;
     pair(int, pair) q = newpair(4, p) ;
     pair(int, pair) r = newpair(2, q) ;
     pair(int, pair) s = newpair(1, r) ;
-    pair(int, pair) b = call makePair(3, 4)
+    print "list = {" ;
+    pair(int, pair) x = s ;
+    pair(int, pair) y = snd x ;
+    int f = 0;
+    while y != null do
+      f = fst x ;
+      print f ;
+      print ", " ;
+      x = y ;
+      y = snd x
+    done ;
+    f = fst x ;
+    print f ;
+    println "}"
 end
