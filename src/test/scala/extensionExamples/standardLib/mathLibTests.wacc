@@ -1,0 +1,9 @@
+import "assertions.wacc", "math.wacc"
+
+begin
+	bool isOdd = call math.is_odd(5);
+	bool assert = call assertions.True(isOdd);
+	
+	isOdd = call math.is_odd(4);
+	assert = call assertions.False(isOdd)
+end

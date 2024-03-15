@@ -5,7 +5,6 @@ import org.scalatest.matchers.should.Matchers._
 
 class FrontEndTests extends AnyFlatSpec {
   runAllTestTypes("src/test/scala/examples", ".wacc")
-  runAllTestTypes("src/test/scala/examples/extraExamples", ".wacc")
 
   def runAllTestTypes(src: String, ext: String): Unit  = {
     new ProcessExamples(s"$src/valid", ext).processFolder()

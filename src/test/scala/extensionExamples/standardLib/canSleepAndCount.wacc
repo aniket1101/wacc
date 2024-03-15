@@ -1,0 +1,11 @@
+import "time.wacc"
+
+begin
+	println "Going to sleep for 3 seconds";
+	int start = call time.time();
+	int sleep = call time.sleep(3);
+	int finished = call time.time();
+	print "I have sleeped for ";
+	print finished - start;
+	println " seconds"
+end

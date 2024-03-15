@@ -1,0 +1,14 @@
+import "time.wacc"
+
+begin
+	print "The date is: (" ;
+	int day = call time.currentDay();
+	int month = call time.currentMonth();
+	int year = call time.currentYear();
+	print day;
+	print ", ";
+	print month;
+	print ", ";
+	print year;
+	println ")."
+end

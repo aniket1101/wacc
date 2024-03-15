@@ -1,0 +1,32 @@
+import "math.wacc", "random.wacc"
+
+begin
+	int n = 73;
+	print "The number ";
+	print n;
+	println " is a magic number.";
+	println "Did you know?";
+	
+	# 1. Odd or even
+	bool isOdd = call math.is_odd(n);
+	print "This number is ";
+	if isOdd then
+		println "odd"
+	else
+		println "even"
+	fi;
+	
+	
+	# 2. Cube
+	int temp = call math.cube(n);
+	print "Its cube is ";
+	println temp;
+	
+	# 3. Triangle Number
+	temp = call math.triangular_number(n);
+	print "The ";
+	print n;
+	print "th triangle number is ";
+	println temp
+	
+end

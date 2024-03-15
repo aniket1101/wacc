@@ -1,0 +1,8 @@
+import "random.wacc"
+
+begin
+	println "I am going to roll a die";
+	int d = call random.randint(1, 6);
+	print "You rolled a ";
+	println d
+end

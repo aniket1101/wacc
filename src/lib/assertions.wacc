@@ -1,13 +1,23 @@
 begin
-  # Asserts that the condition is True
+  	# Asserts that the condition is True
 	bool True(bool cond) is
-	  if cond then
-	    skip
-	  else
-	    exit -1
-	  fi;
-		return cond
-	end
+        if cond then
+            skip
+        else
+            exit -1
+        fi;
+        return !cond
+    end
+	
+	# Asserts that the condition is False
+	bool False(bool cond) is
+		if cond then
+			exit -1
+		else
+			skip
+		fi;
+		return !cond
+    end
 
 	skip
 end

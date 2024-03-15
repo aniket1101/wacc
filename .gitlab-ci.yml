@@ -5,6 +5,7 @@ stages:          # List of stages for jobs and their order of execution
   - build
   - testFrontEnd
   - testBackEndIR
+  - testExtensions
 
 build:
   stage: build
@@ -30,4 +31,12 @@ testIntelX86:
     - echo "Testing compiler with x86_64 (Intel Syntax) examples..."
     - sbt "testOnly *IntelX86Test"
     - echo "Running compiler with x86_64 (Intel Syntax) examples finished..."
+  environment: production
+
+testExtensions:
+  stage: testExtensions
+  script:
+    - echo "Testing standard library extension..."
+    - sbt "testOnly *IntelX86Test"
+    - echo "Running standard library extension examples finished..."
   environment: production

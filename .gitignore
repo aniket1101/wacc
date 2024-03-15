@@ -10,8 +10,7 @@ project/
 wacc-compiler
 .bloop/
 /*.s
-/*.txt
-/*.wacc
-/*.
+/exit_code.txt
+/temp*
 
 .attach_pid*

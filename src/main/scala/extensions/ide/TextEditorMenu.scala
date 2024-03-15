@@ -510,7 +510,8 @@ abstract class TextEditorMenu extends JFrame {
 
       if (fileIsSaved) {
         openFile match {
-          case Some(file) =>
+          case Some(_) =>
+            val file = new File("temp.wacc")
             val osName = sys.props("os.name")
             val outputName = removeFileExt(file.getName)
             val exitCodeFile = "exit_code.txt"
