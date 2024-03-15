@@ -296,7 +296,7 @@ object x86IR {
 
   case class Push(reg: x86Register, instrSize: InstrSize) extends x86Instruction
 
-  case class Pop(reg: x86Register, instrSize: InstrSize) extends x86Instruction
+  case class Pop(reg: x86Registers, instrSize: InstrSize) extends x86Instruction
 
   sealed abstract case class And(src: x86Operand, value: x86Operand, instrSize: InstrSize) extends x86Instruction
 

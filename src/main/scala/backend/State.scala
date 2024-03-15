@@ -1,6 +1,7 @@
 package backend
 
-import backend.IR.{AsmBlock, Block, Register}
+import backend.IR.{AsmBlock, Block, Instruction, Pop, Register}
+import backend.IRRegisters.{paramReg, scratchReg}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -8,6 +9,10 @@ import scala.collection.mutable.ListBuffer
 sealed class State(inFunc:Boolean, var curBlock:AsmBlock, var paramCount:Int, var usedRegs:Int, variableMap:mutable.Map[String, Register], var scratchCounter:Int, varRegs:ListBuffer[Register], var varCounter:Int, scopePrefix:String) {
   def getVarMap(): mutable.Map[String, Register] = {
     variableMap
+  }
+
+  def getFromVarMap(x:String): Register = {
+    variableMap(x)
   }
 
   def getScopePrefix(): String = {
@@ -40,6 +45,10 @@ sealed class State(inFunc:Boolean, var curBlock:AsmBlock, var paramCount:Int, va
 
   def incrementParamCounter(): Unit = {
     paramCount += 1
+  }
+
+  def decrementParamCounter(): Unit = {
+    paramCount -= 1
   }
 
   def getUsedRegs(): Int = {

@@ -33,5 +33,12 @@ object IRRegisters {
   class varReg(val no: Int) extends Register()
 
   // Scratch Registers
-  class scratchReg(val no: Int, val scope: Int) extends Register()
+  class scratchReg(val no: Int, val scope: Int) extends Register() {
+    override def equals(obj: Any): Boolean = {
+      obj match {
+        case s:scratchReg => s.no == this.no
+        case _ => false
+      }
+    }
+  }
 }

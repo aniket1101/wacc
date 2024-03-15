@@ -1,18 +1,30 @@
+# test that the passed parameter can be updated and used
+# and that y remains the same
+
+# Output:
+# y is 1
+# x is 1
+# x is now 5
+# y is still 1
+#
+
+# Program:
+
 begin
-    int x1 = 1;
-    int x2 = 2;
-    int x3 = 3;
-    int x4 = 4;
-    int x5 = 5;
-    int x6 = 6;
-    int x7 = 7;
-    int x8 = 8;
-    int x1x = 1;
-    int x2x = 2;
-    int x3x = 3;
-    int x4x = 4;
-    int x5x = 5;
-    int xx6 = 6;
-    int xx7 = 7;
-    int xx8 = 8
+
+  int f(int x) is
+    print "x is ";
+    println x;
+    x = 5;
+    print "x is now ";
+    println x;
+    return x
+  end
+
+  int y = 1;
+  print "y is ";
+  println y;
+  int x = call f(y);
+  print "y is still ";
+  println y
 end

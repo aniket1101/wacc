@@ -346,8 +346,11 @@ object IR {
 
   case class SaveCalleeRegs() extends Instruction
   case class RecoverCalleeRegs() extends Instruction
-  case class StackVarAlloc() extends Instruction
-  case class StackVarReAlloc() extends Instruction
+  case class StackVarAlloc(vars:Int, params:Int) extends Instruction
+  case class StackVarReAlloc(vars:Int) extends Instruction
+  case class PushParamRegs() extends Instruction
+  case class PopParamRegs() extends Instruction
+  case class RecoverStackPointer(regs:Int) extends Instruction
 
   case class Push(reg: Register, var size: Size = BIT_64) extends Instruction {
     def changeSize(size: Size): Push = {

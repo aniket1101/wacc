@@ -5,56 +5,63 @@ import backend.IRRegisters._
 import backend.x86IR.InstrSize._
 import backend.x86IR._
 import backend.x86Registers._
+import frontend.ast.{Func, Ident}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concurrent:Boolean) {
+class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concurrent:Boolean, funcs:List[Func]) {
   private val regSize = 8
   private val stackAlignmentMask: Int = -16
-  private val paramRegList: List[x86Registers] = List(x86DestinationReg(), x86SourceReg(), x86CounterReg(), x86Reg8(), x86Reg9())
+  private val paramRegList: List[x86Registers] = List(x86DestinationReg(), x86SourceReg(), x86DataReg(), x86CounterReg(), x86Reg8(), x86Reg9())
   private val scratchRegList: List[x86Registers] = List(x86BaseReg(), x86Reg10(), x86Reg11())
   private val varRegList: List[x86Registers] = List(x86Reg12(), x86Reg13(), x86Reg14(), x86Reg15())
   private val calleeSavedRegs: List[x86Registers] = List(x86BaseReg(), x86Reg12(), x86Reg13(), x86Reg14(), x86Reg15())
   private val ptrRegList: List[x86Registers] = List(x86BasePointer(), x86StackPointer())
-  private var varRegMap: mutable.Map[IR.Register, x86Memory] = mutable.Map.empty
-  private var regCounter = 0
+  private var varRegMap: mutable.Map[(IR.Register, String), x86Memory] = mutable.Map.empty
+  val nullPos: (Int, Int) = (-1, -1)
 
   def translate(): Either[Future[List[x86Block]], List[x86Block]] = {
     if (concurrent) {
-      val futureBlocks: List[Future[x86Block]] = asmInstr.map(blockToX86IRConcurrent)
+      val futureBlocks: List[Future[x86Block]] = asmInstr.map(b => blockToX86IRConcurrent(b, findFunc(b.label.name)))
       val blocksFuture: Future[List[x86Block]] = Future.sequence(futureBlocks)
       Left(for {
         blocks <- blocksFuture
       } yield blocks)
     } else {
-      Right(asmInstr.map(blockToX86IR))
+      Right(asmInstr.map(b => blockToX86IR(b, findFunc(b.label.name))))
     }
-
   }
 
-  def blockToX86IRConcurrent(block: AsmBlock): Future[x86Block] = Future {
+  def findFunc(label:String): Func = {
+    if (!label.startsWith("wacc_")) {
+      Func(None, Ident(label)(nullPos), List.empty, List.empty)(nullPos)
+    } else {
+      funcs.find(f => f.ident.name.equals(label)).get
+    }
+  }
+
+  def blockToX86IRConcurrent(block: AsmBlock, func:Func): Future[x86Block] = Future {
     new x86Block(
       block.roData.map(new x86ReadOnlyData(_)),
       block.directive.map(new x86Directive(_)),
       new x86Label(block.label),
-      instrsToX86IR(block.instructions)
+      instrsToX86IR(block.instructions)(func, x86State(0))
     )
   }
 
-  def blockToX86IR(block: AsmBlock): x86Block = {
+  def blockToX86IR(block: AsmBlock, func: Func): x86Block = {
     new x86Block(
       block.roData.map(new x86ReadOnlyData(_)),
       block.directive.map(new x86Directive(_)),
       new x86Label(block.label),
-      instrsToX86IR(block.instructions)
+      instrsToX86IR(block.instructions)((func), x86State(0))
     )
   }
 
-  def getOperand(src: Operand): x86Operand = {
+  def getOperand(src: Operand)(implicit func: Func, state:x86State): x86Operand = {
     src match {
       case Immediate(x) => x86Immediate(x)
       case reg: Register => getRegister(reg) match {
@@ -65,8 +72,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
     }
   }
 
-  // TODO: Fix register sizes (Thought: Overload getRegister to return DestinationReg?)
-  def instrsToX86IR(instrs: List[Instruction]): List[x86Instruction] = {
+  def instrsToX86IR(instrs: List[Instruction])(implicit func: Func, state: x86State): List[x86Instruction] = {
     var x86instrs: List[x86Instruction] = List.empty
     for (instr <- instrs) {
       val new_instrs:ListBuffer[x86Instruction] = instr match {
@@ -79,8 +85,8 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
         }
         case IR.Pop(reg, size) => {
           getRegister(reg) match {
-            case Left(register) => ListBuffer(x86IR.Pop(register.get(getSize(size)), getSize(size)))
-            case Right(mem) => ListBuffer(x86IR.Pop(x86ReturnRegister().get(getSize(size)), fullReg), Mov(x86ReturnRegister(), mem, fullReg))
+            case Left(register) => ListBuffer(x86IR.Pop(register, getSize(size)))
+            case Right(mem) => ListBuffer(x86IR.Pop(x86ReturnRegister(), fullReg), Mov(x86ReturnRegister(), mem, fullReg))
           }
         }
         case IR.MovInstr(src, dst, size) => translateMov(src, dst, size)
@@ -178,18 +184,49 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
             //            case Right(mem) => ListBuffer(Mov(mem, x86ReturnRegister(), fullReg), Cmp(x86Immediate(1), x86ReturnRegister(), fullReg), Setne(x86ReturnRegister(), eigthReg), MoveSX(x86ReturnRegister(), x86ReturnRegister(), eigthReg, fullReg), Mov(x86ReturnRegister(), mem, fullReg))
           }
         }
-        case StackVarAlloc() => {
-          if (totalRegsUsed > varRegList.length) {
-            ListBuffer(Sub(x86Immediate((totalRegsUsed - varRegList.length) * regSize), x86StackPointer(), fullReg))
+        case PushParamRegs() => {
+          val instrs: ListBuffer[x86Instruction] = ListBuffer.empty
+          for (reg <- paramRegList) {
+            instrs += x86IR.Push(reg.get(fullReg), fullReg)
+          }
+          instrs
+        }
+        case PopParamRegs() => {
+          val instrs: ListBuffer[x86Instruction] = ListBuffer.empty
+          for (reg <- paramRegList.reverse) {
+            instrs += x86IR.Pop(reg, fullReg)
+          }
+          instrs
+        }
+        case StackVarAlloc(vars, params) => {
+          var offset = 0
+          if (vars >= calleeSavedRegs.length) {
+            state.setHasOffset()
+            offset += (vars - (calleeSavedRegs.length - 1)) * regSize
+          }
+          if (params >= paramRegList.length && func.ident.name.equals("main")) {
+            state.setHasOffset()
+            offset += (params - (paramRegList.length)) * regSize
+          }
+          state.setOffset(offset)
+          if (state.hasOffset) {
+            ListBuffer(Sub(x86Immediate(offset), x86StackPointer(), fullReg))
           } else {
             ListBuffer.empty
           }
         }
-        case StackVarReAlloc() => {
-          if (totalRegsUsed > varRegList.length) {
-            ListBuffer(Add(x86Immediate((totalRegsUsed - varRegList.length) * regSize), x86StackPointer(), fullReg))
+        case StackVarReAlloc(vars) => {
+          if (state.hasOffset) {
+            ListBuffer(Add(x86Immediate(state.offset), x86StackPointer(), fullReg))
           } else {
             ListBuffer.empty
+          }
+        }
+        case RecoverStackPointer(vars) => {
+          if (vars < paramRegList.length) {
+            ListBuffer.empty
+          } else {
+            ListBuffer(Add(x86Immediate(regSize * (vars - paramRegList.length)), x86StackPointer(), InstrSize.fullReg))
           }
         }
         case SaveCalleeRegs() => {
@@ -203,12 +240,13 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
         }
         case RecoverCalleeRegs() => {
           var offset = 0
-          val instrs: ListBuffer[x86Instruction] = ListBuffer.empty
+          val instrs: ListBuffer[x86Instruction] = ListBuffer(Mov(x86StackPointer(), x86BasePointer(), fullReg))
           for (i <- calleeSavedRegs.indices) {
             instrs += Mov(x86Memory(x86StackPointer(), offset), calleeSavedRegs(i), fullReg)
             offset += regSize
           }
           instrs += Add(x86Immediate(calleeSavedRegs.length * regSize), x86StackPointer(), fullReg)
+          instrs += x86IR.Pop(x86BasePointer(), fullReg)
         }
         case Align(StackPointer(), size) => ListBuffer(And(x86StackPointer(), x86Immediate(stackAlignmentMask), getSize(size)))
         case Ret() => ListBuffer(Return())
@@ -218,7 +256,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
     x86instrs
   }
 
-  private def translateMov(src:Operand, dst:Operand, size:Size): ListBuffer[x86Instruction] = {
+  private def translateMov(src:Operand, dst:Operand, size:Size)(implicit func: Func, state:x86State): ListBuffer[x86Instruction] = {
     (src, dst) match {
       case (n:Immediate, reg:Register) => getRegister(reg) match {
         case Left(register) => ListBuffer(Mov(x86Immediate(n.value), register, getSize(size)))
@@ -243,7 +281,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
     }
   }
 
-  private def translateAdd(src: Operand, dst: Operand, size: Size): ListBuffer[x86Instruction] = {
+  private def translateAdd(src: Operand, dst: Operand, size: Size)(implicit func: Func, state:x86State): ListBuffer[x86Instruction] = {
     (src, dst) match {
       case (n: Immediate, StackPointer()) => ListBuffer(Add(x86Immediate(n.value), x86StackPointer(), fullReg))
       case (n: Immediate, reg: Register) => getRegister(reg) match {
@@ -269,7 +307,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
     }
   }
 
-  private def translateSub(src: Operand, dst: Operand, size: Size): ListBuffer[x86Instruction] = {
+  private def translateSub(src: Operand, dst: Operand, size: Size)(implicit func: Func, state:x86State): ListBuffer[x86Instruction] = {
     (src, dst) match {
       case (n: Immediate, StackPointer()) => ListBuffer(Sub(x86Immediate(n.value), x86StackPointer(), fullReg))
       case (n: Immediate, reg: Register) => getRegister(reg) match {
@@ -295,7 +333,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
     }
   }
 
-  private def translateMul(src: Operand, dst: Operand, size: Size): ListBuffer[x86Instruction] = {
+  private def translateMul(src: Operand, dst: Operand, size: Size)(implicit func: Func, state:x86State): ListBuffer[x86Instruction] = {
     (src, dst) match {
       case (n: Immediate, reg: Register) => getRegister(reg) match {
         case Left(register) => ListBuffer(Mul(x86Immediate(n.value), register, halfReg), Jo(), MoveSX(register, register, halfReg, fullReg))
@@ -320,7 +358,7 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
     }
   }
 
-  private def getRegister(reg: Register): Either[x86Registers, x86Memory] = {
+  private def getRegister(reg: Register)(implicit func:Func, state:x86State): Either[x86Registers, x86Memory] = {
     reg match {
       case ReturnRegister() => Left(x86ReturnRegister())
       case InstrPtrRegister() => Left(x86InstrPtrRegister())
@@ -334,13 +372,24 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
         if (p.no < paramRegList.length) {
           Left(paramRegList(p.no))
         } else {
-          if (varRegMap.contains(p)) {
-            Right(varRegMap(p))
+          if (varRegMap.contains((p, func.ident.name))) {
+            Right(varRegMap(p, func.ident.name))
           } else {
-            val offset = -regSize * ((totalRegsUsed - varRegList.length) - regCounter)
-            regCounter += 1
-            varRegMap.addOne(p -> x86Memory(x86BasePointer(), offset))
-            Right(x86Memory(x86BasePointer(), offset))
+            if (!func.ident.name.equals("main")) {
+              val oldOffset: Int = varRegMap(p, "main").offset.get match {
+                case off: x86OffsetInt => off.value
+                case _ => 0
+              }
+              val offset = regSize * (calleeSavedRegs.length) + oldOffset
+              state.incrementCounter()
+              varRegMap.addOne((p, func.ident.name) -> x86Memory(x86BasePointer(), offset))
+              Right(x86Memory(x86BasePointer(), offset))
+            } else {
+              val offset = regSize * state.getCounter()
+              state.incrementCounter()
+              varRegMap.addOne((p, func.ident.name) -> x86Memory(x86StackPointer(), offset))
+              Right(x86Memory(x86StackPointer(), offset))
+            }
           }
         }
       }
@@ -348,13 +397,24 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
         if (s.no < scratchRegList.length) {
           Left(scratchRegList(s.no))
         } else {
-          if (varRegMap.contains(s)) {
-            Right(varRegMap(s))
+          if (varRegMap.contains(s, func.ident.name)) {
+            Right(varRegMap(s, func.ident.name))
           } else {
-            val offset = -regSize * ((totalRegsUsed - varRegList.length) - regCounter)
-            regCounter += 1
-            varRegMap.addOne(s -> x86Memory(x86BasePointer(), offset))
-            Right(x86Memory(x86BasePointer(), offset))
+            if (!func.ident.name.equals("main")) {
+              val oldOffset: Int = varRegMap(s, "main").offset.get match {
+                case off: x86OffsetInt => off.value
+                case _ => 0
+              }
+              val offset = regSize * ((func.paramList.length - s.no) + calleeSavedRegs.length + 2) + oldOffset
+              state.incrementCounter()
+              varRegMap.addOne((s, func.ident.name) -> x86Memory(x86BasePointer(), offset))
+              Right(x86Memory(x86BasePointer(), offset))
+            } else {
+              val offset = regSize * + state.getCounter()
+              state.incrementCounter()
+              varRegMap.addOne((s, func.ident.name) -> x86Memory(x86StackPointer(), offset))
+              Right(x86Memory(x86StackPointer(), offset))
+            }
           }
         }
       }
@@ -362,20 +422,31 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
         if (v.no -1 < varRegList.length) {
           Left(varRegList(v.no - 1))
         } else {
-          if (varRegMap.contains(v)) {
-            Right(varRegMap(v))
+          if (varRegMap.contains(v, func.ident.name)) {
+            Right(varRegMap(v, func.ident.name))
           } else {
-            val offset = -regSize * ((totalRegsUsed - varRegList.length) - regCounter)
-            regCounter += 1
-            varRegMap.addOne(v -> x86Memory(x86BasePointer(), offset))
-            Right(x86Memory(x86BasePointer(), offset))
+            if (!func.ident.name.equals("main")) {
+              val oldOffset: Int = varRegMap(v, "main").offset.get match {
+                case off: x86OffsetInt => off.value
+                case _ => 0
+              }
+              val offset = regSize * ((func.paramList.length - v.no) + calleeSavedRegs.length + 2) + oldOffset
+              state.incrementCounter()
+              varRegMap.addOne((v, func.ident.name) -> x86Memory(x86BasePointer(), offset))
+              Right(x86Memory(x86BasePointer(), offset))
+            } else {
+              val offset = regSize * + state.getCounter()
+              state.incrementCounter()
+              varRegMap.addOne((v, func.ident.name) -> x86Memory(x86StackPointer(), offset))
+              Right(x86Memory(x86StackPointer(), offset))
+            }
           }
         }
       }
     }
   }
 
-  private def getMemory(mem: Memory): x86Memory = {
+  private def getMemory(mem: Memory)(implicit func: Func, state:x86State): x86Memory = {
     var primReg: Option[x86Registers] = None
     if (mem.primReg.isDefined) {
       getRegister(mem.primReg.get) match {
