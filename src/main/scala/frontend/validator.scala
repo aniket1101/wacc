@@ -6,6 +6,7 @@ import frontend.waccErrors.{SemanticError, WaccError}
 import java.io.File
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 object validator {
@@ -57,7 +58,12 @@ object validator {
     // Match the LValue expression and return the corresponding type
     expr match {
       // If it's an identifier, get its type from the symbol table
-      case Ident(name) => symTable.getOrElse(name, NoTypeExists)
+      case Ident(name) =>
+        var checkedName = name
+        if (!checkedName.contains("-")) {
+          checkedName = globalScopePrefix + checkedName
+        }
+        symTable.getOrElse(checkedName, NoTypeExists)
       // If it's an array element, get the type of the array
       case ArrayElem(id: Ident, exprs) => removeArrayWrapper(checkType(Ident(globalScopePrefix++id.name)(id.pos): Expr), exprs.length)
       // If it's a pair first element, get the type of the first element
@@ -665,6 +671,18 @@ object validator {
     }
   }
 
+  @tailrec
+  private def identFromPairElem(pairElem: LValue): String = {
+    pairElem match {
+      case Ident(name) =>
+        name
+      case PairFst(fst) =>
+        identFromPairElem(fst)
+      case PairSnd(snd) =>
+        identFromPairElem(snd)
+    }
+  }
+
   // Checks a list of statements for syntactic correctness according to the WACC specification.
   private def checkStatements(stats: List[Stat],
                               varsInScope: mutable.Map[String, String],
@@ -744,12 +762,12 @@ object validator {
                 case _ =>
               }
             case pf@PairFst(_) =>
-              val fullPairType = fullInnerPairElem(pf, isFst)
+              fullElemType = fullInnerPairElem(pf, isFst)
             case ps@PairSnd(_) =>
               fullElemType = fullInnerPairElem(ps, isFst)
+            case arrElem@ArrayElem(_, _) =>
+              fullElemType = fullInnerPairElem(arrElem, isFst)
 
-
-            // TODO:
             case Call(x, _) =>
               val funcCalled = funcTable.find(f => f.ident.name == waccPrefix + x)
               funcCalled match {
@@ -758,6 +776,7 @@ object validator {
                   returnType match {
                     case checkPType: PairElemType =>
                       fullElemType = checkPType
+                    case _ =>
                   }
                 case None =>
               }
@@ -807,12 +826,17 @@ object validator {
     }
 
     def toFullPair(typ: PairType, rVal: RValue): PairType = {
-
-      typ match {
-        case PairType(_, _) =>
-          PairType(pairElemToFullType(rVal, isFst = true), pairElemToFullType(rVal, isFst = false))(typ.pos)
-        case _ =>
+      // Check for setting to null pair
+      rVal match {
+        case PairLiter() =>
           typ
+        case _ =>
+          typ match {
+            case PairType(_, _) =>
+              PairType(pairElemToFullType(rVal, isFst = true), pairElemToFullType(rVal, isFst = false))(typ.pos)
+            case _ =>
+              typ
+          }
       }
     }
 
@@ -891,6 +915,25 @@ object validator {
               val name = identFromIdentArray(identArray)
               val newIdName = scopePrefix ++ name
               lType = checkType(elem: LValue)
+              rType = checkType(newRVal)
+
+              if (!isDeclaredOutside(newIdName, symTable.keys.toList)._2) {
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+              }
+            case pf@PairFst(fst) =>
+
+              val name = identFromPairElem(pf)
+              val newIdName = scopePrefix + name
+              lType = checkType(pf: LValue)
+              rType = checkType(newRVal)
+
+              if (!isDeclaredOutside(newIdName, symTable.keys.toList)._2) {
+                localSymTable = localSymTable.concat(Map(name -> newIdName))
+              }
+            case ps@PairSnd(snd) =>
+              val name = identFromPairElem(ps)
+              val newIdName = scopePrefix + name
+              lType = checkType(ps: LValue)
               rType = checkType(newRVal)
 
               if (!isDeclaredOutside(newIdName, symTable.keys.toList)._2) {
@@ -1029,8 +1072,8 @@ object validator {
 
   // Helper function to infer return type of a function
   private def inferFuncReturnType(ident: Ident, stats: List[Stat], file: String, varTable: mutable.Map[String, Type], funcTbl: List[Func]): Type = {
-    // Initialize inferred return type as NoTypeExists
-    var returnType: Type = NoType
+    // Initialize inferred return types as empty list buffer
+    val returnTypes: ListBuffer[Type] = ListBuffer.empty
 
     implicit val fileName: String = file
 
@@ -1058,31 +1101,39 @@ object validator {
     }
 
 
+
     // Traverse the statements in reverse order to find the last return statement
     for (stat <- stats.reverse) {
       stat match {
         case Return(expr) =>
           // If a return statement is found, infer the type of the expression
-          returnType = checkType(checkExpr(expr, varsInScope))
-          // Exit the loop once return statement is found
-          return returnType
+          returnTypes.addOne(checkType(checkExpr(expr, varsInScope)))
         case Exit(expr) =>
-          returnType = checkType(checkExpr(expr, varsInScope))
+          returnTypes.addOne(checkType(checkExpr(expr, varsInScope)))
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
-          val thenReturnType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable)
-          val elseReturnType = inferFuncReturnType(ident, elseStats, file, symTable, funcTable)
-          // Update inferred return type based on the most specific common type
-          returnType = findCommonType(thenReturnType, elseReturnType)
+          returnTypes.addOne(inferFuncReturnType(ident, thenStats, file, symTable, funcTable))
+          returnTypes.addOne(inferFuncReturnType(ident, elseStats, file, symTable, funcTable))
         case While(_, whileStats) =>
           // While loop: recursively infer return type from the loop body
-          returnType = inferFuncReturnType(ident, whileStats, file, symTable, funcTable)
+          returnTypes.addOne(inferFuncReturnType(ident, whileStats, file, symTable, funcTable))
         case _ => // For other statements, continue traversing
       }
     }
 
-    // If no return statement is found, return NoTypeExists
-    returnType
+    // Check that all return types are the same and then return the type is so
+    if (returnTypes.isEmpty) {
+      NoType
+    } else {
+      val firstType = returnTypes.head
+      if (returnTypes.tail.forall(_ == firstType)) {
+        firstType
+      } else {
+        val func = funcTbl.find(f => f.ident.name == funcName.get)
+        semanticErrorOccurred(s"Function ${funcName.get.replace(waccPrefix, "")} has diverging return types", func.get.pos)
+        NoType
+      }
+    }
   }
 
   // Helper function to find the most specific common type between two types

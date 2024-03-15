@@ -4,42 +4,40 @@
 .text
 main:
 	push rbp
-	sub rsp, 48
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
-	mov r10, qword ptr [rbp - 0]
-	mov qword ptr [rsp + 40], r10
 	mov rbp, rsp
+	mov rax, 0
+	mov rdi, rax
+	call wacc_f
+	mov r12, rax
 	mov rax, 0
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	mov r10, qword ptr [rsp + 40]
-	mov qword ptr [rbp - 0], r10
-	add rsp, 48
+	add rsp, 16
 	pop rbp
 	ret
 
-wacc_makePair:
+wacc_f:
 	push rbp
-	sub rsp, 40
+	sub rsp, 16
 	mov qword ptr [rsp], rbx
 	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, r13
+	mov rax, rdi
+	cmp rax, 1
+	je .L0
+	jmp .L1
+
+.L0:
+	mov rax, 99
+	jmp .L1
+
+.L1:
+	mov rax, 10
 	mov rbx, qword ptr [rsp]
 	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	add rsp, 40
+	add rsp, 16
 	pop rbp
 	ret
