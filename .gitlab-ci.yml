@@ -37,6 +37,6 @@ testExtensions:
   stage: testExtensions
   script:
     - echo "Testing standard library extension..."
-    - sbt "testOnly *IntelX86Test"
+    - sbt "testOnly *ExtensionTests"
     - echo "Running standard library extension examples finished..."
   environment: production
