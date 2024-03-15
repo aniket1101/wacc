@@ -1,7 +1,7 @@
 package extensions.ide
 
 import frontend.parser.parse
-import main.Main.removeFileExt
+import wacc.Main.removeFileExt
 
 import java.io.File
 import scala.util.{Failure, Success}

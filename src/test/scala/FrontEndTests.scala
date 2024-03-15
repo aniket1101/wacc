@@ -1,4 +1,4 @@
-import main.Main._
+import wacc.Main._
 import frontend.ast._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._

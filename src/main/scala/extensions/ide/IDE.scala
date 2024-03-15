@@ -1,7 +1,7 @@
 package extensions.ide
 
 import extensions.ide.runIDE.importAssertTypes
-import main.Main.{SYNTAX_ERROR_EXIT_STATUS, parseProgram, writeToFile}
+import wacc.Main.{SYNTAX_ERROR_EXIT_STATUS, parseProgram, writeToFile}
 
 import java.awt._
 import java.awt.event.{MouseAdapter, MouseEvent}

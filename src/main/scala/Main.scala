@@ -1,4 +1,4 @@
-package main
+package wacc
 
 import backend._
 import extensions.library.dfs.getTopologicalSorting

@@ -3,7 +3,7 @@ package extensions.ide
 import extensions.ide.runIDE.importAssertTypes
 import frontend.ast
 import frontend.ast.{Prog, Stat}
-import main.Main.{FAIL, VALID_EXIT_STATUS, compileProgram, generateAsm, parseProgram, removeFileExt, writeToFile}
+import wacc.Main.{FAIL, VALID_EXIT_STATUS, compileProgram, generateAsm, parseProgram, removeFileExt, writeToFile}
 
 import java.awt.datatransfer.{DataFlavor, UnsupportedFlavorException}
 import java.awt.event.{ActionEvent, InputEvent, KeyEvent}

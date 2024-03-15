@@ -1,5 +1,15 @@
+# null pair assignment
+
+# Output:
+# (nil)
+# (nil)
+#
+
+# Program:
+
 begin
-    int[] x = [1,2,4];
-    x[0] = 1;
-    println x[0]
+  pair(pair, pair) p = null ;
+  println p ;
+  p = null ;
+  println p
 end
