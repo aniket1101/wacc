@@ -171,13 +171,13 @@ object IR {
 
     def apply(src: Register, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
 
-//    def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
-//
-//    def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
+    // def apply(src: Memory, dst: Register): DivInstr = new DivInstr(src, dst) {}
+    //
+    // def apply(src: Memory, dst: Immediate): DivInstr = new DivInstr(src, dst) {}
+    //
+    // def apply(src: Immediate, dst: Register): DivInstr = new DivInstr(src, dst) {}
+    //
+    // def apply(src: Immediate, dst: Memory): DivInstr = new DivInstr(src, dst) {}
   }
 
   // Mod Instruction
@@ -608,7 +608,7 @@ object IR {
       CallInstr(Label("fflush@plt")),
       MovInstr(Immediate(-1), DestinationRegister()).changeSize(BIT_8),
       CallInstr(Label("exit@plt"))
-  ))
+    ))
 
   case class errDivZero() extends AsmBlock(new ReadOnlyData("errDivZero", 40, "fatal error: division or modulo by zero\\n"),
     "text", "_errDivZero", List(
@@ -628,17 +628,17 @@ object IR {
       CallInstr(Label("exit@plt"))
     ))
 
-    case class MallocBlock() extends AsmBlock("text", "_malloc", List(
-      Push(BasePointer()),
-      MovInstr(StackPointer(), BasePointer()),
-      Align(StackPointer()),
-      CallInstr(Label("malloc@plt")),
-      CmpInstr(Immediate(0), ReturnRegister()),
-      JeInstr(Label("_errOutOfMemory")),
-      MovInstr(BasePointer(), StackPointer()),
-      Pop(BasePointer()),
-      Ret()
-    ))
+  case class MallocBlock() extends AsmBlock("text", "_malloc", List(
+    Push(BasePointer()),
+    MovInstr(StackPointer(), BasePointer()),
+    Align(StackPointer()),
+    CallInstr(Label("malloc@plt")),
+    CmpInstr(Immediate(0), ReturnRegister()),
+    JeInstr(Label("_errOutOfMemory")),
+    MovInstr(BasePointer(), StackPointer()),
+    Pop(BasePointer()),
+    Ret()
+  ))
 
   case class errOutOfMemory() extends AsmBlock(new ReadOnlyData("errOutOfMemory", 27, "fatal error: out of memory\\n"),
     "text", "_errOutOfMemory", List(

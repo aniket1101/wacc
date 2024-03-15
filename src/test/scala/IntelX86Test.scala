@@ -1,4 +1,4 @@
-import Main._
+import Main.{compileProgram, removeFileExt}
 
 import sys.process._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -60,31 +60,43 @@ class IntelX86Test extends AnyFlatSpec {
     output
   }
 
-  // val src = "src/test/scala/intelX86Examples"
+  val src = "src/test/scala/intelX86Examples"
 
- val src = "src/test/scala/allIntelX86Compiled"
+  //  val src = "src/test/scala/allIntelX86Compiled"
 
-  new ProcessExamples(src, ".s").processFolder()
-    .foreach { case (testName, testCode) =>
-      val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
-      val inputs: List[String] = findWaccInputs(waccFile)
-      val correctOutput = compileAndRunAsm(testCode.getPath, inputs)
-      val output = if (DEBUG_MODE) {
-        compileAndRunWacc(waccFile, testName, inputs, delete = false)
-      } else {
-        try {
-          compileAndRunWacc(waccFile, testName, inputs, delete = true)
-        } catch {
-          case e: Exception => println(s"Error compiling $testName")
-            new ExecOutput(-2, "")
-        }
-      }
-
-      s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
-        output.exitCode shouldBe correctOutput.exitCode
-        output.output shouldBe correctOutput.output
+  val start = System.nanoTime()
+  val tests = new ProcessExamples(src, ".s").processFolder()
+  tests.foreach { case (testName, testCode) =>
+    val waccFile = "src/test/scala/examples/valid/" + removeFileExt(testCode.toString.substring(src.length + 1)) + ".wacc"
+    val inputs: List[String] = findWaccInputs(waccFile)
+    val correctOutput = compileAndRunAsm(testCode.getPath, inputs)
+    val output = if (DEBUG_MODE) {
+      compileAndRunWacc(waccFile, testName, inputs, delete = false)
+    } else {
+      try {
+        compileAndRunWacc(waccFile, testName, inputs, delete = true)
+      } catch {
+        case e: Exception => println(s"Error compiling $testName")
+          new ExecOutput(-2, "")
       }
     }
+
+    s"Compiler should compile: $testName" should s"return exit code ${correctOutput.exitCode}" in {
+      output.exitCode shouldBe correctOutput.exitCode
+      formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
+      formatOutput(output.output) shouldBe formatOutput(correctOutput.output)
+    }
+  }
+  val end = System.nanoTime()
+  val avgTime = ((end - start) / tests.length) / 1000000
+  println("Average time: " + avgTime + "ms")
+
+  def formatOutput(str: String): String = {
+    val memoryAddressPattern = """0x[0-9a-fA-F]+""".r
+    val formattedStr = memoryAddressPattern.replaceAllIn(str, "[memAddress]")
+    formattedStr
+  }
+
 
   def deleteFile(filePath: String): Int = {
     val file = new File(filePath)
@@ -111,3 +123,4 @@ class IntelX86Test extends AnyFlatSpec {
     inputs
   }
 }
+

@@ -7,6 +7,9 @@ import frontend.validator.checkSemantics
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
+import scala.concurrent.duration._
 import scala.sys.exit
 import scala.util.{Failure, Success}
 
@@ -16,7 +19,9 @@ object Main {
   val VALID_EXIT_STATUS: Int = 0
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
+  val CONCURRENT_COMPILATION: Boolean = false
   private val FAIL: Int = -1
+  val CONTROL_FLOW_OPTIMISATION: Boolean = false
 
   // Main function of the program
   def main(args: Array[String]): Unit = {
@@ -69,10 +74,13 @@ object Main {
     parseProgram(file) match {
       case Left(exitCode) => exitCode
       case Right((prog, symbolTable)) =>
-        val irTranslator = new IRTranslator(prog, symbolTable)
+        val irTranslator = new IRTranslator(prog, symbolTable, CONCURRENT_COMPILATION)
         val asmInstr = irTranslator.translate()
         val totalRegsUsed = irTranslator.getRegsUsed()
-        val x86Code = new X86Translator(asmInstr, totalRegsUsed).translate()
+        val x86Code = new X86Translator(asmInstr, totalRegsUsed, CONCURRENT_COMPILATION).translate() match {
+          case Left(value) => Await.result(value, Duration.Inf)
+          case Right(value) => value
+        }
         val asmCode = IntelX86Formatter.translate(x86Code)
         writeToFile(asmCode, removeFileExt(file.getName) + ".s") match {
           case VALID_EXIT_STATUS => VALID_EXIT_STATUS

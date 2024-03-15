@@ -18,3 +18,4 @@ object Size extends Enumeration {
     wordType
   }
 }
+

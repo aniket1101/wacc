@@ -32,7 +32,7 @@ object x86IR {
   }
 
   abstract class x86Registers(val reg64Bit: x86Register, val reg32Bit: x86Register,
-                     val reg16Bit: x86Register, val reg8Bit: x86Register) extends x86Operand {
+                              val reg16Bit: x86Register, val reg8Bit: x86Register) extends x86Operand {
 
     def this(reg: x86Register) = this(reg, reg, reg, reg)
     def get(instrSize: InstrSize): x86Register = {
