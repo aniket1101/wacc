@@ -900,7 +900,16 @@ object validator {
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
-                symTable += (newIdName -> lType)
+
+                var newIdType = lType
+                lType match {
+                  case p@PairType(_, _) =>
+                    globalScopePrefix = scopePrefix
+                    newIdType = toFullPair(p, rVal)
+                  case _ =>
+                }
+
+                symTable += (newIdName -> newIdType)
               } else {
                 // If we are here then the LValue is being reassigned to a value following traditional WACC
                 val tempLVal = checkExpr(lVal, varsInScope ++ localSymTable)
@@ -945,7 +954,7 @@ object validator {
 
           // Check for type mismatch in assignment
           //  !sameType(checkType(lVal), checkType(newRVal)) && checkType(lVal) != NoTypeExists
-          if ((lType != rType && rType != lType) || !sameType(lType, rType)) {
+          if (!sameType(lType, rType)) {
             semanticErrorOccurred(s"Type mismatch in assignment: expected $lType, found $rType", stat.pos)
           } else if (lType == AnyType && rType == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
