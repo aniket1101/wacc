@@ -1,30 +1,25 @@
-# test that the passed parameter can be updated and used
-# and that y remains the same
+# tests a function with more arguments than fit into registers
 
 # Output:
-# y is 1
-# x is 1
-# x is now 5
-# y is still 1
+# 12
+# -4
+# 32
 #
 
 # Program:
 
 begin
-
-  int f(int x) is
-    print "x is ";
-    println x;
-    x = 5;
-    print "x is now ";
-    println x;
+  int f(int u, int v) is
+    int x = call g(u + v, u - v, u * v) ;
     return x
   end
 
-  int y = 1;
-  print "y is ";
-  println y;
-  int x = call f(y);
-  print "y is still ";
-  println y
+  int g(int x, int y, int z) is
+    println(x) ;
+    println(y) ;
+    println(z) ;
+    return 0
+  end
+
+  int r = call f(4, 8)
 end

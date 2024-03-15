@@ -182,8 +182,8 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
             // Move rax into param register
             // Revert
             var instr: ListBuffer[Instruction] = ListBuffer.empty
+            val oldParam = state.getParamCount()
             if (state.getInFunc()) {
-              val oldParam = state.getParamCount()
               var argCounter = 0
               state.setParamCount(args.length)
               instr += SubInstr(Immediate(args.length * regSize), StackPointer())
@@ -218,7 +218,7 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
               instr += AddInstr(Immediate(args.length * regSize), StackPointer())
               state.setParamCount(oldParam)
             }
-
+            state.setParamCount(oldParam)
             instr
 
           }
@@ -363,7 +363,14 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
           state.setParamCount(0)
           for (arg <- args) {
             val paramReg = getParamReg(state)
-            instr = instr.concat(evaluateExpr(arg, ReturnRegister(), BIT_64 ,state).addOne(MovInstr(ReturnRegister(), paramReg)))
+            instr = instr.concat(evaluateExpr(arg, ReturnRegister(), BIT_64 ,state).addOne(Push(ReturnRegister())))
+          }
+          for (arg <- args.reverse) {
+            instr = instr.addOne(Pop(ReturnRegister()))
+            state.decrementParamCounter()
+            val parReg = getParamReg(state)
+            state.decrementParamCounter()
+            instr = instr.addOne(MovInstr(ReturnRegister(), parReg))
           }
           instr += CallInstr(Label(name.name))
           instr += MovInstr(ReturnRegister(), newReg)
@@ -626,15 +633,16 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
   }
 
   def translatePrint(typ:Type, expr: Expr, state:State): List[Instruction] = {
-    var instructions: List[Instruction] = List(PushParamRegs())
+    var instructions: List[Instruction] = List.empty
     instructions = instructions.concat(typ match {
       case CharType() => {
         addBlock(CharPrintBlock())
-        val evalChar: List[Instruction] = expr match {
+        var evalChar: List[Instruction] = expr match {
           case CharLit(chr) =>
             List(MovInstr(Immediate(chr), ReturnRegister()))
           case _ => evaluateExpr(expr, ReturnRegister(), BIT_64, state).toList
         }
+        evalChar = evalChar.concat(List(PushParamRegs()))
         evalChar.concat(List(
           MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_printc"))
@@ -643,11 +651,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
 
       case StringType() => {
         addBlock(StringPrintBlock())
-        val evalStr: List[Instruction] = expr match {
+        var evalStr: List[Instruction] = expr match {
           case Ident(name) =>
             List(MovInstr(state.getVarMap().getOrElse(name, ReturnRegister()), ReturnRegister()), LeaInstr(Memory(InstrPtrRegister(), roData.get(strMap(name))), ReturnRegister()))
           case _ => List(LeaInstr(Memory(InstrPtrRegister(), roData.prevString()), ReturnRegister()))
         }
+        evalStr = evalStr.concat(List(PushParamRegs()))
         evalStr.concat(List(
           MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_prints"))
@@ -658,20 +667,22 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
         addBlock(BoolPrintBlock())
         addBlock(BoolPrintBlock0())
         addBlock(BoolPrintBlock1())
-        val evalBool: List[Instruction] = expr match {
+        var evalBool: List[Instruction] = expr match {
           case BoolLit(bl) =>
             List(MovInstr(Immediate(if (bl) 1 else 0), ReturnRegister()))
           case _ => evaluateExpr(expr, ReturnRegister(), BIT_64, state).toList
         }
+        evalBool = evalBool.concat(List(PushParamRegs()))
         evalBool.concat(List(MovInstr(ReturnRegister(), DestinationRegister()), CallInstr(Label("_printb")))).toList
       }
 
       case IntType() => {
         addBlock(IntPrintBlock())
-        val evalInt: List[Instruction] = expr match {
+        var evalInt: List[Instruction] = expr match {
           case IntLit(myInt) => List(MovInstr(Immediate(myInt), ReturnRegister()))
           case _ => evaluateExpr(expr, ReturnRegister(), BIT_64, state).toList
         }
+        evalInt = evalInt.concat(List(PushParamRegs()))
         evalInt.concat(List(
           MovInstr(ReturnRegister(), DestinationRegister()),
           CallInstr(Label("_printi"))))
@@ -680,12 +691,12 @@ class IRTranslator(val prog: Prog, val symbolTable:mutable.Map[String, Type], va
       case ArrayType(innerType) => {
         innerType match {
           case CharType() => addBlock(StringPrintBlock())
-            evaluateExpr(expr, ReturnRegister(), BIT_64, state).concat(List(
+            evaluateExpr(expr, ReturnRegister(), BIT_64, state).concat(List(PushParamRegs())).concat(List(
               MovInstr(ReturnRegister(), DestinationRegister()),
               CallInstr(Label("_prints"))
             )).toList
           case _ => addBlock(PointerPrintBlock())
-            evaluateExpr(expr, ReturnRegister(), BIT_64, state).concat(List(
+            evaluateExpr(expr, ReturnRegister(), BIT_64, state).concat(List(PushParamRegs())).concat(List(
               MovInstr(ReturnRegister(), DestinationRegister()),
               CallInstr(Label("_printp"))
             )).toList

@@ -400,21 +400,10 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
           if (varRegMap.contains(s, func.ident.name)) {
             Right(varRegMap(s, func.ident.name))
           } else {
-            if (!func.ident.name.equals("main")) {
-              val oldOffset: Int = varRegMap(s, "main").offset.get match {
-                case off: x86OffsetInt => off.value
-                case _ => 0
-              }
-              val offset = regSize * ((func.paramList.length - s.no) + calleeSavedRegs.length + 2) + oldOffset
-              state.incrementCounter()
-              varRegMap.addOne((s, func.ident.name) -> x86Memory(x86BasePointer(), offset))
-              Right(x86Memory(x86BasePointer(), offset))
-            } else {
-              val offset = regSize * + state.getCounter()
-              state.incrementCounter()
-              varRegMap.addOne((s, func.ident.name) -> x86Memory(x86StackPointer(), offset))
-              Right(x86Memory(x86StackPointer(), offset))
-            }
+            val offset = regSize * + state.getCounter()
+            state.incrementCounter()
+            varRegMap.addOne((s, func.ident.name) -> x86Memory(x86StackPointer(), offset))
+            Right(x86Memory(x86StackPointer(), offset))
           }
         }
       }
@@ -425,21 +414,10 @@ class X86Translator(val asmInstr: List[AsmBlock], val totalRegsUsed: Int, concur
           if (varRegMap.contains(v, func.ident.name)) {
             Right(varRegMap(v, func.ident.name))
           } else {
-            if (!func.ident.name.equals("main")) {
-              val oldOffset: Int = varRegMap(v, "main").offset.get match {
-                case off: x86OffsetInt => off.value
-                case _ => 0
-              }
-              val offset = regSize * ((func.paramList.length - v.no) + calleeSavedRegs.length + 2) + oldOffset
-              state.incrementCounter()
-              varRegMap.addOne((v, func.ident.name) -> x86Memory(x86BasePointer(), offset))
-              Right(x86Memory(x86BasePointer(), offset))
-            } else {
-              val offset = regSize * + state.getCounter()
+              val offset = regSize * state.getCounter()
               state.incrementCounter()
               varRegMap.addOne((v, func.ident.name) -> x86Memory(x86StackPointer(), offset))
               Right(x86Memory(x86StackPointer(), offset))
-            }
           }
         }
       }

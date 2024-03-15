@@ -1,18 +1,6 @@
 .intel_syntax noprefix
 .globl main
 .section .rodata
-	.int 5
-.L.str0:
-	.asciz "y is "
-	.int 11
-.L.str1:
-	.asciz "y is still "
-	.int 5
-.L.str2:
-	.asciz "x is "
-	.int 9
-.L.str3:
-	.asciz "x is now "
 .text
 main:
 	push rbp
@@ -23,74 +11,16 @@ main:
 	mov qword ptr [rsp + 24], r14
 	mov qword ptr [rsp + 32], r15
 	mov rbp, rsp
-	mov rax, 1
-	mov r12, rax
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	lea rax, [rip + .L.str0]
-	mov rdi, rax
-	call _prints
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	mov rax, r12
-	mov rdi, rax
-	call _printi
-	call _println
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	mov rax, r12
+	mov rax, 4
+	push rax
+	mov rax, 8
+	push rax
+	pop rax
+	mov rsi, rax
+	pop rax
 	mov rdi, rax
 	call wacc_f
-	mov r13, rax
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	lea rax, [rip + .L.str1]
-	mov rdi, rax
-	call _prints
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	mov rax, r12
-	mov rdi, rax
-	call _printi
-	call _println
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
+	mov r12, rax
 	mov rax, 0
 	mov rbp, rsp
 	mov rbx, qword ptr [rsp - 0]
@@ -101,6 +31,72 @@ main:
 	add rsp, 40
 	pop rbp
 	ret
+
+wacc_f:
+	push rbp
+	sub rsp, 40
+	mov qword ptr [rsp - 0], rbx
+	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
+	mov qword ptr [rsp + 24], r14
+	mov qword ptr [rsp + 32], r15
+	mov rbp, rsp
+	sub rsp, 24
+	mov qword ptr [rsp - 0], rdx
+	mov qword ptr [rsp + 8], rsi
+	mov qword ptr [rsp + 16], rdi
+	mov rax, rdi
+	mov rbx, rsi
+	add eax, ebx
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	mov rax, rdi
+	mov r10, rsi
+	sub eax, r10d
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	mov rax, rdi
+	mov r10, rsi
+	imul eax, r10d
+	jo _errOverflow
+	movsx rax, eax
+	push rax
+	pop rax
+	mov rdx, rax
+	pop rax
+	mov rsi, rax
+	pop rax
+	mov rdi, rax
+	call wacc_g
+	mov r12, rax
+	mov rdx, qword ptr [rsp - 0]
+	mov rsi, qword ptr [rsp + 8]
+	mov rdi, qword ptr [rsp + 16]
+	add rsp, 24
+	mov rax, r12
+	mov rbp, rsp
+	mov rbx, qword ptr [rsp - 0]
+	mov r12, qword ptr [rsp + 8]
+	mov r13, qword ptr [rsp + 16]
+	mov r14, qword ptr [rsp + 24]
+	mov r15, qword ptr [rsp + 32]
+	add rsp, 40
+	pop rbp
+	ret
+
+.section .rodata
+	.int 52
+.L._errOverflow_str0:
+	.asciz "fatal error: integer overflow or underflow occurred\n"
+.text
+_errOverflow:
+	and rsp, -16
+	lea rdi, [rip + .L._errOverflow_str0]
+	call _prints
+	mov dil, -1
+	call exit@plt
 
 .section .rodata
 	.int 4
@@ -119,6 +115,74 @@ _prints:
 	mov rdi, 0
 	call fflush@plt
 	mov rsp, rbp
+	pop rbp
+	ret
+
+wacc_g:
+	push rbp
+	sub rsp, 40
+	mov qword ptr [rsp - 0], rbx
+	mov qword ptr [rsp + 8], r12
+	mov qword ptr [rsp + 16], r13
+	mov qword ptr [rsp + 24], r14
+	mov qword ptr [rsp + 32], r15
+	mov rbp, rsp
+	mov rax, rdi
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	push r8
+	push r9
+	mov rdi, rax
+	call _printi
+	call _println
+	pop r9
+	pop r8
+	pop rcx
+	pop rdx
+	pop rsi
+	pop rdi
+	mov rax, rsi
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	push r8
+	push r9
+	mov rdi, rax
+	call _printi
+	call _println
+	pop r9
+	pop r8
+	pop rcx
+	pop rdx
+	pop rsi
+	pop rdi
+	mov rax, rdx
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	push r8
+	push r9
+	mov rdi, rax
+	call _printi
+	call _println
+	pop r9
+	pop r8
+	pop rcx
+	pop rdx
+	pop rsi
+	pop rdi
+	mov rax, 0
+	mov rbp, rsp
+	mov rbx, qword ptr [rsp - 0]
+	mov r12, qword ptr [rsp + 8]
+	mov r13, qword ptr [rsp + 16]
+	mov r14, qword ptr [rsp + 24]
+	mov r15, qword ptr [rsp + 32]
+	add rsp, 40
 	pop rbp
 	ret
 
@@ -155,89 +219,5 @@ _println:
 	mov rdi, 0
 	call fflush@plt
 	mov rsp, rbp
-	pop rbp
-	ret
-
-wacc_f:
-	push rbp
-	sub rsp, 40
-	mov qword ptr [rsp - 0], rbx
-	mov qword ptr [rsp + 8], r12
-	mov qword ptr [rsp + 16], r13
-	mov qword ptr [rsp + 24], r14
-	mov qword ptr [rsp + 32], r15
-	mov rbp, rsp
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	lea rax, [rip + .L.str2]
-	mov rdi, rax
-	call _prints
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	mov rax, rdi
-	mov rdi, rax
-	call _printi
-	call _println
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	mov rax, 5
-	mov r12, rax
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	lea rax, [rip + .L.str3]
-	mov rdi, rax
-	call _prints
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push r8
-	push r9
-	mov rax, r12
-	mov rdi, rax
-	call _printi
-	call _println
-	pop r9
-	pop r8
-	pop rcx
-	pop rdx
-	pop rsi
-	pop rdi
-	mov rax, r12
-	mov rbp, rsp
-	mov rbx, qword ptr [rsp - 0]
-	mov r12, qword ptr [rsp + 8]
-	mov r13, qword ptr [rsp + 16]
-	mov r14, qword ptr [rsp + 24]
-	mov r15, qword ptr [rsp + 32]
-	add rsp, 40
 	pop rbp
 	ret
