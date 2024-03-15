@@ -299,7 +299,7 @@ class ControlFlow(val prog: Prog, val symbolTable:mutable.Map[String, Type], val
     }
     var modifiedStats = prog.stats.flatMap {
       stat =>
-        if (statsToChange.contains(stat.pos) | funcToChange.contains(stat.pos)) {
+        if (statsToChange.contains(stat.pos) | funcToChange.contains(stat.pos) | statsToUnroll.contains(stat.pos)) {
           stat match {
             case If(cond, thenStat, elseStat) => {
               if (statsToChange(stat.pos)) {
