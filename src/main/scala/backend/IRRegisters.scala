@@ -28,6 +28,11 @@ object IRRegisters {
   case class BasePointer() extends Register()
   case class StackPointer() extends Register()
 
+  // Array Registers
+  case class ArrayPtrRegister() extends Register()
+  case class ArrayValueRegister() extends Register()
+  case class ArrayIndexRegister() extends Register()
+
 
   // Variable Registers
   class varReg(val no: Int) extends Register()

@@ -60,9 +60,9 @@ class IntelX86Test extends AnyFlatSpec {
     output
   }
 
-  val src = "src/test/scala/intelX86Examples"
+//  val src = "src/test/scala/intelX86Examples"
 
-//  val src = "src/test/scala/allIntelX86Compiled"
+   val src = "src/test/scala/allIntelX86Compiled"
 
   val start = System.nanoTime()
   val tests = new ProcessExamples(src, ".s").processFolder()
