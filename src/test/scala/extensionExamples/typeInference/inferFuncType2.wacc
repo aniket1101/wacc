@@ -1,0 +1,11 @@
+begin
+sum(int x, int y) is
+  return x + y
+end
+
+int a = 5;
+int b = 7;
+c = call sum(5, 7);
+skip # Infer return type as int
+
+end
