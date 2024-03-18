@@ -17,7 +17,6 @@ object validator {
   val waccPrefix = "wacc_"
   private var globalFilename: String = _
   private var globalScopePrefix: String = _
-  private var isBeingDeclared = false
 
   // Function to determine if two types are the same or similar after certain type transformations
   private def sameType(t1: Type, t2: Type): Boolean = {
@@ -35,8 +34,6 @@ object validator {
 
       case (PairType(_, _), Pair()) => true
       case (Pair(), PairType(_, _)) => true
-      case (Pair(), Pair()) => true
-      case (PairType(Pair(), Pair()), PairType(AnyType, AnyType)) => true
       case (StringType(), ArrayType(CharType())) => true
       // Check if either type is of AnyType, which can match any other type
       case _ => t1 == AnyType || t2 == AnyType
@@ -106,15 +103,10 @@ object validator {
       checkNewPair(exp1, exp2)
 
     // If the expression is a Call, find the corresponding function in the function table and return its type
-    case Call(ident, _) =>
-      val funcCalled = funcTable.find(x => x.ident.name == ident.name)
-      funcCalled match {
-        case Some(x) =>
-          // Check if you can infer the function type once more
-        inferFuncReturnType(x.ident, x.stats, globalFilename, symTable, funcTable, Option.empty)
-        case None =>
-          NoTypeExists
-      }
+    case Call(ident, _) => funcTable.find(x => x.ident.name == ident.name) match {
+      case Some(value) => value.typ.getOrElse(AnyType)
+      case None => NoTypeExists
+    }
 
     // If the expression is PairFst or PairSnd, check the type of the inner expression and return the pair element type
     case PairFst(value) => checkType(value) match {
@@ -211,35 +203,23 @@ object validator {
       p._1.substring(p._1.lastIndexOf("-") + 1) == name
     }).map(p => p._2)
 
-    if (isBeingDeclared) {
-      (Option(newIdName.substring(0, newIdName.lastIndexOf("-") + 1)), true)
-    } else {
-      val result = sameNameIndices.map(i => scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1))
-      val scopeCheckFunc = sv => nameScope.contains(sv)
-      (result.find(scopeCheckFunc), result.exists(scopeCheckFunc))
-    }
-
-
     // Check if it was declared in an outer scope
-//    val result = sameNameIndices.map(i => {
-//      var isParam = false
-//      var preParam = scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1)
-//      if (preParam.contains("param-")) {
-//        isParam = true
-//        preParam = preParam.replace("param-", "")
-//      }
-//      (preParam, isParam)
-//    })
-////    val scopeCheckFunc: String => Boolean =
-//    var scopeFound = result.find(sv => nameScope.contains(sv._1))
-//    if (scopeFound.getOrElse(("", false))._2) {
-//      scopeFound = Option(scopeFound.get._1 + "param-", scopeFound.get._2)
-//    }
-//    val resultScope = Option(scopeFound.getOrElse("", false)._1)
-//    (resultScope, resultScope.get != "")
-
-
-
+    val result = sameNameIndices.map(i => {
+      var isParam = false
+      var preParam = scopedVars(i).substring(0, scopedVars(i).lastIndexOf("-") + 1)
+      if (preParam.contains("param-")) {
+        isParam = true
+        preParam = preParam.replace("param-", "")
+      }
+      (preParam, isParam)
+    })
+    //    val scopeCheckFunc: String => Boolean =
+    var scopeFound = result.find(sv => nameScope.contains(sv._1))
+    if (scopeFound.getOrElse(("", false))._2) {
+      scopeFound = Option(scopeFound.get._1 + "param-", scopeFound.get._2)
+    }
+    val resultScope = Option(scopeFound.getOrElse("", false)._1)
+    (resultScope, resultScope.get != "")
   }
 
   @tailrec
@@ -750,67 +730,58 @@ object validator {
     def pairElemToFullType(rVal: RValue, isFst: Boolean): PairElemType = {
       var fullElemType: PairElemType = AnyType
 
-          rVal match {
-            case NewPair(npFst: Expr, npSnd: Expr) =>
-              var tempElemType: Type = AnyType
-              if (isFst) {
-                tempElemType = checkType(npFst)
-              } else {
-                tempElemType = checkType(npSnd)
-              }
-              tempElemType match {
-                case pElem: PairElemType =>
-                  fullElemType = pElem
-                // Should never be reached
-                case _ =>
-              }
-            case Ident(name) =>
-              val tempElemType = symTable(localSymTable(name))
-              tempElemType match {
-                case pElem: PairElemType =>
-                  pElem match {
-                    case PairType(fst, snd) =>
-                      if (isFst) {
-                        fullElemType = fst
-                      } else {
-                        fullElemType = snd
-                      }
-                    case _ =>
-                      fullElemType = pElem
-                  }
-                // Should never be reached
-                case _ =>
-              }
-            case pf@PairFst(_) =>
-              fullElemType = fullInnerPairElem(pf, isFst)
-            case ps@PairSnd(_) =>
-              fullElemType = fullInnerPairElem(ps, isFst)
-            case arrElem@ArrayElem(_, _) =>
-              fullElemType = fullInnerPairElem(arrElem, isFst)
-
-            case Call(x, _) =>
-              val funcCalled = funcTable.find(f => f.ident.name == waccPrefix + x)
-              funcCalled match {
-                case Some(called) =>
-                  val returnType = inferFuncReturnType(called.ident, called.stats, globalFilename, symTable, funcTable, called.typ)
-                  returnType match {
-                    case checkPType: PairElemType =>
-                      checkPType match {
-                        case PairType(fst, snd) =>
-                          if (isFst) {
-                            fullElemType = fst
-                          } else {
-                            fullElemType = snd
-                          }
-                        case _ =>
-                          fullElemType = checkPType
-                      }
-                    case _ =>
-                  }
-                case None =>
-              }
+      rVal match {
+        case NewPair(npFst: Expr, npSnd: Expr) =>
+          var tempElemType: Type = AnyType
+          if (isFst) {
+            tempElemType = checkType(npFst)
+          } else {
+            tempElemType = checkType(npSnd)
+          }
+          tempElemType match {
+            case pElem: PairElemType =>
+              fullElemType = pElem
+            // Should never be reached
             case _ =>
           }
+        case Ident(name) =>
+          val tempElemType = symTable(localSymTable(name))
+          tempElemType match {
+            case pElem: PairElemType =>
+              pElem match {
+                case PairType(fst, snd) =>
+                  if (isFst) {
+                    fullElemType = fst
+                  } else {
+                    fullElemType = snd
+                  }
+                case _ =>
+                  fullElemType = pElem
+              }
+            // Should never be reached
+            case _ =>
+          }
+        case pf@PairFst(_) =>
+          fullElemType = fullInnerPairElem(pf, isFst)
+        case ps@PairSnd(_) =>
+          fullElemType = fullInnerPairElem(ps, isFst)
+        case arrElem@ArrayElem(_, _) =>
+          fullElemType = fullInnerPairElem(arrElem, isFst)
+
+        case Call(x, _) =>
+          val funcCalled = funcTable.find(f => f.ident.name == waccPrefix + x)
+          funcCalled match {
+            case Some(called) =>
+              val returnType = inferFuncReturnType(called.ident, called.stats, globalFilename, symTable, funcTable, called.typ)
+              returnType match {
+                case checkPType: PairElemType =>
+                  fullElemType = checkPType
+                case _ =>
+              }
+            case None =>
+          }
+        case _ =>
+      }
       fullElemType
     }
 
@@ -873,12 +844,12 @@ object validator {
       val checkedStat: Stat = stat match {
         case Skip() => stat // No action needed for Skip statement
         case Declaration(idType, id, value) =>
-          isBeingDeclared = true
+
           var newIdType = idType
           idType match {
             case p@PairType(_, _) =>
-                globalScopePrefix = scopePrefix
-                newIdType = toFullPair(p, value)
+              globalScopePrefix = scopePrefix
+              newIdType = toFullPair(p, value)
             case _ =>
           }
 
@@ -911,7 +882,6 @@ object validator {
               val newIdName = scopePrefix ++ name
               if (isInferredTypeDef(lVal, newIdName, varsInScope.values.toList)) {
                 // If we are here then the LValue type is locally inferred
-                isBeingDeclared = true
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
                 lType = rType
@@ -926,7 +896,6 @@ object validator {
 
                 symTable += (newIdName -> newIdType)
               } else if (isTypelessParam(lVal)) {
-                isBeingDeclared = true
                 // If we are here then the LValue is a typeless parameter
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
                 rType = checkType(newRVal)
@@ -943,7 +912,6 @@ object validator {
                 symTable += (newIdName -> newIdType)
               } else {
                 // If we are here then the LValue is being reassigned to a value following traditional WACC
-                isBeingDeclared = false
                 val tempLVal = checkExpr(lVal, varsInScope ++ localSymTable)
                 lType = checkType(tempLVal)
                 rType = checkType(newRVal)
@@ -952,7 +920,6 @@ object validator {
                 }
               }
             case elem@ArrayElem(identArray, exprs) =>
-              isBeingDeclared = false
               globalScopePrefix = scopePrefix
               val name = identFromIdentArray(identArray)
               val newIdName = scopePrefix ++ name
@@ -963,7 +930,7 @@ object validator {
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
               }
             case pf@PairFst(fst) =>
-              isBeingDeclared = false
+
               val name = identFromPairElem(pf)
               val newIdName = scopePrefix + name
               lType = checkType(pf: LValue)
@@ -973,7 +940,6 @@ object validator {
                 localSymTable = localSymTable.concat(Map(name -> newIdName))
               }
             case ps@PairSnd(snd) =>
-              isBeingDeclared = false
               val name = identFromPairElem(ps)
               val newIdName = scopePrefix + name
               lType = checkType(ps: LValue)
@@ -987,7 +953,7 @@ object validator {
           val newLVal = checkExpr(lVal, varsInScope ++ localSymTable)
 
           // Check for type mismatch in assignment
-          if (!sameType(lType, rType)) {
+          if ((lType != rType && rType != lType) || !sameType(lType, rType)) {
             semanticErrorOccurred(s"Type mismatch in assignment: expected $lType, found $rType", stat.pos)
           } else if (lType == AnyType && rType == AnyType) {
             semanticErrorOccurred("Types unclear on both sides of assignment", stat.pos)
@@ -1117,7 +1083,7 @@ object validator {
     // Initialize inferred return types as empty list buffer
     val returnTypes: ListBuffer[Type] = ListBuffer.empty
 
-    if (ident.name.contains(".") && stats.isEmpty || statedType.isDefined)
+    if (stats.isEmpty)
       return statedType.get
 
     implicit val fileName: String = file
@@ -1138,7 +1104,7 @@ object validator {
       if (identIndex >= 0 && identIndex < sym.length - 1)
         (sym.substring(identIndex + 1), sym)
       else
-      ("", "")
+        ("", "")
     }
 
     val varsInScope: mutable.Map[String, String] = symTable.map { case (key, _) =>
@@ -1157,20 +1123,11 @@ object validator {
           returnTypes.addOne(checkType(checkExpr(expr, varsInScope)))
         case If(_, thenStats, elseStats) =>
           // If statement: recursively infer return type from both branches
-          val thenType = inferFuncReturnType(ident, thenStats, file, symTable, funcTable, Option.empty)
-          if (thenType != NoType) {
-            returnTypes.addOne(thenType)
-          }
-          val elseType = inferFuncReturnType(ident, elseStats, file, symTable, funcTable, Option.empty)
-          if(elseType != NoType) {
-            returnTypes.addOne(elseType)
-          }
+          returnTypes.addOne(inferFuncReturnType(ident, thenStats, file, symTable, funcTable, Option.empty))
+          returnTypes.addOne(inferFuncReturnType(ident, elseStats, file, symTable, funcTable, Option.empty))
         case While(_, whileStats) =>
           // While loop: recursively infer return type from the loop body
-          val whileType = inferFuncReturnType(ident, whileStats, file, symTable, funcTable, Option.empty)
-          if (whileType != NoType) {
-            returnTypes.addOne(whileType)
-          }
+          returnTypes.addOne(inferFuncReturnType(ident, whileStats, file, symTable, funcTable, Option.empty))
         case _ => // For other statements, continue traversing
       }
     }
@@ -1396,8 +1353,8 @@ object validator {
       // Traverse function statements for internal check on parameter types
       x.stats.foreach(stat => inferParamType(stat, x.typ.getOrElse(NoType)))
 
-        new Func(x.typ, x.ident, x.paramList,
-          checkStatements(x.stats, m, x.typ.getOrElse(NoType), funcScopePrefix))(x.pos)
+      new Func(x.typ, x.ident, x.paramList,
+        checkStatements(x.stats, m, x.typ.getOrElse(NoType), funcScopePrefix))(x.pos)
     })
 
     val checkedStatements = checkStatements(inProg.stats, mutable.Map.empty, null, "main-")
@@ -1411,13 +1368,13 @@ object validator {
           semanticErrorOccurred("Type of parameter could not be inferred: " + y.ident, y.pos)
         }
       })
-        val inferredType: Type = inferFuncReturnType(f.ident, f.stats, file, symTable, funcTable, f.typ)
-        if (inferredType == NoType) {
-          semanticErrorOccurred("Return type of function could not be inferred: " + f.ident, f.pos)
-        }
-        if (f.typ.isEmpty) {
-          f.typ = Option(inferredType)
-        }
+      val inferredType: Type = inferFuncReturnType(f.ident, f.stats, file, symTable, funcTable, f.typ)
+      if (inferredType == NoType) {
+        semanticErrorOccurred("Return type of function could not be inferred: " + f.ident, f.pos)
+      }
+      if (f.typ.isEmpty) {
+        f.typ = Option(inferredType)
+      }
     })
 
     val newProg = new Prog(inProg.imports, newFuncs, checkedStatements)(inProg.pos)

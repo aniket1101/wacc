@@ -1,0 +1,5 @@
+begin
+  b = true && false;
+  x = 3 + 4;
+  skip
+end

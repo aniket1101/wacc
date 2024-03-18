@@ -88,7 +88,8 @@ object Main {
   }
 
   private def parseProgramToAST(source: File): Either[(Int, Option[WaccError]), Prog] = {
-    val filepath = if (lib.getLibs.contains(source.getName)) {
+    val filepath =
+      if (lib.getLibs.contains(source.getName)) {
       return Right(new Prog(Option.empty, lib.getLibs(source.getName).getFuncs, List())(nullPos))
     } else if (!fileExists(source.getPath)) {
       new File("src/lib", source.getPath)
