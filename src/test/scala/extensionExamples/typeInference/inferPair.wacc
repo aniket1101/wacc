@@ -1,0 +1,4 @@
+begin
+  p = newpair(10, 'a') ;
+  q = p
+end

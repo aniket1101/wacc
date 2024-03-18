@@ -3,6 +3,6 @@ begin
     return x % 2 == 0
   end
 
-    bool b = isEven(4); # Infer return type as bool
+    bool b = call isEven(4); # Infer return type as bool
     skip
 end

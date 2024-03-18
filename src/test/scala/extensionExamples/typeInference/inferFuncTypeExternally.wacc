@@ -1,0 +1,10 @@
+begin
+  returnFirst(x, y) is
+    return x + y
+  end
+
+    int a = 3;
+    int b = 5;
+    int c = call add(a, b);
+    skip
+end
