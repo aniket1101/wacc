@@ -21,9 +21,9 @@ object Main {
   val VALID_EXIT_STATUS: Int = 0
   val SYNTAX_ERROR_EXIT_STATUS: Int = 100
   val SEMANTIC_ERROR_EXIT_STATUS: Int = 200
-  val CONCURRENT_COMPILATION: Boolean = false
+  val CONCURRENT_COMPILATION: Boolean = true
   val FAIL: Int = -1
-  val CONTROL_FLOW_OPTIMISATION: Boolean = true
+  val CONTROL_FLOW_OPTIMISATION: Boolean = false
   private val nullPos: (Int, Int) = (-1, -1)
 
   // Main function of the program
@@ -164,6 +164,7 @@ object Main {
         prog
       }
     }
+    val start = System.nanoTime()
     val irTranslator = new IRTranslator(optimisedProg, symbolTable, CONCURRENT_COMPILATION)
     val asmInstr = irTranslator.translate()
     val totalRegsUsed = irTranslator.getRegsUsed()
@@ -171,6 +172,9 @@ object Main {
           case Left(value) => Await.result(value, Duration.Inf)
           case Right(value) => value
         }
+    val end = System.nanoTime()
+    val avgTime = (end - start) / 1000000
+    println(avgTime)
     IntelX86Formatter.translate(x86Code)
   }
 
